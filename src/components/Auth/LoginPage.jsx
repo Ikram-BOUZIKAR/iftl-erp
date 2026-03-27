@@ -13,7 +13,7 @@ export default function LoginPage({ auth }) {
     setLoading(true);
     try {
       await auth.login(email, password);
-      setMessage('Connexion réussie !');
+      setMessage('Connexion réussie');
       setTimeout(() => navigate('/'), 500);
     } catch (err) {
       setMessage(err.message || 'Erreur de connexion');
@@ -23,24 +23,15 @@ export default function LoginPage({ auth }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-indigo-50">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-            IFTL ERP
-          </h1>
-          <p className="text-gray-600 font-medium">Système de gestion pédagogique</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="w-full max-w-sm">
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">IFTL ERP</h1>
+          <p className="text-gray-600 text-sm mb-6">Système de gestion pédagogique</p>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-purple-100">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Connexion</h2>
-
-          <form onSubmit={handleLogin} className="space-y-5">
-            {/* Email */}
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
               <input
@@ -49,13 +40,12 @@ export default function LoginPage({ auth }) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="test@iftl.ma"
                 required
-                className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition bg-white text-gray-900 placeholder-gray-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Mot de passe
               </label>
               <input
@@ -64,48 +54,44 @@ export default function LoginPage({ auth }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Test123456!"
                 required
-                className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition bg-white text-gray-900 placeholder-gray-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition disabled:opacity-50 cursor-pointer mt-6"
+              className="w-full py-2 px-4 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 transition disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
 
-          {/* Messages */}
           {message && (
-            <div className={`mt-4 p-3 rounded-lg text-sm font-medium ${
+            <div className={`mt-4 p-3 rounded-lg text-sm ${
               message.includes('réussie') 
-                ? 'bg-green-50 text-green-800 border border-green-200' 
-                : 'bg-red-50 text-red-800 border border-red-200'
+                ? 'bg-green-50 text-green-800' 
+                : 'bg-red-50 text-red-800'
             }`}>
               {message}
             </div>
           )}
-          
+
           {auth.error && (
-            <div className="mt-4 p-3 rounded-lg text-sm font-medium bg-red-50 text-red-800 border border-red-200">
+            <div className="mt-4 p-3 rounded-lg text-sm bg-red-50 text-red-800">
               {auth.error}
             </div>
           )}
 
-          {/* Test Credentials */}
-          <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <p className="text-xs text-gray-600 font-medium mb-2">Identifiants de test :</p>
-            <p className="text-sm text-gray-800"><strong>Email :</strong> test@iftl.ma</p>
-            <p className="text-sm text-gray-800"><strong>Mot de passe :</strong> Test123456!</p>
+          <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700">
+            <p className="font-medium mb-1">Identifiants de test :</p>
+            <p>Email : test@iftl.ma</p>
+            <p>Mot de passe : Test123456!</p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-xs text-gray-600">
-          <p>Vos données sont protégées conformément à la loi n° 09-08</p>
+        <div className="mt-6 text-center text-xs text-gray-600">
+          <p>Vos données sont protégées conformément à la loi n° 09-08 – Autorisation CNDP n° A-PO-268/2024</p>
         </div>
       </div>
     </div>
