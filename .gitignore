@@ -12,7 +12,10 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Firebase Emulator data
+emulator-data/
+.firebase/
+firebase-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
