@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
   doc, query, orderBy
@@ -654,57 +654,60 @@ export default function FacturationPage() {
                   const isExpanded = expandedId === f.id;
                   const hasPaiements = f.paiements && f.paiements.length > 0;
                   return (
-                    <tr key={f.id} className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-slate-800">{f.studentNom} {f.studentPrenom}</p>
-                        {f.anneeAcademique && <p className="text-xs text-slate-400">{f.anneeAcademique}</p>}
-                        {f.filiere && (
-                          <span className="inline-block mt-0.5 text-xs font-medium px-1.5 py-0.5 rounded bg-[#005989]/10 text-[#005989]">
-                            {f.filiere}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-800 font-medium">{formatCurrency(f.montantTotal)}</td>
-                      <td className="px-4 py-3 text-right text-emerald-700 font-medium">{formatCurrency(f.montantPaye || 0)}</td>
-                      <td className="px-4 py-3">
-                        <PaymentProgressBar montantPaye={f.montantPaye || 0} montantTotal={f.montantTotal} />
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-red-600">{formatCurrency(solde)}</td>
-                      <td className="px-4 py-3">
-                        <StatutBadge statut={f.statut} overdue={overdue} />
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">{formatDate(f.dateEcheance)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => toggleExpand(f.id)}
-                            title={isExpanded ? 'Masquer les paiements' : 'Voir les paiements'}
-                            className={`p-1.5 rounded-lg border transition-colors ${
-                              isExpanded
-                                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                                : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                            } ${!hasPaiements && f.statut === 'impayee' ? 'opacity-40' : ''}`}
-                          >
-                            {isExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                          </button>
-                          {f.statut !== 'payee' && (
-                            <button
-                              onClick={() => setSelectedForPaiement(f)}
-                              className="text-xs font-medium px-2.5 py-1.5 bg-[#005989] text-white rounded-lg hover:bg-[#004a73] transition-colors whitespace-nowrap"
-                            >
-                              Paiement
-                            </button>
+                    <React.Fragment key={f.id}>
+                      <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-slate-800">{f.studentNom} {f.studentPrenom}</p>
+                          {f.anneeAcademique && <p className="text-xs text-slate-400">{f.anneeAcademique}</p>}
+                          {f.filiere && (
+                            <span className="inline-block mt-0.5 text-xs font-medium px-1.5 py-0.5 rounded bg-[#005989]/10 text-[#005989]">
+                              {f.filiere}
+                            </span>
                           )}
-                          <button
-                            onClick={() => handleDelete(f)}
-                            className="text-xs font-medium px-2.5 py-1.5 text-red-600 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
-                          >
-                            Suppr.
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-800 font-medium">{formatCurrency(f.montantTotal)}</td>
+                        <td className="px-4 py-3 text-right text-emerald-700 font-medium">{formatCurrency(f.montantPaye || 0)}</td>
+                        <td className="px-4 py-3">
+                          <PaymentProgressBar montantPaye={f.montantPaye || 0} montantTotal={f.montantTotal} />
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-red-600">{formatCurrency(solde)}</td>
+                        <td className="px-4 py-3">
+                          <StatutBadge statut={f.statut} overdue={overdue} />
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">{formatDate(f.dateEcheance)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => toggleExpand(f.id)}
+                              title={isExpanded ? 'Masquer les paiements' : 'Voir les paiements'}
+                              className={`p-1.5 rounded-lg border transition-colors ${
+                                isExpanded
+                                  ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                  : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                              } ${!hasPaiements && f.statut === 'impayee' ? 'opacity-40' : ''}`}
+                            >
+                              {isExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                            </button>
+                            {f.statut !== 'payee' && (
+                              <button
+                                onClick={() => setSelectedForPaiement(f)}
+                                className="text-xs font-medium px-2.5 py-1.5 bg-[#005989] text-white rounded-lg hover:bg-[#004a73] transition-colors whitespace-nowrap"
+                              >
+                                Paiement
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDelete(f)}
+                              className="text-xs font-medium px-2.5 py-1.5 text-red-600 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              Suppr.
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && <PaymentHistoryRow paiements={f.paiements} />}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
