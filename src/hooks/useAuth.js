@@ -16,6 +16,7 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true); // block PrivateRoute while we load the profile
       try {
         if (!firebaseUser) {
           setUser(null);

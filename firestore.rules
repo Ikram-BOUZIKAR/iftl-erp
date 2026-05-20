@@ -4,10 +4,12 @@ service cloud.firestore {
 
     // ── Fonctions utilitaires ──────────────────────────────────────────────────
     function isAdmin(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+        get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
     }
     function hasRole(roles) {
       return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles;
     }
     function isAuth() {
@@ -16,7 +18,8 @@ service cloud.firestore {
 
     // ── Utilisateurs ───────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      // Un utilisateur peut toujours lire son propre document (nécessaire au chargement du profil)
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
       allow create: if isAuth();
       allow update, delete: if request.auth.uid == userId || isAdmin(request.auth.uid);
     }

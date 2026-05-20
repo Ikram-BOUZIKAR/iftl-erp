@@ -3,77 +3,26 @@ import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 
 // ── SVG icon helper ────────────────────────────────────────────────────────────
-function Ico({ path, path2, size = 'w-4 h-4', color }) {
+function Ico({ path, path2, size = 'w-5 h-5', color }) {
   return (
-    <svg
-      className={size}
-      fill="none"
-      stroke={color || 'currentColor'}
-      viewBox="0 0 24 24"
-      style={color ? { color } : undefined}
-    >
+    <svg className={size} fill="none" stroke={color || 'currentColor'} viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={path} />
       {path2 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={path2} />}
     </svg>
   );
 }
 
-// ── Données ────────────────────────────────────────────────────────────────────
-const FEATURES = [
-  { path: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', label: 'Emplois du temps & planification' },
-  { path: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', label: 'Émargement & suivi des présences' },
-  { path: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', label: 'Gestion des apprenants & groupes' },
-  { path: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', label: 'Notes, évaluations & bulletins' },
-  { path: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', label: 'Facturation & suivi des paiements' },
-  { path: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', label: 'Candidatures & inscriptions en ligne' },
-];
-
-const FILIERES = [
-  { code: 'OTM',  label: 'Organisateur Transport & Messagerie' },
-  { code: 'OFLP', label: 'Opérateur Freight Logistique & Portuaire' },
-  { code: 'AEL',  label: 'Agent Exploitation Logistique' },
-  { code: 'ECOM', label: 'E-Commerce & Distribution Digitale' },
-  { code: 'ADEE', label: 'Agent Déclarant en Douane & Échanges Ext.' },
-  { code: 'LIC',  label: 'Licence Gestion Logistique & Transport' },
-];
-
-
-// ── Composants utilitaires ────────────────────────────────────────────────────
 function Spinner() {
   return <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />;
 }
 
-function Alert({ type, children }) {
-  const cfg = {
-    error:   { bg: '#fef2f2', border: '#fecaca', text: '#c8141b', iconPath: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-    warning: { bg: '#fffbeb', border: '#fde68a', text: '#92400e', iconPath: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-    success: { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-  }[type];
-  return (
-    <div className="flex items-start gap-2.5 p-3.5 rounded-xl text-sm"
-      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.text }}>
-      <Ico path={cfg.iconPath} size="w-4 h-4 shrink-0 mt-0.5" />
-      <span>{children}</span>
-    </div>
-  );
-}
-
-function FieldLabel({ text, required }) {
-  return (
-    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-      {text}{required && <span className="text-red-400 ml-0.5">*</span>}
-    </label>
-  );
-}
-
 const INPUT_CLS = 'w-full border border-slate-300 rounded-xl bg-white text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989] transition';
 
-// ── LoginPage ─────────────────────────────────────────────────────────────────
+// ── Page principale ────────────────────────────────────────────────────────────
 export default function LoginPage({ auth }) {
   const [email, setEmail]             = useState('');
   const [password, setPassword]       = useState('');
   const [showPwd, setShowPwd]         = useState(false);
-  const [rememberMe, setRememberMe]   = useState(false);
   const [error, setError]             = useState('');
   const [loading, setLoading]         = useState(false);
   const [resetMode, setResetMode]     = useState(false);
@@ -90,7 +39,7 @@ export default function LoginPage({ auth }) {
       await auth.login(email, password);
       navigate('/');
     } catch {
-      setError('Identifiants incorrects. Vérifiez votre email et votre mot de passe.');
+      setError('Identifiants incorrects. Vérifiez votre email et mot de passe.');
     } finally {
       setLoading(false);
     }
@@ -104,191 +53,194 @@ export default function LoginPage({ auth }) {
       await sendPasswordResetEmail(getAuth(), resetEmail);
       setResetSent(true);
     } catch {
-      setError('Adresse email introuvable ou invalide.');
+      setError('Adresse email introuvable.');
     } finally {
       setResetLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
 
-      {/* ══ Panneau gauche — identité IFTL ══════════════════════════════════ */}
-      <div
-        className="hidden lg:flex lg:w-[58%] relative overflow-hidden flex-col justify-between p-12"
-        style={{ background: 'linear-gradient(150deg, #005989 0%, #003f6b 50%, #00294a 100%)' }}
+      {/* ══ PANNEAU 1 — Consulter mes résultats ═══════════════════════════════ */}
+      <Link
+        to="/resultats"
+        className="group relative flex flex-col justify-between overflow-hidden
+                   lg:w-[27%] min-h-[200px] lg:min-h-screen p-8 lg:p-10
+                   transition-all duration-300 hover:lg:w-[30%]"
+        style={{ background: 'linear-gradient(160deg, #002d47 0%, #005989 60%, #0077b6 100%)' }}
       >
-        {/* Grille décorative */}
-        <div className="absolute inset-0 opacity-[0.035]" style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px)',
-          backgroundSize: '44px 44px',
-        }} />
-        {/* Cercles */}
-        <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full opacity-[0.06]" style={{ background: '#f5c845' }} />
-        <div className="absolute top-1/2 -right-48 w-96 h-96 rounded-full opacity-[0.04]" style={{ background: '#c8d45d' }} />
-        <div className="absolute -bottom-32 left-1/4 w-80 h-80 rounded-full opacity-[0.06]" style={{ background: '#f5c845' }} />
+        {/* Décors */}
+        <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full opacity-[0.07]"
+          style={{ background: '#f5c845' }} />
+        <div className="absolute top-1/3 -left-10 w-40 h-40 rounded-full opacity-[0.05]"
+          style={{ background: '#fff' }} />
 
-        {/* Logo */}
-        <div className="relative flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0"
-            style={{ background: '#f5c845' }}>
-            <span className="font-black text-[14px]" style={{ color: '#005989' }}>IF</span>
-          </div>
-          <div>
-            <p className="text-white font-black text-xl leading-none tracking-wider">IFTL</p>
-            <p className="text-xs font-medium mt-1" style={{ color: 'rgba(245,200,69,0.8)' }}>
-              Institut de Formation · Transport & Logistique
-            </p>
-          </div>
-        </div>
-
-        {/* Contenu central */}
-        <div className="relative space-y-8">
-          {/* Badge + titre */}
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-4"
-              style={{ background: 'rgba(245,200,69,0.15)', color: '#f5c845', border: '1px solid rgba(245,200,69,0.3)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-              Plateforme ERP pédagogique · 2025–2026
-            </div>
-            <h2 className="text-[2.4rem] font-extrabold text-white leading-[1.15] tracking-tight">
-              Pilotez votre<br />
-              établissement<br />
-              <span style={{ color: '#f5c845' }}>avec précision</span>
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Une solution intégrée pour gérer chaque dimension pédagogique, administrative et financière.
-            </p>
-          </div>
-
-          {/* Fonctionnalités */}
-          <div className="space-y-2.5">
-            {FEATURES.map(f => (
-              <div key={f.label} className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(245,200,69,0.12)' }}>
-                  <Ico path={f.path} size="w-3.5 h-3.5" color="#f5c845" />
-                </div>
-                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>{f.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Filières */}
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] mb-2.5"
-              style={{ color: 'rgba(255,255,255,0.3)' }}>Filières professionnelles</p>
-            <div className="flex flex-wrap gap-1.5">
-              {FILIERES.map(f => (
-                <span key={f.code} title={f.label}
-                  className="text-xs font-bold px-2.5 py-1 rounded-lg cursor-default"
-                  style={{ background: 'rgba(0,89,137,0.5)', color: 'rgba(245,200,69,0.9)', border: '1px solid rgba(245,200,69,0.2)' }}>
-                  {f.code}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* CNDP */}
+        {/* Contenu */}
         <div className="relative">
-          <div className="rounded-xl p-4 flex items-start gap-3"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-              style={{ background: 'rgba(200,212,93,0.15)' }}>
-              <Ico path="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" size="w-4 h-4" color="#c8d45d" />
-            </div>
-            <div>
-              <p className="text-white text-xs font-semibold">Protection des données personnelles</p>
-              <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                Traitement conforme à la loi n° 09-08 relative à la protection des personnes physiques.
-              </p>
-              <p className="text-xs font-semibold mt-1.5" style={{ color: '#c8d45d' }}>
-                Autorisation CNDP n° A-PO-268/2024
-              </p>
-            </div>
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6"
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.9)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            Portail élève
           </div>
-        </div>
-      </div>
 
-      {/* ══ Panneau droit — formulaire ═══════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto px-6 py-10 bg-slate-50 min-h-screen">
-
-        {/* Logo mobile */}
-        <div className="lg:hidden flex flex-col items-center mb-8 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-lg"
-            style={{ background: '#005989' }}>
-            <span className="font-black text-base" style={{ color: '#f5c845' }}>IF</span>
+          {/* Icône */}
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+            style={{ background: 'rgba(255,255,255,0.12)' }}>
+            <Ico path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size="w-7 h-7" color="white" />
           </div>
-          <p className="font-black text-xl text-slate-800">IFTL</p>
-          <p className="text-xs text-slate-500 mt-0.5 max-w-xs leading-relaxed">
-            Institut de Formation dans les métiers du Transport et de la Logistique
+
+          <h2 className="text-2xl lg:text-3xl font-extrabold text-white leading-tight mb-3">
+            Consulter<br />mes résultats
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            Accédez à vos notes, bulletins scolaires et attestations de formation.
           </p>
         </div>
 
-        <div className="w-full max-w-[400px] my-auto">
+        {/* CTA */}
+        <div className="relative mt-8">
+          <div className="flex items-center gap-2 text-white font-semibold text-sm group-hover:gap-3 transition-all">
+            Accéder à mes résultats
+            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/15 group-hover:bg-white/25 transition">
+              <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" color="white" />
+            </div>
+          </div>
+        </div>
+      </Link>
 
-          {/* ── Mode reset mot de passe ──────────────────────────────────── */}
+      {/* ══ PANNEAU 2 — Candidater ════════════════════════════════════════════ */}
+      <Link
+        to="/candidature"
+        className="group relative flex flex-col justify-between overflow-hidden
+                   lg:w-[27%] min-h-[200px] lg:min-h-screen p-8 lg:p-10
+                   transition-all duration-300 hover:lg:w-[30%]"
+        style={{ background: 'linear-gradient(160deg, #b38600 0%, #d4a017 40%, #f5c845 100%)' }}
+      >
+        {/* Décors */}
+        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-[0.15]"
+          style={{ background: '#fff' }} />
+        <div className="absolute bottom-1/4 -left-8 w-32 h-32 rounded-full opacity-[0.1]"
+          style={{ background: '#003d63' }} />
+
+        {/* Contenu */}
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6"
+            style={{ background: 'rgba(0,61,99,0.15)', color: '#003d63' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#003d63' }} />
+            Admissions ouvertes
+          </div>
+
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+            style={{ background: 'rgba(0,0,0,0.1)' }}>
+            <Ico path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" size="w-7 h-7" color="#003d63" />
+          </div>
+
+          <h2 className="text-2xl lg:text-3xl font-extrabold leading-tight mb-3"
+            style={{ color: '#002d47' }}>
+            Candidater<br />à une formation
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(0,45,71,0.65)' }}>
+            Rejoignez l'IFTL — 6 filières professionnelles en Transport & Logistique.
+          </p>
+
+          {/* Filières */}
+          <div className="flex flex-wrap gap-1.5 mt-4">
+            {['OTM','OFLP','AEL','ECOM','ADEE','LIC'].map(f => (
+              <span key={f}
+                className="text-[11px] font-black px-2 py-0.5 rounded-md"
+                style={{ background: 'rgba(0,45,71,0.12)', color: '#002d47' }}>
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="relative mt-8">
+          <div className="flex items-center gap-2 font-semibold text-sm group-hover:gap-3 transition-all"
+            style={{ color: '#002d47' }}>
+            Déposer ma candidature
+            <div className="w-8 h-8 rounded-full flex items-center justify-center transition"
+              style={{ background: 'rgba(0,45,71,0.12)' }}>
+              <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" color="#002d47" />
+            </div>
+          </div>
+        </div>
+      </Link>
+
+      {/* ══ PANNEAU 3 — Connexion ════════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 p-8 lg:p-12 min-h-screen">
+
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md"
+            style={{ background: 'linear-gradient(135deg, #005989, #0077b6)' }}>
+            <span className="font-black text-sm text-white tracking-tight">IF</span>
+          </div>
+          <div>
+            <p className="font-black text-slate-800 text-lg leading-none">IFTL</p>
+            <p className="text-xs text-slate-400 mt-0.5">Institut de Formation · Transport & Logistique</p>
+          </div>
+        </div>
+
+        <div className="w-full max-w-[360px]">
+
+          {/* ── Mode reset ──────────────────────────────────────────────── */}
           {resetMode ? (
-            <div>
+            <>
               <button onClick={() => { setResetMode(false); setResetSent(false); setError(''); }}
                 className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition mb-6">
                 <Ico path="M10 19l-7-7m0 0l7-7m-7 7h18" size="w-4 h-4" />
-                Retour à la connexion
+                Retour
               </button>
 
               {resetSent ? (
-                <div className="rounded-2xl p-8 text-center"
+                <div className="text-center py-6 px-4 rounded-2xl"
                   style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                    style={{ background: '#dcfce7' }}>
-                    <Ico path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" size="w-7 h-7" color="#16a34a" />
+                  <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-3">
+                    <Ico path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" size="w-6 h-6" color="#16a34a" />
                   </div>
-                  <p className="font-bold text-green-800 text-lg mb-1">Email envoyé !</p>
-                  <p className="text-sm text-green-700 leading-relaxed">
-                    Un lien de réinitialisation a été envoyé à <strong>{resetEmail}</strong>.
-                    Vérifiez votre boîte mail.
-                  </p>
+                  <p className="font-bold text-green-800">Email envoyé !</p>
+                  <p className="text-sm text-green-700 mt-1">Vérifiez votre boîte mail — <strong>{resetEmail}</strong></p>
                 </div>
               ) : (
                 <>
-                  <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-slate-800">Mot de passe oublié</h1>
-                    <p className="text-slate-500 mt-1 text-sm">Entrez votre email pour recevoir un lien de réinitialisation.</p>
-                  </div>
+                  <h1 className="text-xl font-bold text-slate-800 mb-1">Réinitialiser le mot de passe</h1>
+                  <p className="text-slate-500 text-sm mb-5">Entrez votre email pour recevoir un lien.</p>
                   <form onSubmit={handleReset} className="space-y-4">
-                    <div>
-                      <FieldLabel text="Adresse email" required />
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-400">
-                          <Ico path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" size="w-4 h-4" />
-                        </div>
-                        <input type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
-                          placeholder="vous@iftl.ma" className={`${INPUT_CLS} pl-10 pr-4 py-3`} />
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Ico path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" size="w-4 h-4" />
                       </div>
+                      <input type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
+                        placeholder="vous@iftl.ma" className={`${INPUT_CLS} pl-10 pr-4 py-3`} />
                     </div>
-                    {error && <Alert type="error">{error}</Alert>}
+                    {error && <p className="text-sm text-red-500">{error}</p>}
                     <button type="submit" disabled={resetLoading}
-                      className="w-full py-3 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition"
-                      style={{ background: '#005989', boxShadow: '0 4px 14px rgba(0,89,137,0.3)' }}>
-                      {resetLoading ? <><Spinner /> Envoi…</> : 'Envoyer le lien de réinitialisation'}
+                      className="w-full py-3 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                      style={{ background: '#005989' }}>
+                      {resetLoading ? <><Spinner /> Envoi…</> : 'Envoyer le lien'}
                     </button>
                   </form>
                 </>
               )}
-            </div>
-
+            </>
           ) : (
             <>
-              <div className="mb-7">
+              {/* ── Formulaire connexion ──────────────────────────────── */}
+              <div className="mb-6">
                 <h1 className="text-2xl font-bold text-slate-800">Connexion</h1>
-                <p className="text-slate-500 mt-1 text-sm">Accédez à votre espace pédagogique unifié</p>
+                <p className="text-slate-400 text-sm mt-1">Accédez à votre espace pédagogique</p>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-4">
                 {/* Email */}
                 <div>
-                  <FieldLabel text="Adresse email" required />
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    Adresse email
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-400">
                       <Ico path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" size="w-4 h-4" />
@@ -301,7 +253,9 @@ export default function LoginPage({ auth }) {
 
                 {/* Mot de passe */}
                 <div>
-                  <FieldLabel text="Mot de passe" required />
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    Mot de passe
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-400">
                       <Ico path="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" size="w-4 h-4" />
@@ -320,102 +274,71 @@ export default function LoginPage({ auth }) {
                   </div>
                 </div>
 
-                {/* Remember + Forgot */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-300 accent-[#005989] cursor-pointer" />
-                    <span className="text-sm text-slate-600">Se souvenir de moi</span>
-                  </label>
+                {/* Mot de passe oublié */}
+                <div className="flex justify-end">
                   <button type="button"
                     onClick={() => { setResetMode(true); setResetEmail(email); setError(''); }}
-                    className="text-sm font-semibold text-[#005989] hover:text-[#004070] transition">
+                    className="text-xs font-semibold text-[#005989] hover:text-[#004070] transition">
                     Mot de passe oublié ?
                   </button>
                 </div>
 
                 {/* Compte en attente */}
                 {auth.pendingAccount && (
-                  <Alert type="warning">
-                    <strong>Compte en attente de validation.</strong> Un administrateur doit approuver votre accès.
-                  </Alert>
+                  <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
+                    style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                    <Ico path="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" size="w-4 h-4 shrink-0 mt-0.5" />
+                    <span><strong>Compte en attente.</strong> Un administrateur doit valider votre accès.</span>
+                  </div>
                 )}
 
                 {/* Erreur */}
-                {error && <Alert type="error">{error}</Alert>}
+                {error && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
+                    style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#c8141b' }}>
+                    <Ico path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" size="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
-                {/* Submit */}
+                {/* Bouton connexion */}
                 <button type="submit" disabled={loading}
-                  className="w-full py-3 px-4 text-white font-bold rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
-                  style={{ background: '#005989', boxShadow: '0 4px 14px rgba(0,89,137,0.3)' }}
-                  onMouseEnter={e => !loading && (e.currentTarget.style.background = '#004070')}
-                  onMouseLeave={e => !loading && (e.currentTarget.style.background = '#005989')}
+                  className="w-full py-3 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition"
+                  style={{ background: 'linear-gradient(135deg, #005989, #0077b6)', boxShadow: '0 4px 14px rgba(0,89,137,0.3)' }}
+                  onMouseEnter={e => !loading && (e.currentTarget.style.opacity = '0.9')}
+                  onMouseLeave={e => !loading && (e.currentTarget.style.opacity = '1')}
                 >
-                  {loading ? (
-                    <><Spinner /> Connexion en cours…</>
-                  ) : (
-                    <>
-                      Se connecter
-                      <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" />
-                    </>
-                  )}
+                  {loading
+                    ? <><Spinner /> Connexion…</>
+                    : <>Se connecter <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" /></>
+                  }
                 </button>
               </form>
 
               {/* Séparateur */}
               <div className="my-5 flex items-center gap-3">
                 <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-xs text-slate-400 font-medium">ou</span>
+                <span className="text-xs text-slate-400">ou</span>
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
 
-              {/* Actions secondaires */}
-              <div className="space-y-2.5">
-                <Link to="/register"
-                  className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-sm transition-all border-2"
-                  style={{ borderColor: '#005989', color: '#005989' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#005989'; e.currentTarget.style.color = '#fff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#005989'; }}
-                >
-                  <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
-                  Créer un compte
-                </Link>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Link to="/resultats"
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-semibold text-sm transition"
-                    style={{ background: 'linear-gradient(135deg, #0077b6, #005989)', color: '#fff', boxShadow: '0 3px 10px rgba(0,89,137,0.25)' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                  >
-                    <Ico path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size="w-3.5 h-3.5 shrink-0" />
-                    Mes résultats
-                  </Link>
-                  <Link to="/candidature"
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-semibold text-sm transition"
-                    style={{ background: 'linear-gradient(135deg, #f5c845, #e6b800)', color: '#003d63', boxShadow: '0 3px 10px rgba(245,200,69,0.35)' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                  >
-                    <Ico path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" size="w-3.5 h-3.5 shrink-0" />
-                    Candidater
-                  </Link>
-                </div>
-              </div>
+              {/* Créer un compte */}
+              <Link to="/register"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm transition border-2"
+                style={{ borderColor: '#005989', color: '#005989' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#005989'; e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#005989'; }}
+              >
+                <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
+                Créer un compte
+              </Link>
             </>
           )}
 
-          {/* CNDP mobile */}
-          <div className="mt-8 lg:hidden pt-5 border-t border-slate-200 text-center">
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Données protégées · Loi n° 09-08 · Autorisation CNDP n° A-PO-268/2024
-            </p>
-          </div>
-        </div>
-
-        {/* CNDP desktop */}
-        <div className="hidden lg:block mt-8 text-center">
-          <p className="text-xs text-slate-400">
-            Loi n° 09-08 · Protection des données · CNDP n° A-PO-268/2024
+          {/* CNDP */}
+          <p className="text-center text-[11px] text-slate-400 mt-8 leading-relaxed">
+            Loi n° 09-08 · Protection des données<br />
+            Autorisation CNDP n° A-PO-268/2024
           </p>
         </div>
       </div>
