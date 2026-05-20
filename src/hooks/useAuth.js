@@ -8,6 +8,7 @@ export function useAuth() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pendingAccount, setPendingAccount] = useState(false);
 
   useEffect(() => {
     setPersistence(auth, browserSessionPersistence);
@@ -19,18 +20,32 @@ export function useAuth() {
         if (!firebaseUser) {
           setUser(null);
           setUserProfile(null);
+          setPendingAccount(false);
           setLoading(false);
           return;
         }
 
-        setUser(firebaseUser);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
-          setUserProfile(userDocSnap.data());
+          const profile = userDocSnap.data();
+          // Block pending accounts — sign out immediately
+          if (profile.statut === 'pending') {
+            setPendingAccount(true);
+            await signOut(auth);
+            setUser(null);
+            setUserProfile(null);
+            setLoading(false);
+            return;
+          }
+          setUser(firebaseUser);
+          setUserProfile(profile);
+          setPendingAccount(false);
         } else {
+          setUser(firebaseUser);
           setUserProfile({ uid: firebaseUser.uid, email: firebaseUser.email, role: 'apprenant' });
+          setPendingAccount(false);
         }
       } catch (err) {
         console.error('Error loading user profile:', err);
@@ -44,6 +59,7 @@ export function useAuth() {
 
   const login = async (email, password) => {
     setError(null);
+    setPendingAccount(false);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
@@ -59,6 +75,7 @@ export function useAuth() {
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
+      setPendingAccount(false);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -70,12 +87,14 @@ export function useAuth() {
     userProfile,
     loading,
     error,
+    pendingAccount,
     login,
     logout,
     isAuthenticated: !!user,
     hasRole: (role) => userProfile?.role === role,
-    hasAnyRole: (roles) => roles?.includes(userProfile?.role)
+    hasAnyRole: (roles) => roles?.includes(userProfile?.role),
   };
 }
+
 
 

@@ -15,6 +15,7 @@ export default function LoginPage({ auth }) {
     setLoading(true);
     try {
       await auth.login(email, password);
+      // useAuth will handle pending accounts automatically
       navigate('/');
     } catch {
       setError('Email ou mot de passe incorrect. Veuillez réessayer.');
@@ -22,6 +23,9 @@ export default function LoginPage({ auth }) {
       setLoading(false);
     }
   };
+
+  // Show pending account banner if detected
+  const isPending = auth.pendingAccount;
 
   return (
     <div className="min-h-screen flex">
@@ -216,6 +220,18 @@ export default function LoginPage({ auth }) {
               </div>
             </div>
 
+            {/* Compte en attente */}
+            {isPending && (
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl text-sm" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}>
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  <strong>Compte en attente de validation.</strong> Un administrateur doit approuver votre compte avant que vous puissiez accéder à la plateforme.
+                </span>
+              </div>
+            )}
+
             {/* Erreur */}
             {error && (
               <div className="flex items-center gap-2.5 p-3.5 rounded-xl text-sm" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#c8141b' }}>
@@ -244,8 +260,22 @@ export default function LoginPage({ auth }) {
             </button>
           </form>
 
+          {/* Créer un compte */}
+          <div className="mt-4">
+            <Link
+              to="/register"
+              className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl border font-medium text-sm transition-all bg-white hover:bg-slate-50"
+              style={{ borderColor: '#e2e8f0', color: '#475569' }}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Créer un compte
+            </Link>
+          </div>
+
           {/* Voir résultats */}
-          <div className="mt-5">
+          <div className="mt-3">
             <Link
               to="/resultats"
               className="flex items-center justify-center gap-2.5 w-full py-3 px-4 rounded-xl border-2 font-semibold text-sm transition-all"

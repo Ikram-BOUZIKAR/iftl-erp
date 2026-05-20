@@ -226,27 +226,36 @@ function ProfilTab({ auth }) {
 
 const ROLES = ['admin', 'intervenant', 'apprenant'];
 
+const ROLE_BADGE = {
+  admin:       'bg-indigo-100 text-indigo-700 border-indigo-200',
+  intervenant: 'bg-violet-100 text-violet-700 border-violet-200',
+  apprenant:   'bg-emerald-100 text-emerald-700 border-emerald-200',
+  parent:      'bg-orange-100 text-orange-700 border-orange-200',
+};
+
 function UtilisateursTab() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [tab, setTab] = useState('actifs');
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'users'));
-        const list = [];
-        snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
-        setUsers(list);
-      } catch (err) {
-        toast.error('Impossible de charger les utilisateurs : ' + err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+  const loadUsers = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const list = [];
+      snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      setUsers(list);
+    } catch (err) {
+      toast.error('Impossible de charger les utilisateurs : ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, []);
 
   const handleRoleChange = async (userId, newRole) => {
     setUpdatingId(userId);
@@ -261,62 +270,194 @@ function UtilisateursTab() {
     }
   };
 
-  const roleBadge = (role) => {
-    const map = {
-      admin: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-      intervenant: 'bg-violet-100 text-violet-700 border-violet-200',
-      apprenant: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    };
-    return map[role] || 'bg-slate-100 text-slate-600 border-slate-200';
+  const handleValidate = async (userId, approve) => {
+    if (!approve) {
+      const ok = await confirm({
+        title: 'Rejeter ce compte ?',
+        message: 'Le compte sera supprimé définitivement. Cette action est irréversible.',
+        danger: true, confirmLabel: 'Rejeter', cancelLabel: 'Annuler',
+      });
+      if (!ok) return;
+    }
+    setUpdatingId(userId);
+    try {
+      if (approve) {
+        await updateDoc(doc(db, 'users', userId), {
+          statut: 'actif',
+          validatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
+        });
+        setUsers(us => us.map(u => u.id === userId ? { ...u, statut: 'actif' } : u));
+        toast.success('Compte activé avec succès');
+      } else {
+        await import('firebase/firestore').then(({ deleteDoc }) =>
+          deleteDoc(doc(db, 'users', userId))
+        );
+        setUsers(us => us.filter(u => u.id !== userId));
+        toast.success('Compte rejeté et supprimé');
+      }
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
+  const pending = users.filter(u => u.statut === 'pending');
+  const actifs = users.filter(u => u.statut !== 'pending');
+
   return (
-    <SectionCard title="Gestion des utilisateurs" description="Attribuez des rôles aux utilisateurs enregistrés dans le système.">
-      {loading ? (
-        <div className="text-center py-8">
-          <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-slate-400 text-sm mt-2">Chargement…</p>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-slate-500 text-sm">Aucun utilisateur trouvé dans la base de données.</p>
-        </div>
-      ) : (
-        <div className="divide-y divide-slate-100">
-          {users.map(u => (
-            <div key={u.id} className="py-3.5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                  <span className="text-indigo-700 text-sm font-bold">
-                    {(u.prenom?.[0] || u.email?.[0] || '?').toUpperCase()}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">
-                    {u.prenom && u.nom ? `${u.prenom} ${u.nom}` : u.email}
-                  </p>
-                  <p className="text-xs text-slate-400 truncate">{u.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${roleBadge(u.role)}`}>
-                  {u.role || 'inconnu'}
-                </span>
-                <select
-                  value={u.role || ''}
-                  onChange={e => handleRoleChange(u.id, e.target.value)}
-                  disabled={updatingId === u.id}
-                  className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 bg-white"
-                >
-                  <option value="">— Choisir —</option>
-                  {ROLES.map(r => <option key={r} value={r} className="capitalize">{r}</option>)}
-                </select>
-              </div>
+    <div className="space-y-4">
+      {/* Tabs */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setTab('actifs')}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === 'actifs' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          Actifs ({actifs.length})
+        </button>
+        <button
+          onClick={() => setTab('pending')}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'pending' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          En attente
+          {pending.length > 0 && (
+            <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center">
+              {pending.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {tab === 'pending' && (
+        <SectionCard
+          title="Comptes en attente de validation"
+          description="Ces utilisateurs ont créé un compte et attendent votre approbation."
+        >
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
-          ))}
-        </div>
+          ) : pending.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-2xl mb-2">✅</p>
+              <p className="text-slate-500 text-sm">Aucun compte en attente</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {pending.map(u => (
+                <div key={u.id} className="py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                        <span className="text-amber-700 text-sm font-bold">
+                          {(u.prenom?.[0] || '?').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {u.prenom} {u.nom}
+                        </p>
+                        <p className="text-xs text-slate-400">{u.email}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            {u.role}
+                          </span>
+                          {u.codeApprenant && (
+                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                              Code: {u.codeApprenant}
+                            </span>
+                          )}
+                          {u.specialite && (
+                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                              {u.specialite}
+                            </span>
+                          )}
+                          {u.telephone && (
+                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                              {u.telephone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleValidate(u.id, true)}
+                        disabled={updatingId === u.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
+                        style={{ background: '#16a34a' }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Valider
+                      </button>
+                      <button
+                        onClick={() => handleValidate(u.id, false)}
+                        disabled={updatingId === u.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 border border-red-200 text-red-600 hover:bg-red-50"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Rejeter
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
       )}
-    </SectionCard>
+
+      {tab === 'actifs' && (
+        <SectionCard title="Utilisateurs actifs" description="Attribuez des rôles aux utilisateurs enregistrés.">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : actifs.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-8">Aucun utilisateur actif.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {actifs.map(u => (
+                <div key={u.id} className="py-3.5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                      <span className="text-indigo-700 text-sm font-bold">
+                        {(u.prenom?.[0] || u.email?.[0] || '?').toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">
+                        {u.prenom && u.nom ? `${u.prenom} ${u.nom}` : u.email}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      {u.role || 'inconnu'}
+                    </span>
+                    <select
+                      value={u.role || ''}
+                      onChange={e => handleRoleChange(u.id, e.target.value)}
+                      disabled={updatingId === u.id}
+                      className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 bg-white"
+                    >
+                      <option value="">— Choisir —</option>
+                      {ROLES.map(r => <option key={r} value={r} className="capitalize">{r}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      )}
+    </div>
   );
 }
 
