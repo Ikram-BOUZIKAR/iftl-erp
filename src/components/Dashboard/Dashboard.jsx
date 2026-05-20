@@ -14,7 +14,7 @@ const BRAND = {
   orange: '#d75930',
 };
 
-function KpiCard({ label, value, icon, from, to: toColor, to: linkTo, isLink }) {
+function KpiCard({ label, value, icon, from, toColor, isLink, linkTo }) {
   const inner = (
     <div
       className="relative overflow-hidden rounded-2xl p-5 text-white cursor-pointer"
