@@ -190,5 +190,12 @@ service cloud.firestore {
       allow read: if isAuth();
       allow write: if hasRole(['admin', 'direction', 'scolarite']);
     }
+
+    // ── Abonnements transport ─────────────────────────────────────────────────
+    match /transport_abonnements/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
   }
 }

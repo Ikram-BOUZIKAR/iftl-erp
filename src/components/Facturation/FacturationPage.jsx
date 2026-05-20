@@ -33,6 +33,22 @@ function SearchIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function ChevronUpIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatCurrency(n) {
@@ -83,6 +99,77 @@ function StatutBadge({ statut, overdue }) {
   );
 }
 
+// ─── Payment Progress Bar ─────────────────────────────────────────────────────
+
+function PaymentProgressBar({ montantPaye, montantTotal }) {
+  const pct = montantTotal > 0 ? Math.round((montantPaye / montantTotal) * 100) : 0;
+  const clamped = Math.min(100, Math.max(0, pct));
+  return (
+    <div className="flex items-center gap-2 min-w-[80px]">
+      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+      <span className="text-xs text-slate-500 tabular-nums w-8 text-right">{clamped}%</span>
+    </div>
+  );
+}
+
+// ─── Payment History Sub-row ──────────────────────────────────────────────────
+
+const MODE_LABELS = {
+  virement: 'Virement',
+  especes: 'Espèces',
+  cheque: 'Chèque',
+  cmi: 'CMI / TPE',
+};
+
+function PaymentHistoryRow({ paiements }) {
+  if (!paiements || paiements.length === 0) {
+    return (
+      <tr>
+        <td colSpan={9} className="bg-blue-50/50 border-b border-blue-100 px-6 py-4">
+          <p className="text-xs text-slate-400 italic">Aucun paiement enregistré.</p>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr>
+      <td colSpan={9} className="bg-blue-50/50 border-b border-blue-100 px-6 py-3">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+          Historique des paiements ({paiements.length})
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {paiements.map((p, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 bg-white rounded-lg px-3 py-2 border border-blue-100 text-xs"
+            >
+              <span className="text-slate-400 w-5 text-right tabular-nums">{i + 1}.</span>
+              <span className="text-slate-500 w-24">{formatDate(p.date)}</span>
+              <span className="text-slate-600 font-medium w-28">
+                {MODE_LABELS[p.mode] || p.mode || '—'}
+              </span>
+              <span className="text-slate-400 flex-1 truncate">
+                {p.reference ? (
+                  <span className="font-mono bg-slate-50 px-1.5 py-0.5 rounded text-slate-500">{p.reference}</span>
+                ) : (
+                  <span className="italic">—</span>
+                )}
+              </span>
+              <span className="font-semibold text-emerald-700 w-28 text-right">{formatCurrency(p.montant)}</span>
+            </div>
+          ))}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, color }) {
@@ -109,6 +196,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
     description: '',
     dateEcheance: '',
     anneeAcademique: '2025-2026',
+    filiere: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -129,6 +217,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
         studentPrenom: form.studentPrenom.trim(),
         reference,
         anneeAcademique: form.anneeAcademique,
+        filiere: form.filiere.trim() || null,
         montantTotal: Number(form.montantTotal),
         montantPaye: 0,
         description: form.description.trim(),
@@ -179,6 +268,17 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Filière / Groupe</label>
+            <input
+              type="text"
+              value={form.filiere}
+              onChange={e => set('filiere', e.target.value)}
+              placeholder="ex. Informatique, BTS Commerce…"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -385,7 +485,9 @@ export default function FacturationPage() {
   const [selectedForPaiement, setSelectedForPaiement] = useState(null);
   const [filterStatut, setFilterStatut] = useState('');
   const [filterAnnee, setFilterAnnee] = useState('');
+  const [filterFiliere, setFilterFiliere] = useState('');
   const [search, setSearch] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   const loadFactures = useCallback(async () => {
     try {
@@ -419,6 +521,14 @@ export default function FacturationPage() {
     }
   };
 
+  const toggleExpand = (id) => {
+    setExpandedId(prev => (prev === id ? null : id));
+  };
+
+  // Derived filter options
+  const anneesDisponibles = [...new Set(factures.map(f => f.anneeAcademique).filter(Boolean))].sort().reverse();
+  const filieresDisponibles = [...new Set(factures.map(f => f.filiere).filter(Boolean))].sort();
+
   // Filtered list
   const filtered = factures.filter(f => {
     const q = search.toLowerCase();
@@ -428,7 +538,8 @@ export default function FacturationPage() {
       f.reference?.toLowerCase().includes(q);
     const matchStatut = !filterStatut || f.statut === filterStatut;
     const matchAnnee = !filterAnnee || f.anneeAcademique === filterAnnee;
-    return matchSearch && matchStatut && matchAnnee;
+    const matchFiliere = !filterFiliere || f.filiere === filterFiliere;
+    return matchSearch && matchStatut && matchAnnee && matchFiliere;
   });
 
   // KPIs
@@ -436,8 +547,6 @@ export default function FacturationPage() {
   const totalEncaisse = factures.reduce((s, f) => s + (f.montantPaye || 0), 0);
   const soldeImpaye = totalFacture - totalEncaisse;
   const tauxRecouvrement = totalFacture > 0 ? Math.round((totalEncaisse / totalFacture) * 100) : 0;
-
-  const anneesDisponibles = [...new Set(factures.map(f => f.anneeAcademique).filter(Boolean))].sort().reverse();
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -497,6 +606,16 @@ export default function FacturationPage() {
             <option value="">Toutes les années</option>
             {anneesDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
+          {filieresDisponibles.length > 0 && (
+            <select
+              value={filterFiliere}
+              onChange={e => setFilterFiliere(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
+            >
+              <option value="">Toutes les filières</option>
+              {filieresDisponibles.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          )}
         </div>
       </div>
 
@@ -521,6 +640,7 @@ export default function FacturationPage() {
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Apprenant</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Montant</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Payé</th>
+                  <th className="px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Progression</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Solde</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Statut</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Échéance</th>
@@ -531,15 +651,25 @@ export default function FacturationPage() {
                 {filtered.map(f => {
                   const solde = f.montantTotal - (f.montantPaye || 0);
                   const overdue = isOverdue(f);
+                  const isExpanded = expandedId === f.id;
+                  const hasPaiements = f.paiements && f.paiements.length > 0;
                   return (
-                    <tr key={f.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={f.id} className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50' : ''}`}>
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">{f.reference}</td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-800">{f.studentNom} {f.studentPrenom}</p>
                         {f.anneeAcademique && <p className="text-xs text-slate-400">{f.anneeAcademique}</p>}
+                        {f.filiere && (
+                          <span className="inline-block mt-0.5 text-xs font-medium px-1.5 py-0.5 rounded bg-[#005989]/10 text-[#005989]">
+                            {f.filiere}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-800 font-medium">{formatCurrency(f.montantTotal)}</td>
                       <td className="px-4 py-3 text-right text-emerald-700 font-medium">{formatCurrency(f.montantPaye || 0)}</td>
+                      <td className="px-4 py-3">
+                        <PaymentProgressBar montantPaye={f.montantPaye || 0} montantTotal={f.montantTotal} />
+                      </td>
                       <td className="px-4 py-3 text-right font-semibold text-red-600">{formatCurrency(solde)}</td>
                       <td className="px-4 py-3">
                         <StatutBadge statut={f.statut} overdue={overdue} />
@@ -547,6 +677,17 @@ export default function FacturationPage() {
                       <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">{formatDate(f.dateEcheance)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => toggleExpand(f.id)}
+                            title={isExpanded ? 'Masquer les paiements' : 'Voir les paiements'}
+                            className={`p-1.5 rounded-lg border transition-colors ${
+                              isExpanded
+                                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                : 'border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                            } ${!hasPaiements && f.statut === 'impayee' ? 'opacity-40' : ''}`}
+                          >
+                            {isExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                          </button>
                           {f.statut !== 'payee' && (
                             <button
                               onClick={() => setSelectedForPaiement(f)}
