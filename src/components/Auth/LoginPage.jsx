@@ -37,11 +37,6 @@ const FILIERES = [
   { code: 'LIC',  label: 'Licence Gestion Logistique & Transport' },
 ];
 
-const STATS = [
-  { value: '6',    label: 'Filières professionnelles' },
-  { value: '250+', label: 'Apprenants formés' },
-  { value: '20+',  label: 'Intervenants experts' },
-];
 
 // ── Composants utilitaires ────────────────────────────────────────────────────
 function Spinner() {
@@ -164,17 +159,6 @@ export default function LoginPage({ auth }) {
             <p className="mt-3 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
               Une solution intégrée pour gérer chaque dimension pédagogique, administrative et financière.
             </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map(s => (
-              <div key={s.value} className="rounded-xl p-3 text-center"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <p className="text-2xl font-black text-white">{s.value}</p>
-                <p className="text-[11px] mt-0.5 leading-tight" style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</p>
-              </div>
-            ))}
           </div>
 
           {/* Fonctionnalités */}
