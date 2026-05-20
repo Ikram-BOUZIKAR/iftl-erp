@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { ToastProvider } from './components/UI/Toast';
+import { ConfirmProvider } from './components/UI/ConfirmDialog';
 import LoginPage from './components/Auth/LoginPage';
 import MainLayout from './components/Layout/MainLayout';
 import PrivateRoute from './components/Routes/PrivateRoute';
@@ -16,6 +18,7 @@ import IntervenantsPage from './components/Intervenants/IntervenantsPage';
 import CandidaturesAdminPage from './components/Candidatures/CandidaturesAdminPage';
 import RapportsPage from './components/Rapports/RapportsPage';
 import CandidaturePage from './components/Candidature/CandidaturePage';
+import SettingsPage from './components/Settings/SettingsPage';
 import './App.css';
 
 function App() {
@@ -27,57 +30,60 @@ function App() {
 
   if (auth.loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-500 text-sm">Chargement…</p>
+          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-slate-500 text-sm">Chargement…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/setup" element={<SetupPage />} />
-          <Route path="/candidature" element={<CandidaturePage />} />
-          <Route path="/login" element={
-            !hasFirebaseConfig ? <SetupPage /> : <LoginPage auth={auth} />
-          } />
+    <ToastProvider>
+      <ConfirmProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/setup" element={<SetupPage />} />
+            <Route path="/candidature" element={<CandidaturePage />} />
+            <Route path="/login" element={
+              !hasFirebaseConfig ? <SetupPage /> : <LoginPage auth={auth} />
+            } />
 
-          {/* Protected routes - wrapped in MainLayout */}
-          <Route
-            path="/*"
-            element={
-              !hasFirebaseConfig ? (
-                <Navigate to="/setup" replace />
-              ) : (
-                <PrivateRoute auth={auth}>
-                  <MainLayout auth={auth}>
-                    <Routes>
-                      <Route path="/" element={<Dashboard auth={auth} />} />
-                      <Route path="/apprenants" element={<ApprenantsPage />} />
-                      <Route path="/apprenants/:id" element={<ApprenantDetail />} />
-                      <Route path="/planning" element={<PlanningPage />} />
-                      <Route path="/emargement" element={<EmargementPage />} />
-                      <Route path="/emargement/:id" element={<SessionAttendance />} />
-                      <Route path="/groupes" element={<GroupesPage />} />
-                      <Route path="/intervenants" element={<IntervenantsPage />} />
-                      <Route path="/candidatures" element={<CandidaturesAdminPage />} />
-                      <Route path="/rapports" element={<RapportsPage />} />
-                      <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                  </MainLayout>
-                </PrivateRoute>
-              )
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-      <DataProtectionNotice />
-    </>
+            {/* Protected routes - wrapped in MainLayout */}
+            <Route
+              path="/*"
+              element={
+                !hasFirebaseConfig ? (
+                  <Navigate to="/setup" replace />
+                ) : (
+                  <PrivateRoute auth={auth}>
+                    <MainLayout auth={auth}>
+                      <Routes>
+                        <Route path="/" element={<Dashboard auth={auth} />} />
+                        <Route path="/apprenants" element={<ApprenantsPage />} />
+                        <Route path="/apprenants/:id" element={<ApprenantDetail />} />
+                        <Route path="/planning" element={<PlanningPage />} />
+                        <Route path="/emargement" element={<EmargementPage />} />
+                        <Route path="/emargement/:id" element={<SessionAttendance />} />
+                        <Route path="/groupes" element={<GroupesPage />} />
+                        <Route path="/intervenants" element={<IntervenantsPage />} />
+                        <Route path="/candidatures" element={<CandidaturesAdminPage />} />
+                        <Route path="/rapports" element={<RapportsPage />} />
+                        <Route path="/parametres" element={<SettingsPage auth={auth} />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </Routes>
+                    </MainLayout>
+                  </PrivateRoute>
+                )
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+        <DataProtectionNotice />
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }
 
