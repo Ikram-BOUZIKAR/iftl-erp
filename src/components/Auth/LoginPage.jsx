@@ -43,18 +43,16 @@ export default function LoginPage({ auth }) {
           </div>
           <div>
             <p className="text-white font-black text-xl leading-none tracking-wide">IFTL</p>
-            <p className="text-xs font-medium mt-0.5" style={{ color: '#f5c845' }}>ERP — Gestion unifiée</p>
+            <p className="text-xs font-medium mt-0.5" style={{ color: '#f5c845' }}>ERP - Gestion et suivi pédagogique centralisé</p>
           </div>
         </div>
 
         {/* Contenu central */}
         <div className="relative space-y-8">
-          {/* Nom complet IFTL */}
+          {/* Nom complet IFTL — un seul bloc */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#c8d45d' }}>
-              Institut de Formation
-            </p>
-            <h2 className="text-4xl font-bold text-white leading-tight">
+            <h2 className="text-4xl font-bold text-white leading-snug">
+              Institut de Formation<br />
               dans les métiers du<br />
               <span style={{ color: '#f5c845' }}>Transport</span> et de la<br />
               <span style={{ color: '#c8d45d' }}>Logistique</span>
@@ -68,14 +66,26 @@ export default function LoginPage({ auth }) {
             <div className="h-px flex-1 opacity-30" style={{ background: '#f5c845' }} />
           </div>
 
-          {/* Description ERP */}
+          {/* Fonctionnalités ERP */}
           <div className="space-y-3">
             <p className="text-white/90 text-base leading-relaxed">
-              Votre <strong className="text-white">ERP pédagogique</strong> — un outil de gestion unifié conçu pour piloter l'ensemble de vos activités de formation.
+              Votre <strong className="text-white">ERP pédagogique</strong> - une plateforme intégrée pour piloter l'ensemble de votre établissement de formation.
             </p>
-            <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              Planification, suivi des apprenants, administration et reporting réunis dans une seule plateforme sécurisée.
-            </p>
+            <ul className="space-y-2">
+              {[
+                { icon: '📅', label: 'Planning & emplois du temps' },
+                { icon: '✅', label: 'Émargement & suivi des présences' },
+                { icon: '👥', label: 'Gestion des apprenants & groupes' },
+                { icon: '👤', label: 'Intervenants & ressources pédagogiques' },
+                { icon: '📊', label: 'Résultats, notes & rapports académiques' },
+                { icon: '📝', label: 'Candidatures & inscription en ligne' },
+              ].map(({ icon, label }) => (
+                <li key={label} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  <span className="text-base leading-none">{icon}</span>
+                  {label}
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Badges filières */}
