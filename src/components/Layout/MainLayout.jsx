@@ -6,11 +6,20 @@ const BREADCRUMBS = {
   '/': 'Tableau de bord',
   '/planning': 'Planning / EDT',
   '/emargement': 'Émargement',
+  '/modules': 'Modules & Référentiel',
+  '/notes': 'Notes & Évaluations',
+  '/absences': 'Absences & Retards',
   '/apprenants': 'Apprenants',
-  '/groupes': 'Groupes',
+  '/groupes': 'Groupes & Promotions',
   '/intervenants': 'Intervenants',
   '/candidatures': 'Candidatures',
+  '/inscriptions': 'Inscriptions',
+  '/facturation': 'Facturation',
+  '/stages': 'Stages & Alternance',
+  '/documents': 'Documents',
+  '/annonces': 'Annonces & Événements',
   '/rapports': 'Rapports',
+  '/statistiques': 'Statistiques',
   '/parametres': 'Paramètres',
 };
 
@@ -58,7 +67,7 @@ export default function MainLayout({ auth, children }) {
 
       <div
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-          sidebarOpen ? 'ml-60' : 'ml-16'
+          sidebarOpen ? 'ml-60' : 'ml-[60px]'
         }`}
       >
         {/* Top header */}

@@ -21,6 +21,16 @@ import CandidaturePage from './components/Candidature/CandidaturePage';
 import SettingsPage from './components/Settings/SettingsPage';
 import PortailResultats from './components/Portail/PortailResultats';
 import RegisterPage from './components/Auth/RegisterPage';
+// New modules
+import ModulesPage from './components/Modules/ModulesPage';
+import NotesPage from './components/Notes/NotesPage';
+import AbsencesPage from './components/Absences/AbsencesPage';
+import FacturationPage from './components/Facturation/FacturationPage';
+import StagesPage from './components/Stages/StagesPage';
+import DocumentsPage from './components/Documents/DocumentsPage';
+import AnnoncesPage from './components/Communication/AnnoncesPage';
+import StatistiquesPage from './components/Statistiques/StatistiquesPage';
+import InscriptionsPage from './components/Inscriptions/InscriptionsPage';
 import './App.css';
 
 function App() {
@@ -34,7 +44,7 @@ function App() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <div className="w-8 h-8 border-4 border-[#005989] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-slate-500 text-sm">Chargement…</p>
         </div>
       </div>
@@ -55,7 +65,7 @@ function App() {
               !hasFirebaseConfig ? <SetupPage /> : <LoginPage auth={auth} />
             } />
 
-            {/* Protected routes - wrapped in MainLayout */}
+            {/* Protected routes */}
             <Route
               path="/*"
               element={
@@ -65,18 +75,33 @@ function App() {
                   <PrivateRoute auth={auth}>
                     <MainLayout auth={auth}>
                       <Routes>
-                        <Route path="/" element={<Dashboard auth={auth} />} />
-                        <Route path="/apprenants" element={<ApprenantsPage />} />
-                        <Route path="/apprenants/:id" element={<ApprenantDetail />} />
-                        <Route path="/planning" element={<PlanningPage />} />
-                        <Route path="/emargement" element={<EmargementPage />} />
+                        <Route path="/"              element={<Dashboard auth={auth} />} />
+                        {/* Pédagogie */}
+                        <Route path="/planning"      element={<PlanningPage />} />
+                        <Route path="/emargement"    element={<EmargementPage />} />
                         <Route path="/emargement/:id" element={<SessionAttendance />} />
-                        <Route path="/groupes" element={<GroupesPage />} />
-                        <Route path="/intervenants" element={<IntervenantsPage />} />
-                        <Route path="/candidatures" element={<CandidaturesAdminPage />} />
-                        <Route path="/rapports" element={<RapportsPage />} />
-                        <Route path="/parametres" element={<SettingsPage auth={auth} />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
+                        <Route path="/modules"       element={<ModulesPage />} />
+                        <Route path="/notes"         element={<NotesPage />} />
+                        <Route path="/absences"      element={<AbsencesPage />} />
+                        {/* Population */}
+                        <Route path="/apprenants"    element={<ApprenantsPage />} />
+                        <Route path="/apprenants/:id" element={<ApprenantDetail />} />
+                        <Route path="/groupes"       element={<GroupesPage />} />
+                        <Route path="/intervenants"  element={<IntervenantsPage />} />
+                        {/* Administratif */}
+                        <Route path="/candidatures"  element={<CandidaturesAdminPage />} />
+                        <Route path="/inscriptions"  element={<InscriptionsPage />} />
+                        <Route path="/facturation"   element={<FacturationPage />} />
+                        <Route path="/stages"        element={<StagesPage />} />
+                        <Route path="/documents"     element={<DocumentsPage />} />
+                        {/* Communication */}
+                        <Route path="/annonces"      element={<AnnoncesPage />} />
+                        {/* Analyse */}
+                        <Route path="/rapports"      element={<RapportsPage />} />
+                        <Route path="/statistiques"  element={<StatistiquesPage />} />
+                        {/* Configuration */}
+                        <Route path="/parametres"    element={<SettingsPage auth={auth} />} />
+                        <Route path="*"              element={<Navigate to="/" replace />} />
                       </Routes>
                     </MainLayout>
                   </PrivateRoute>

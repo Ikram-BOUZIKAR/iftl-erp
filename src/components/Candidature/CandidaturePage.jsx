@@ -1,14 +1,57 @@
 import { useState, useRef } from 'react';
 
-const GAS_URL = import.meta.env.VITE_GAS_CANDIDATURE_URL || 'https://script.google.com/macros/s/AKfycbz_PLACEHOLDER/exec';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
-const FILIERES = [
-  'Supply Chain Management',
-  'Management Logistique & Transport',
-  'Commerce International & Transit Douanier',
-  'Gestion des Entrepôts & Distribution',
-  'Exploitation des Infrastructures de Transport',
-];
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZxdpunUpav7IO7fXNTnInbtGpV0lJGNlBjlsz9u3NP6t2QsQcCEt5cRcnTIU3dEIU/exec';
+
+const FILIERES_BY_CAT = {
+  'Formation Professionnelle - TS': [
+    'Organisateur(trice) des flux en logistique de production',
+    'Organisateur(trice) du transport multimodal',
+    'Agent(e) d\'exploitation Logistique',
+    'E-commerce et Distribution',
+    'Agent(e) en Diagnostic et électronique embarquée',
+  ],
+  'Formation Professionnelle - Technicien': [
+    'Exploitant(e) en transport routier',
+    'Gestionnaire en entrepôt',
+    'Agent(e) de maintenance des véhicules',
+  ],
+  'Formation Professionnelle - Qualification': [
+    'Conducteur(trice) des véhicules de transport de marchandises',
+    'Conducteur(trice) des véhicules de transport de personnes',
+    'Opérateur(rice) Logistique',
+  ],
+  'Formation Supérieure': [
+    'Manager Logistique & Achats Industrie (Mastère)',
+    'Achat et Supply Chain (Licence Pro)',
+    'Transitaire et Gestionnaire des Opérations Douanières (Licence Pro)',
+    'Logistique et pilotage des flux (Bachelor)',
+  ],
+  'Formation Qualifiante': [
+    'Conducteur(trice) des véhicules de transport de marchandises',
+    'Conducteur(trice) des véhicules de transport de personnes',
+    'Cariste',
+    'Opérateur(rice) Logistique',
+    'Gestionnaire en entrepôt',
+    'Agent(e) de maintenance des véhicules',
+  ],
+  'Formation de Courte Durée': [
+    'Eco-conduite : initiation/perfectionnement',
+    'FQIMO / FCO',
+    'Conduite préventive / Sécurité routière',
+    'Réglementation Sociale Européenne',
+    'Incendie / Évacuation / Secourisme',
+    'Conducteur(trice) livreur',
+    'Préparateur(trice) de Commandes',
+    'Manutentionnaire : étiquetage, emballage, arrimage',
+    'Techniques d\'arrimage du chargement',
+    'Cariste : Initiation et recyclage',
+    'PEMP - Nacelle élévatrice',
+  ],
+};
+const FILIERES = Object.values(FILIERES_BY_CAT).flat();
 
 const NIVEAUX_FORMATION = ['Technicien Spécialisé (Bac+2)', 'Technicien (Bac+1)', 'Qualification'];
 const PROGRAM_TYPES = ['Formation Initiale', 'Formation Continue', 'Apprentissage'];
@@ -202,10 +245,23 @@ export default function CandidaturePage() {
 
       const resp = await fetch(GAS_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(payload),
       });
       const json = await resp.json();
+
+      // Mirror key fields to Firestore for ERP admin dashboard (no base64 files)
+      try {
+        const { fichiers: _f, ...meta } = payload;
+        await addDoc(collection(db, 'candidatures'), {
+          ...meta,
+          ref: json.ref || json.reference || '',
+          statut: json.doublon ? 'doublon' : 'recu',
+          nbFichiers: fichiers.length,
+          createdAt: new Date(),
+        });
+      } catch (_e) { /* non-blocking */ }
+
       setResult(json);
       setStep(6);
     } catch (err) {

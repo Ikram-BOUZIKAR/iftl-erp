@@ -113,5 +113,79 @@ service cloud.firestore {
       allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
       allow delete: if hasRole(['admin']);
     }
+
+    // ── Notes & Évaluations ────────────────────────────────────────────────────
+    match /evaluations/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /notes/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /bulletins/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Inscriptions ───────────────────────────────────────────────────────────
+    match /inscriptions/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Facturation & Paiements ────────────────────────────────────────────────
+    match /factures/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /paiements/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Stages ────────────────────────────────────────────────────────────────
+    match /stages/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Documents & Attestations ───────────────────────────────────────────────
+    match /documents/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Annonces & Communication ───────────────────────────────────────────────
+    match /annonces/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────────────
+    match /notifications/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if request.auth.uid == resource.data.userId || hasRole(['admin']);
+      allow delete: if request.auth.uid == resource.data.userId || hasRole(['admin']);
+    }
+
+    // ── Calendrier académique ─────────────────────────────────────────────────
+    match /calendrier/{docId} {
+      allow read: if isAuth();
+      allow write: if hasRole(['admin', 'direction', 'scolarite']);
+    }
   }
 }
