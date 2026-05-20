@@ -19,6 +19,7 @@ import CandidaturesAdminPage from './components/Candidatures/CandidaturesAdminPa
 import RapportsPage from './components/Rapports/RapportsPage';
 import CandidaturePage from './components/Candidature/CandidaturePage';
 import SettingsPage from './components/Settings/SettingsPage';
+import PortailResultats from './components/Portail/PortailResultats';
 import './App.css';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
             {/* Public routes */}
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/candidature" element={<CandidaturePage />} />
+            <Route path="/resultats" element={<PortailResultats />} />
             <Route path="/login" element={
               !hasFirebaseConfig ? <SetupPage /> : <LoginPage auth={auth} />
             } />

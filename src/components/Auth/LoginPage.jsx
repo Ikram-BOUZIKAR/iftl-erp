@@ -234,8 +234,24 @@ export default function LoginPage({ auth }) {
             </button>
           </form>
 
+          {/* Voir résultats */}
+          <div className="mt-5">
+            <Link
+              to="/resultats"
+              className="flex items-center justify-center gap-2.5 w-full py-3 px-4 rounded-xl border-2 font-semibold text-sm transition-all"
+              style={{ borderColor: '#005989', color: '#005989' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#005989'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#005989'; }}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Consulter mes résultats
+            </Link>
+          </div>
+
           {/* Lien candidature */}
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <p className="text-sm text-slate-500">
               Candidature à une formation ?{' '}
               <Link to="/candidature" className="font-semibold hover:underline" style={{ color: '#005989' }}>

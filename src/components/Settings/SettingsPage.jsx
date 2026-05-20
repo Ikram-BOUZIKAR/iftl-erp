@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from 'firebase/fi
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import ImportDataPage from './ImportDataPage';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,14 @@ function DatabaseIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
     </svg>
   );
 }
@@ -401,6 +410,7 @@ const TABS = [
   { id: 'profil', label: 'Mon profil', Icon: UserIcon },
   { id: 'utilisateurs', label: 'Utilisateurs', Icon: UsersIcon },
   { id: 'donnees', label: 'Données', Icon: DatabaseIcon },
+  { id: 'import', label: 'Import données', Icon: UploadIcon },
 ];
 
 export default function SettingsPage({ auth }) {
@@ -501,6 +511,7 @@ export default function SettingsPage({ auth }) {
               {activeTab === 'profil' && <ProfilTab auth={auth} />}
               {activeTab === 'utilisateurs' && <UtilisateursTab />}
               {activeTab === 'donnees' && <DonneesTab />}
+              {activeTab === 'import' && <ImportDataPage />}
             </>
           )}
         </div>
