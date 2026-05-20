@@ -120,10 +120,11 @@ function NavItem({ item, open }) {
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group relative ${
           isActive
-            ? 'bg-indigo-600 text-white shadow-sm'
+            ? 'text-white shadow-sm'
             : 'text-slate-300 hover:bg-slate-700/60 hover:text-white'
         }`
       }
+      style={({ isActive }) => isActive ? { background: '#005989' } : {}}
     >
       <Icon />
       {open && <span className="truncate">{label}</span>}
@@ -165,13 +166,14 @@ export default function Sidebar({ open, role, auth }) {
     >
       {/* Brand */}
       <div className={`flex items-center px-4 py-5 border-b border-slate-700/50 ${open ? 'gap-3' : 'justify-center'}`}>
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
-          <span className="text-white text-xs font-black tracking-tighter">IF</span>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: '#f5c845' }}>
+          <span className="text-xs font-black tracking-tighter" style={{ color: '#005989' }}>IF</span>
         </div>
         {open && (
           <div className="min-w-0">
             <p className="text-white font-bold text-sm leading-tight truncate">IFTL</p>
-            <p className="text-slate-400 text-xs font-medium truncate">ERP System</p>
+            <p className="text-xs font-medium truncate" style={{ color: '#f5c845' }}>ERP — Gestion unifiée</p>
           </div>
         )}
       </div>
@@ -199,7 +201,7 @@ export default function Sidebar({ open, role, auth }) {
       <div className={`border-t border-slate-700/50 p-3 ${!open && 'flex justify-center'}`}>
         {open ? (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#005989] flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -218,7 +220,7 @@ export default function Sidebar({ open, role, auth }) {
           <button
             onClick={handleLogout}
             title="Déconnexion"
-            className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center hover:bg-indigo-700 transition-colors"
+            className="w-8 h-8 rounded-full bg-[#005989] flex items-center justify-center hover:bg-indigo-700 transition-colors"
           >
             <span className="text-white text-xs font-bold">{initials}</span>
           </button>

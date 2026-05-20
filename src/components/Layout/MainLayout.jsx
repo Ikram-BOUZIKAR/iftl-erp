@@ -97,7 +97,7 @@ export default function MainLayout({ auth, children }) {
               className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors group"
               title="Mon profil"
             >
-              <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full bg-[#005989] flex items-center justify-center">
                 <span className="text-white text-xs font-bold">{initials}</span>
               </div>
               <div className="hidden sm:block text-left">
