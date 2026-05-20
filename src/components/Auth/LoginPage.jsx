@@ -382,14 +382,20 @@ export default function LoginPage({ auth }) {
                 </Link>
                 <div className="grid grid-cols-2 gap-2.5">
                   <Link to="/resultats"
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-medium text-sm border bg-white hover:bg-slate-50 transition"
-                    style={{ borderColor: '#e2e8f0', color: '#64748b' }}>
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-semibold text-sm transition"
+                    style={{ background: 'linear-gradient(135deg, #0077b6, #005989)', color: '#fff', boxShadow: '0 3px 10px rgba(0,89,137,0.25)' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  >
                     <Ico path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size="w-3.5 h-3.5 shrink-0" />
                     Mes résultats
                   </Link>
                   <Link to="/candidature"
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-medium text-sm border bg-white hover:bg-slate-50 transition"
-                    style={{ borderColor: '#e2e8f0', color: '#64748b' }}>
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-semibold text-sm transition"
+                    style={{ background: 'linear-gradient(135deg, #f5c845, #e6b800)', color: '#003d63', boxShadow: '0 3px 10px rgba(245,200,69,0.35)' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  >
                     <Ico path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" size="w-3.5 h-3.5 shrink-0" />
                     Candidater
                   </Link>
