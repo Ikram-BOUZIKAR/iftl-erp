@@ -31,6 +31,10 @@ import DocumentsPage from './components/Documents/DocumentsPage';
 import AnnoncesPage from './components/Communication/AnnoncesPage';
 import StatistiquesPage from './components/Statistiques/StatistiquesPage';
 import InscriptionsPage from './components/Inscriptions/InscriptionsPage';
+import RHPage from './components/RH/RHPage';
+import BibliothequeePage from './components/Bibliotheque/BibliothequeePage';
+import TransportPage from './components/Transport/TransportPage';
+import CollaboratifPage from './components/Collaboratif/CollaboratifPage';
 import './App.css';
 
 function App() {
@@ -94,8 +98,14 @@ function App() {
                         <Route path="/facturation"   element={<FacturationPage />} />
                         <Route path="/stages"        element={<StagesPage />} />
                         <Route path="/documents"     element={<DocumentsPage />} />
+                        {/* RH & Paie */}
+                        <Route path="/rh"            element={<RHPage />} />
+                        {/* Ressources */}
+                        <Route path="/bibliotheque"  element={<BibliothequeePage />} />
+                        <Route path="/transport"     element={<TransportPage />} />
                         {/* Communication */}
                         <Route path="/annonces"      element={<AnnoncesPage />} />
+                        <Route path="/collaboratif"  element={<CollaboratifPage />} />
                         {/* Analyse */}
                         <Route path="/rapports"      element={<RapportsPage />} />
                         <Route path="/statistiques"  element={<StatistiquesPage />} />
