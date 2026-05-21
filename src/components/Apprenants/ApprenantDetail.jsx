@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { studentsService } from '../../services/firestore';
 import { usePresencesByStudent, useSessions, useGroupes } from '../../hooks/useData';
 import { computeStudentAbsencesByModule, getAlertColor } from '../../services/absenceService';
+import { db } from '../../services/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const STATUT_LABELS = {
   present: 'Présent',
@@ -18,16 +20,70 @@ const STATUT_COLORS = {
   retard: 'bg-amber-100 text-amber-700'
 };
 
+const TYPE_LABELS = {
+  cc: 'Contrôle Continu',
+  tp: 'TP',
+  examen_fin_module: 'Examen Fin Module',
+  examen_session: 'Examen Fin Module',
+  ds: 'Devoir Surveillé',
+};
+
+const TYPE_COEFF = {
+  cc: 1,
+  tp: 1,
+  ds: 1,
+  examen_fin_module: 2,
+  examen_session: 2,
+};
+
 export default function ApprenantDetail() {
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notesData, setNotesData] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(true);
   const { data: presences } = usePresencesByStudent(id);
   const { data: sessions } = useSessions();
   const { data: groupes } = useGroupes();
 
   useEffect(() => {
     studentsService.getById(id).then(s => { setStudent(s); setLoading(false); });
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    setNotesLoading(true);
+    Promise.all([
+      getDocs(query(collection(db, 'notes'), where('studentId', '==', id))),
+      getDocs(collection(db, 'evaluations')),
+      getDocs(collection(db, 'modules')),
+    ]).then(([notesSnap, evalsSnap, modulesSnap]) => {
+      const evals = {};
+      evalsSnap.forEach(d => { evals[d.id] = { id: d.id, ...d.data() }; });
+      const mods = {};
+      modulesSnap.forEach(d => { mods[d.id] = { id: d.id, ...d.data() }; });
+
+      const rows = [];
+      notesSnap.forEach(d => {
+        const n = { id: d.id, ...d.data() };
+        const ev = evals[n.evaluationId] || null;
+        const mod = ev ? mods[ev.moduleId] : null;
+        rows.push({
+          noteId: n.id,
+          note: n.note,
+          absent: n.absent,
+          commentaire: n.commentaire || '',
+          evalTitre: ev?.titre || '—',
+          evalType: ev?.type || '',
+          moduleId: ev?.moduleId || null,
+          moduleNom: mod ? `${mod.code} — ${mod.nom}` : (ev?.moduleId || 'Module inconnu'),
+          date: ev?.date || null,
+        });
+      });
+      rows.sort((a, b) => (a.moduleNom > b.moduleNom ? 1 : -1));
+      setNotesData(rows);
+      setNotesLoading(false);
+    }).catch(() => setNotesLoading(false));
   }, [id]);
 
   if (loading) return (
@@ -112,6 +168,9 @@ export default function ApprenantDetail() {
           </div>
         </div>
       </div>
+
+      {/* Notes / grades section */}
+      <NotesSection notesData={notesData} loading={notesLoading} />
 
       {/* Absence summary by module */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
@@ -204,6 +263,137 @@ function InfoField({ label, value }) {
     <div>
       <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">{label}</p>
       <div className="text-sm text-slate-800 font-medium mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function getNoteColor(note) {
+  if (note === null || note === undefined || note === '') return 'text-slate-400';
+  const n = parseFloat(note);
+  if (isNaN(n)) return 'text-slate-400';
+  if (n >= 14) return 'text-emerald-600';
+  if (n >= 10) return 'text-blue-600';
+  if (n >= 8) return 'text-amber-600';
+  return 'text-red-600';
+}
+
+function getNoteBg(note) {
+  if (note === null || note === undefined || note === '') return 'bg-slate-50';
+  const n = parseFloat(note);
+  if (isNaN(n)) return 'bg-slate-50';
+  if (n >= 14) return 'bg-emerald-50 border-emerald-200';
+  if (n >= 10) return 'bg-blue-50 border-blue-200';
+  if (n >= 8) return 'bg-amber-50 border-amber-200';
+  return 'bg-red-50 border-red-200';
+}
+
+function computeModuleMoyenne(rows) {
+  const valid = rows.filter(r => !r.absent && r.note !== '' && r.note !== null && r.note !== undefined && !isNaN(parseFloat(r.note)));
+  if (valid.length === 0) return null;
+  const totalCoeff = valid.reduce((s, r) => s + (TYPE_COEFF[r.evalType] || 1), 0);
+  const totalWeighted = valid.reduce((s, r) => s + parseFloat(r.note) * (TYPE_COEFF[r.evalType] || 1), 0);
+  return totalWeighted / totalCoeff;
+}
+
+function NotesSection({ notesData, loading }) {
+  if (loading) return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <h2 className="font-bold text-slate-800 mb-4">Notes & Résultats</h2>
+      <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
+        <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+        Chargement des notes…
+      </div>
+    </div>
+  );
+
+  if (notesData.length === 0) return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <h2 className="font-bold text-slate-800 mb-4">Notes & Résultats</h2>
+      <div className="text-center py-6">
+        <p className="text-slate-400 text-sm">Aucune note enregistrée pour cet apprenant.</p>
+      </div>
+    </div>
+  );
+
+  // Group by module
+  const byModule = {};
+  notesData.forEach(r => {
+    const key = r.moduleId || r.moduleNom;
+    if (!byModule[key]) byModule[key] = { nom: r.moduleNom, rows: [] };
+    byModule[key].rows.push(r);
+  });
+
+  const totalNotes = notesData.filter(r => !r.absent && r.note !== '' && r.note !== null && !isNaN(parseFloat(r.note)));
+  const globalMoy = totalNotes.length > 0
+    ? totalNotes.reduce((s, r) => s + parseFloat(r.note), 0) / totalNotes.length
+    : null;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h2 className="font-bold text-slate-800">Notes & Résultats ({notesData.length} évaluation{notesData.length > 1 ? 's' : ''})</h2>
+        {globalMoy !== null && (
+          <span className={`text-sm font-bold px-3 py-1 rounded-full border ${getNoteBg(globalMoy)}`}>
+            Moy. générale : <span className={getNoteColor(globalMoy)}>{globalMoy.toFixed(2)}/20</span>
+          </span>
+        )}
+      </div>
+
+      <div className="divide-y divide-slate-100">
+        {Object.entries(byModule).map(([key, { nom, rows }]) => {
+          const moy = computeModuleMoyenne(rows);
+          return (
+            <div key={key} className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-slate-800 text-sm">{nom}</h3>
+                {moy !== null && (
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${getNoteBg(moy)} ${getNoteColor(moy)}`}>
+                    Moy. {moy.toFixed(2)}/20
+                  </span>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">Évaluation</th>
+                      <th className="text-left pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                      <th className="text-left pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Date</th>
+                      <th className="text-right pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">Note /20</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {rows.map(r => (
+                      <tr key={r.noteId} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 pr-4 text-slate-700 font-medium">{r.evalTitre}</td>
+                        <td className="py-2.5 pr-4">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                            {TYPE_LABELS[r.evalType] || r.evalType || '—'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-4 text-slate-500 text-xs hidden sm:table-cell">
+                          {r.date ? new Date(r.date).toLocaleDateString('fr-FR') : '—'}
+                        </td>
+                        <td className="py-2.5 text-right">
+                          {r.absent ? (
+                            <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Absent</span>
+                          ) : (r.note !== '' && r.note !== null && r.note !== undefined) ? (
+                            <span className={`text-sm font-bold ${getNoteColor(r.note)}`}>
+                              {parseFloat(r.note).toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
