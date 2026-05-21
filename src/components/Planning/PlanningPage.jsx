@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { useWeekSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import SessionForm from './SessionForm';
@@ -9,7 +11,7 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
 const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const TYPE_COLORS = {
   cours: 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100',
   tp: 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100',
@@ -51,12 +53,27 @@ export default function PlanningPage() {
   const { data: sessions, refetch } = useWeekSessions(weekStart);
   const { data: groupes } = useGroupes();
   const { data: intervenants } = useIntervenants();
+  const [modules, setModules] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filterGroupe, setFilterGroupe] = useState('');
+  const [filterFiliere, setFilterFiliere] = useState('');
   const [viewMode, setViewMode] = useState('week'); // 'week' | 'list'
 
   const weekDays = DAYS.map((_, i) => addDays(weekStart, i));
+
+  const filieres = [...new Set(groupes.map(g => g.filiere || g.filiereCode).filter(Boolean))].sort();
+
+  const fetchModules = useCallback(async () => {
+    try {
+      const snap = await getDocs(query(collection(db, 'modules'), orderBy('code', 'asc')));
+      const data = [];
+      snap.forEach(d => data.push({ id: d.id, ...d.data() }));
+      setModules(data);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { fetchModules(); }, [fetchModules]);
 
   const getGroupeName = (id) => groupes.find(g => g.id === id)?.nom || '—';
   const getIntervenantName = (id) => {
@@ -64,7 +81,14 @@ export default function PlanningPage() {
     return i ? `${i.prenom} ${i.nom}` : '—';
   };
 
-  const filtered = sessions.filter(s => !filterGroupe || s.groupeId === filterGroupe);
+  const filteredGroupes = filterFiliere
+    ? groupes.filter(g => (g.filiere || g.filiereCode) === filterFiliere)
+    : groupes;
+  const filteredGroupeIds = new Set(filteredGroupes.map(g => g.id));
+  const filtered = sessions.filter(s =>
+    (!filterGroupe || s.groupeId === filterGroupe) &&
+    (!filterFiliere || filteredGroupeIds.has(s.groupeId))
+  );
 
   const getSessionsForSlot = (dayIndex, hour) => {
     const day = weekDays[dayIndex];
@@ -115,7 +139,7 @@ export default function PlanningPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Planning / EDT</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Semaine du {format(weekStart, 'dd MMMM', { locale: fr })} au {format(addDays(weekStart, 5), 'dd MMMM yyyy', { locale: fr })}
+            Semaine du {format(weekStart, 'dd MMMM', { locale: fr })} au {format(addDays(weekStart, 6), 'dd MMMM yyyy', { locale: fr })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -143,12 +167,21 @@ export default function PlanningPage() {
           </button>
 
           <select
+            value={filterFiliere}
+            onChange={e => { setFilterFiliere(e.target.value); setFilterGroupe(''); }}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
+          >
+            <option value="">Toutes filières</option>
+            {filieres.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+
+          <select
             value={filterGroupe}
             onChange={e => setFilterGroupe(e.target.value)}
-            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
           >
             <option value="">Tous les groupes</option>
-            {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+            {(filterFiliere ? filteredGroupes : groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
           </select>
 
           <button
@@ -223,6 +256,7 @@ export default function PlanningPage() {
           initial={editing}
           groupes={groupes}
           intervenants={intervenants}
+          modules={modules}
           defaultDate={weekStart}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); }}

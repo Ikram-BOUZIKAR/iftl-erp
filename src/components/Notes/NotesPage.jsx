@@ -18,7 +18,7 @@ import { useConfirm } from '../UI/ConfirmDialog';
 
 const TYPE_EVAL_STYLES = {
   controle: { cls: 'bg-sky-100 text-sky-700', label: 'Contrôle' },
-  examen_session: { cls: 'bg-violet-100 text-violet-700', label: 'Examen session' },
+  examen_session: { cls: 'bg-violet-100 text-violet-700', label: 'Examen Fin Module' },
   examen_rattrapage: { cls: 'bg-orange-100 text-orange-700', label: 'Rattrapage' },
   tp: { cls: 'bg-teal-100 text-teal-700', label: 'TP' },
   projet: { cls: 'bg-rose-100 text-rose-700', label: 'Projet' },
@@ -302,7 +302,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
                   <select value={form.type} onChange={e => setField('type', e.target.value)}
                     className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
                     <option value="controle">Contrôle</option>
-                    <option value="examen_session">Examen session</option>
+                    <option value="examen_session">Examen Fin Module</option>
                     <option value="examen_rattrapage">Rattrapage</option>
                     <option value="tp">TP</option>
                     <option value="projet">Projet</option>
@@ -364,6 +364,72 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
 
 // ─── Tab: Saisie des notes ────────────────────────────────────────────────────
 
+function StudentHistoryModal({ student, evaluations, modules, onClose }) {
+  const [allNotes, setAllNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!student) return;
+    setLoading(true);
+    getDocs(query(collection(db, 'notes'), where('studentId', '==', student.id))).then(snap => {
+      const ns = [];
+      snap.forEach(d => ns.push({ id: d.id, ...d.data() }));
+      setAllNotes(ns);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [student?.id]);
+
+  const rows = allNotes.map(n => {
+    const ev = evaluations.find(e => e.id === n.evaluationId);
+    const mod = ev ? modules.find(m => m.id === ev.moduleId) : null;
+    return { note: n.note, absent: n.absent, evalTitre: ev?.titre || n.evaluationId, modNom: mod ? `${mod.code} — ${mod.nom}` : ev?.moduleId || '—', type: ev?.type || '' };
+  }).sort((a, b) => a.modNom.localeCompare(b.modNom));
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+          <div>
+            <p className="font-bold text-slate-800">{student.prenom} {student.nom}</p>
+            <p className="text-xs text-slate-400">{student.code} · {student.groupeId}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">✕</button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-4">
+          {loading ? (
+            <div className="flex justify-center py-8"><Spinner /></div>
+          ) : rows.length === 0 ? (
+            <p className="text-center text-slate-400 text-sm py-8">Aucune note enregistrée.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead><tr className="text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                <th className="text-left py-2 pr-3">Module</th>
+                <th className="text-left py-2 pr-3">Évaluation</th>
+                <th className="text-right py-2">Note</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-50">
+                {rows.map((r, i) => (
+                  <tr key={i} className="hover:bg-slate-50">
+                    <td className="py-2 pr-3 text-slate-600 text-xs">{r.modNom}</td>
+                    <td className="py-2 pr-3 text-slate-500 text-xs truncate max-w-[160px]">{r.evalTitre}</td>
+                    <td className="py-2 text-right">
+                      {r.absent
+                        ? <span className="text-xs text-red-500 font-medium">Absent</span>
+                        : r.note === null ? <span className="text-slate-300">—</span>
+                        : <span className={`font-bold ${r.note >= 12 ? 'text-emerald-600' : r.note >= 10 ? 'text-amber-600' : 'text-red-600'}`}>{r.note}</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SaisieTab({ evaluations, modules, groupes }) {
   const toast = useToast();
   const [selectedEvalId, setSelectedEvalId] = useState('');
@@ -371,6 +437,7 @@ function SaisieTab({ evaluations, modules, groupes }) {
   const [notes, setNotes] = useState({}); // { studentId: { note, absent, commentaire } }
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [historyStudent, setHistoryStudent] = useState(null);
 
   const selectedEval = evaluations.find(e => e.id === selectedEvalId);
 
@@ -378,11 +445,10 @@ function SaisieTab({ evaluations, modules, groupes }) {
     if (!selectedEval?.groupeId) return;
     setLoadingStudents(true);
     try {
-      const sq = query(collection(db, 'students'), orderBy('nom', 'asc'));
+      const sq = query(collection(db, 'students'), where('groupeId', '==', selectedEval.groupeId), orderBy('nom', 'asc'));
       const snap = await getDocs(sq);
-      const all = [];
-      snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-      const grpStudents = all.filter(s => s.groupeId === selectedEval.groupeId);
+      const grpStudents = [];
+      snap.forEach(d => grpStudents.push({ id: d.id, ...d.data() }));
       setStudents(grpStudents);
 
       // Fetch existing notes
@@ -528,15 +594,20 @@ function SaisieTab({ evaluations, modules, groupes }) {
                     return (
                       <tr key={s.id} className={`hover:bg-slate-50 transition-colors ${entry.absent ? 'opacity-60' : ''}`}>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStudent(s)}
+                            className="flex items-center gap-2 hover:bg-slate-50 rounded-lg px-1 py-0.5 transition-colors group text-left w-full"
+                            title="Voir historique des notes"
+                          >
                             <div className="w-7 h-7 rounded-full bg-[#005989]/10 flex items-center justify-center text-xs font-bold text-[#005989] shrink-0">
                               {s.prenom?.[0]}{s.nom?.[0]}
                             </div>
                             <div>
-                              <p className="font-medium text-slate-800">{s.prenom} {s.nom}</p>
+                              <p className="font-medium text-slate-800 group-hover:text-[#005989] transition-colors">{s.prenom} {s.nom}</p>
                               {s.cin && <p className="text-xs text-slate-400">{s.cin}</p>}
                             </div>
-                          </div>
+                          </button>
                         </td>
                         <td className="px-4 py-3">
                           {!entry.absent && (
@@ -584,6 +655,15 @@ function SaisieTab({ evaluations, modules, groupes }) {
           )}
         </div>
       )}
+
+      {historyStudent && (
+        <StudentHistoryModal
+          student={historyStudent}
+          evaluations={evaluations}
+          modules={modules}
+          onClose={() => setHistoryStudent(null)}
+        />
+      )}
     </div>
   );
 }
@@ -604,11 +684,11 @@ function BulletinsTab({ evaluations, modules, groupes }) {
     setLoadingStudents(true);
     const fetchStudents = async () => {
       try {
-        const sq = query(collection(db, 'students'), orderBy('nom', 'asc'));
+        const sq = query(collection(db, 'students'), where('groupeId', '==', selectedGroupeId), orderBy('nom', 'asc'));
         const snap = await getDocs(sq);
         const all = [];
         snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-        setStudents(all.filter(s => s.groupeId === selectedGroupeId));
+        setStudents(all);
         setSelectedStudentId('');
         setBulletin([]);
       } catch (err) {

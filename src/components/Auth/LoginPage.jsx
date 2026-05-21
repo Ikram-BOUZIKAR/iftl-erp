@@ -90,10 +90,9 @@ export default function LoginPage({ auth }) {
           >01</div>
 
           <div className="relative z-10 flex flex-col items-center gap-4">
-            <span
-              className="text-[10px] font-black tracking-[0.22em] uppercase text-white"
-              style={{ opacity: 0.65 }}
-            >Espace apprenant</span>
+            <span className="text-lg sm:text-xl font-black tracking-wide uppercase text-white">
+              Espace Apprenant
+            </span>
 
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center border-2 border-white/25 transition-transform duration-300 group-hover:scale-110"
@@ -121,11 +120,11 @@ export default function LoginPage({ auth }) {
           </div>
 
           <div
-            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full text-sm font-bold text-white transition-all duration-300 group-hover:gap-4"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
+            className="inline-flex items-center gap-2.5 px-7 py-3 rounded-full text-sm font-black transition-all duration-300 group-hover:gap-4"
+            style={{ background: P.yellow.brand, color: P.blue.dark }}
           >
             Accéder
-            <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke="white" strokeWidth={2} />
+            <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke={P.blue.dark} strokeWidth={2.5} />
           </div>
         </div>
       </Link>
@@ -149,10 +148,9 @@ export default function LoginPage({ auth }) {
           >02</div>
 
           <div className="relative z-10 flex flex-col items-center gap-4">
-            <span
-              className="text-[10px] font-black tracking-[0.22em] uppercase"
-              style={{ color: P.green.dark, opacity: 0.65 }}
-            >Candidature</span>
+            <span className="text-lg sm:text-xl font-black tracking-wide uppercase" style={{ color: P.green.dark }}>
+              Candidature
+            </span>
 
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center border-2 transition-transform duration-300 group-hover:scale-110"
@@ -190,11 +188,11 @@ export default function LoginPage({ auth }) {
           </div>
 
           <div
-            className="inline-flex items-center gap-2.5 px-5 py-3 rounded-full text-sm font-bold text-white transition-all duration-300 group-hover:gap-4"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}
+            className="inline-flex items-center gap-2.5 px-7 py-3 rounded-full text-sm font-black transition-all duration-300 group-hover:gap-4"
+            style={{ background: P.green.brand, color: P.green.dark }}
           >
             Déposer ma candidature
-            <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke="white" strokeWidth={2} />
+            <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke={P.green.dark} strokeWidth={2.5} />
           </div>
         </div>
       </Link>
@@ -217,14 +215,13 @@ export default function LoginPage({ auth }) {
           >03</div>
 
           <div className="relative z-10 flex flex-col items-center gap-3">
-            <span
-              className="text-[10px] font-black tracking-[0.22em] uppercase"
-              style={{ color: P.yellow.dark, opacity: 0.6 }}
-            >Espace professionnel</span>
+            <span className="text-lg sm:text-xl font-black tracking-wide uppercase" style={{ color: P.blue.dark }}>
+              Espace Professionnel
+            </span>
 
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
-              style={{ background: P.yellow.dark }}
+              style={{ background: P.blue.dark }}
             >
               <span className="font-black text-sm" style={{ color: P.yellow.brand }}>IF</span>
             </div>
@@ -232,11 +229,11 @@ export default function LoginPage({ auth }) {
             <div>
               <h2
                 className="text-2xl sm:text-3xl font-black leading-[1.1] tracking-tight"
-                style={{ color: P.yellow.dark }}
+                style={{ color: P.blue.dark }}
               >
                 Connexion<br />au compte
               </h2>
-              <p className="text-xs mt-1.5" style={{ color: `${P.yellow.dark}99` }}>
+              <p className="text-xs mt-1.5" style={{ color: `${P.blue.dark}99` }}>
                 Administration · Intervenants · Apprenants
               </p>
             </div>

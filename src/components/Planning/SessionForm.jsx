@@ -17,7 +17,7 @@ function CloseIcon() {
   );
 }
 
-export default function SessionForm({ initial, groupes, intervenants, defaultDate, onSave, onClose }) {
+export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, onSave, onClose }) {
   const [form, setForm] = useState({
     date: initial?.date ? format(new Date(initial.date), 'yyyy-MM-dd') : (defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')),
     heureDebut: initial?.heureDebut || '08:00',
@@ -72,15 +72,28 @@ export default function SessionForm({ initial, groupes, intervenants, defaultDat
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Module / Matière <span className="text-red-500">*</span>
+              Module <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={form.module}
-              onChange={e => set('module', e.target.value)}
-              placeholder="Ex: Développement Web, Base de données…"
-              className={inputCls('module')}
-            />
+            {modules.length > 0 ? (
+              <select
+                value={form.module}
+                onChange={e => set('module', e.target.value)}
+                className={inputCls('module') + ' bg-white'}
+              >
+                <option value="">— Sélectionner un module —</option>
+                {modules.map(m => (
+                  <option key={m.id} value={m.id}>{m.code} — {m.nom}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={form.module}
+                onChange={e => set('module', e.target.value)}
+                placeholder="Ex: OTM-M01, Logistique…"
+                className={inputCls('module')}
+              />
+            )}
             {errors.module && <p className="text-xs text-red-500 mt-1">{errors.module}</p>}
           </div>
 
