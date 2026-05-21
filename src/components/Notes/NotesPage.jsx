@@ -15,6 +15,7 @@ import { db } from '../../services/firebase';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { generateBulletin } from '../../services/pdfService';
 
 const TYPE_EVAL_STYLES = {
   controle: { cls: 'bg-sky-100 text-sky-700', label: 'Contrôle' },
@@ -807,24 +808,41 @@ function BulletinsTab({ evaluations, modules, groupes }) {
         ) : (
           <div className="space-y-4">
             {/* Student header */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#005989]/10 flex items-center justify-center text-sm font-bold text-[#005989]">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-[#005989]/10 flex items-center justify-center text-sm font-bold text-[#005989] shrink-0">
                   {selectedStudent?.prenom?.[0]}{selectedStudent?.nom?.[0]}
                 </div>
-                <div>
-                  <p className="font-bold text-slate-800">{selectedStudent?.prenom} {selectedStudent?.nom}</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 truncate">{selectedStudent?.prenom} {selectedStudent?.nom}</p>
                   <p className="text-xs text-slate-400">{groupes.find(g => g.id === selectedGroupeId)?.nom}</p>
                 </div>
               </div>
-              {generalMoyenne !== null && (
-                <div className="text-right">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-0.5">Moyenne générale</p>
-                  <p className={`text-2xl font-bold ${noteColor(generalMoyenne)}`}>
-                    {generalMoyenne.toFixed(2)}<span className="text-sm font-normal text-slate-400">/20</span>
-                  </p>
-                </div>
-              )}
+              <div className="flex items-center gap-4 shrink-0">
+                <button
+                  onClick={() => generateBulletin(
+                    selectedStudent,
+                    groupes.find(g => g.id === selectedGroupeId)?.nom || '',
+                    bulletin,
+                    '2025-2026'
+                  )}
+                  title="Télécharger le bulletin PDF"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#005989] border border-[#005989]/30 rounded-xl hover:bg-[#005989]/10 transition-colors whitespace-nowrap"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Bulletin PDF
+                </button>
+                {generalMoyenne !== null && (
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-0.5">Moyenne générale</p>
+                    <p className={`text-2xl font-bold ${noteColor(generalMoyenne)}`}>
+                      {generalMoyenne.toFixed(2)}<span className="text-sm font-normal text-slate-400">/20</span>
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Per-module notes */}

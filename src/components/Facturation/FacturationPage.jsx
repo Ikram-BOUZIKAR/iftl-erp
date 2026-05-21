@@ -6,6 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { generateRecu } from '../../services/pdfService';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,14 @@ function ChevronUpIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
     </svg>
   );
 }
@@ -697,6 +706,19 @@ export default function FacturationPage() {
                                 Paiement
                               </button>
                             )}
+                            <button
+                              onClick={() => generateRecu(f, {
+                                nom: f.studentNom,
+                                prenom: f.studentPrenom,
+                                cin: f.cin || '',
+                                groupeId: f.filiere || f.groupeId || '',
+                              })}
+                              title="Télécharger le reçu PDF"
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 text-[#005989] border border-[#005989]/30 rounded-lg hover:bg-[#005989]/10 transition-colors whitespace-nowrap"
+                            >
+                              <DocumentIcon />
+                              Reçu PDF
+                            </button>
                             <button
                               onClick={() => handleDelete(f)}
                               className="text-xs font-medium px-2.5 py-1.5 text-red-600 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
