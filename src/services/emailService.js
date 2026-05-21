@@ -9,7 +9,7 @@
 
 import { doc, getDoc, setDoc, addDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 
-const SENDER = { name: 'IFTL', email: 'no-reply@iftl.ma' };
+const SENDER = { name: 'IFTL', email: 'ikrambouzi@gmail.com' };
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
 
 // ─── Key management ────────────────────────────────────────────────────────────
