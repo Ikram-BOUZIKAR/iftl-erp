@@ -35,6 +35,8 @@ import RHPage from './components/RH/RHPage';
 import BibliothequeePage from './components/Bibliotheque/BibliothequeePage';
 import TransportPage from './components/Transport/TransportPage';
 import CollaboratifPage from './components/Collaboratif/CollaboratifPage';
+import EmailsPage from './components/Emails/EmailsPage';
+import FormationContinuePage from './components/FormationContinue/FormationContinuePage';
 import './App.css';
 
 function App() {
@@ -100,12 +102,15 @@ function App() {
                         <Route path="/documents"     element={<DocumentsPage />} />
                         {/* RH & Paie */}
                         <Route path="/rh"            element={<RHPage />} />
+                        {/* Formation Continue */}
+                        <Route path="/formation-continue" element={<FormationContinuePage />} />
                         {/* Ressources */}
                         <Route path="/bibliotheque"  element={<BibliothequeePage />} />
                         <Route path="/transport"     element={<TransportPage />} />
                         {/* Communication */}
                         <Route path="/annonces"      element={<AnnoncesPage />} />
                         <Route path="/collaboratif"  element={<CollaboratifPage />} />
+                        <Route path="/emails"        element={<EmailsPage />} />
                         {/* Analyse */}
                         <Route path="/rapports"      element={<RapportsPage />} />
                         <Route path="/statistiques"  element={<StatistiquesPage />} />

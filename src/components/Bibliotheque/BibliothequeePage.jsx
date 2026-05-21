@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
   doc, query, orderBy
 } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
@@ -65,10 +66,20 @@ function BookOpenIcon() {
   );
 }
 
+function UploadIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+    </svg>
+  );
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TYPES_RESSOURCE = ['Cours', 'TP', 'Examen', 'Livre', 'Vidéo', 'Article'];
 const FILIERES = ['OTM', 'OFLP', 'AEL', 'ECOM', 'ADEE', 'LIC', 'Tous'];
+
+const ACCEPTED_FILES = '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp';
 
 const TYPE_STYLES = {
   'Cours':   { badge: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-500' },
@@ -119,6 +130,12 @@ function ResourceCard({ ressource, onEdit, onDelete }) {
         <h3 className="font-semibold text-slate-800 text-sm leading-snug line-clamp-2">{ressource.titre}</h3>
         {ressource.auteur && (
           <p className="text-xs text-slate-500 mt-0.5">{ressource.auteur}</p>
+        )}
+        {ressource.storageRef && (
+          <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+            <UploadIcon />
+            Fichier uploadé
+          </p>
         )}
         {ressource.description && (
           <p className="text-xs text-slate-400 mt-1.5 line-clamp-2">{ressource.description}</p>
@@ -181,23 +198,72 @@ function RessourcePanel({ ressource, onClose, onSaved }) {
   const [form, setForm] = useState(ressource ? { ...EMPTY_FORM, ...ressource } : EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
+  // Upload state
+  const [sourceMode, setSourceMode] = useState(
+    ressource?.storageRef ? 'upload' : 'url'
+  );
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null); // 0–100 or null
+  const fileInputRef = useRef(null);
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) setSelectedFile(file);
+  };
+
+  const uploadFile = (file) => {
+    return new Promise((resolve, reject) => {
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `bibliotheque/${timestamp}-${safeName}`;
+      const storageRef = ref(storage, storagePath);
+      const task = uploadBytesResumable(storageRef, file);
+
+      task.on(
+        'state_changed',
+        (snapshot) => {
+          const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setUploadProgress(pct);
+        },
+        (err) => reject(err),
+        async () => {
+          const downloadURL = await getDownloadURL(task.snapshot.ref);
+          resolve({ downloadURL, storagePath });
+        }
+      );
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.titre.trim()) return;
     setSaving(true);
     try {
+      let finalUrl = form.url?.trim() || '';
+      let storageRef = ressource?.storageRef || '';
+
+      if (sourceMode === 'upload' && selectedFile) {
+        setUploadProgress(0);
+        const { downloadURL, storagePath } = await uploadFile(selectedFile);
+        finalUrl = downloadURL;
+        storageRef = storagePath;
+        setUploadProgress(null);
+      }
+
       const data = {
         titre: form.titre.trim(),
         auteur: form.auteur.trim(),
         type: form.type,
         filiere: form.filiere,
         module: form.module.trim(),
-        url: form.url.trim(),
+        url: finalUrl,
+        storageRef: storageRef,
         description: form.description.trim(),
         acces: form.acces,
       };
+
       if (ressource) {
         await updateDoc(doc(db, 'ressources', ressource.id), data);
         toast.success('Ressource modifiée');
@@ -208,6 +274,7 @@ function RessourcePanel({ ressource, onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (err) {
+      setUploadProgress(null);
       toast.error('Erreur : ' + err.message);
     } finally {
       setSaving(false);
@@ -269,11 +336,95 @@ function RessourcePanel({ ressource, onClose, onSaved }) {
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]" />
           </div>
 
+          {/* Source: URL or Upload */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">URL</label>
-            <input type="url" value={form.url} onChange={e => set('url', e.target.value)}
-              placeholder="https://…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]" />
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Source du fichier</label>
+            <div className="flex gap-4 mb-3">
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                <input
+                  type="radio"
+                  name="sourceMode"
+                  value="url"
+                  checked={sourceMode === 'url'}
+                  onChange={() => setSourceMode('url')}
+                  className="accent-[#005989]"
+                />
+                Lien URL
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                <input
+                  type="radio"
+                  name="sourceMode"
+                  value="upload"
+                  checked={sourceMode === 'upload'}
+                  onChange={() => setSourceMode('upload')}
+                  className="accent-[#005989]"
+                />
+                Uploader un fichier
+              </label>
+            </div>
+
+            {sourceMode === 'url' ? (
+              <input
+                type="url"
+                value={form.url}
+                onChange={e => set('url', e.target.value)}
+                placeholder="https://…"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
+              />
+            ) : (
+              <div className="space-y-2">
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-[#005989] hover:bg-blue-50/30 transition-colors"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-[#005989]/10 flex items-center justify-center text-[#005989]">
+                      <UploadIcon />
+                    </div>
+                    {selectedFile ? (
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{selectedFile.name}</p>
+                        <p className="text-xs text-slate-400">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    ) : ressource?.storageRef ? (
+                      <div>
+                        <p className="text-sm text-slate-600">Fichier déjà uploadé</p>
+                        <p className="text-xs text-slate-400">Cliquer pour remplacer</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm text-slate-600">Cliquer pour sélectionner</p>
+                        <p className="text-xs text-slate-400">PDF, PPT, DOC, XLS, images</p>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ACCEPTED_FILES}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Progress bar */}
+                {uploadProgress !== null && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>Upload en cours…</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-2 rounded-full bg-[#005989] transition-all duration-200"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -298,9 +449,16 @@ function RessourcePanel({ ressource, onClose, onSaved }) {
             className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
             Annuler
           </button>
-          <button onClick={handleSubmit} disabled={saving}
-            className="px-4 py-2 text-sm font-medium bg-[#005989] hover:bg-[#004a73] text-white rounded-xl transition-colors disabled:opacity-60">
-            {saving ? 'Enregistrement…' : ressource ? 'Modifier' : 'Ajouter'}
+          <button
+            onClick={handleSubmit}
+            disabled={saving || uploadProgress !== null}
+            className="px-4 py-2 text-sm font-medium bg-[#005989] hover:bg-[#004a73] text-white rounded-xl transition-colors disabled:opacity-60"
+          >
+            {uploadProgress !== null
+              ? `Upload ${uploadProgress}%…`
+              : saving
+              ? 'Enregistrement…'
+              : ressource ? 'Modifier' : 'Ajouter'}
           </button>
         </div>
       </div>
@@ -345,6 +503,16 @@ export default function BibliothequeePage() {
     });
     if (!ok) return;
     try {
+      // Delete from Storage if uploaded file
+      if (r.storageRef) {
+        try {
+          const storageRef = ref(storage, r.storageRef);
+          await deleteObject(storageRef);
+        } catch (storageErr) {
+          // File may already be deleted; proceed
+          console.warn('Storage delete warning:', storageErr.message);
+        }
+      }
       await deleteDoc(doc(db, 'ressources', r.id));
       toast.success('Ressource supprimée');
       loadRessources();
