@@ -224,14 +224,25 @@ function ProfilTab({ auth }) {
 
 // ─── Utilisateurs tab ─────────────────────────────────────────────────────────
 
-const ROLES = ['admin', 'intervenant', 'apprenant'];
+const ROLES = [
+  { value: 'admin',       label: 'Administrateur' },
+  { value: 'direction',   label: 'Direction'       },
+  { value: 'scolarite',   label: 'Scolarité'       },
+  { value: 'intervenant', label: 'Intervenant'     },
+  { value: 'apprenant',   label: 'Apprenant'       },
+  { value: 'parent',      label: 'Parent / Tuteur' },
+];
 
 const ROLE_BADGE = {
   admin:       'bg-indigo-100 text-indigo-700 border-indigo-200',
+  direction:   'bg-[#005989]/10 text-[#005989] border-[#005989]/20',
+  scolarite:   'bg-[#c8d45d]/30 text-[#5a6a00] border-[#c8d45d]/50',
   intervenant: 'bg-violet-100 text-violet-700 border-violet-200',
   apprenant:   'bg-emerald-100 text-emerald-700 border-emerald-200',
   parent:      'bg-orange-100 text-orange-700 border-orange-200',
 };
+
+const ROLE_LABEL = Object.fromEntries(ROLES.map(r => [r.value, r.label]));
 
 function UtilisateursTab() {
   const toast = useToast();
@@ -360,8 +371,8 @@ function UtilisateursTab() {
                         </p>
                         <p className="text-xs text-slate-400">{u.email}</p>
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                            {u.role}
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            {ROLE_LABEL[u.role] || u.role}
                           </span>
                           {u.codeApprenant && (
                             <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
@@ -438,17 +449,17 @@ function UtilisateursTab() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                      {u.role || 'inconnu'}
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      {ROLE_LABEL[u.role] || u.role || 'Inconnu'}
                     </span>
                     <select
                       value={u.role || ''}
                       onChange={e => handleRoleChange(u.id, e.target.value)}
                       disabled={updatingId === u.id}
-                      className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 bg-white"
+                      className="text-sm border border-slate-200 rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 disabled:opacity-50 bg-white"
                     >
                       <option value="">— Choisir —</option>
-                      {ROLES.map(r => <option key={r} value={r} className="capitalize">{r}</option>)}
+                      {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
                 </div>
