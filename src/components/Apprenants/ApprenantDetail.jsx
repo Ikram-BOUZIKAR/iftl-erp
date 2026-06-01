@@ -51,40 +51,50 @@ export default function ApprenantDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !student) return;
     setNotesLoading(true);
-    Promise.all([
-      getDocs(query(collection(db, 'notes'), where('studentId', '==', id))),
-      getDocs(collection(db, 'evaluations')),
-      getDocs(collection(db, 'modules')),
-    ]).then(([notesSnap, evalsSnap, modulesSnap]) => {
-      const evals = {};
-      evalsSnap.forEach(d => { evals[d.id] = { id: d.id, ...d.data() }; });
-      const mods = {};
-      modulesSnap.forEach(d => { mods[d.id] = { id: d.id, ...d.data() }; });
+    const studentCode = student.code || '';
+    const notesById = getDocs(query(collection(db, 'notes'), where('studentId', '==', id)));
+    const notesByCode = studentCode && studentCode !== id
+      ? getDocs(query(collection(db, 'notes'), where('studentId', '==', studentCode)))
+      : Promise.resolve(null);
+    Promise.all([notesById, notesByCode, getDocs(collection(db, 'evaluations')), getDocs(collection(db, 'modules'))])
+      .then(([snapById, snapByCode, evalsSnap, modulesSnap]) => {
+        const evals = {};
+        evalsSnap.forEach(d => { evals[d.id] = { id: d.id, ...d.data() }; });
+        const mods = {};
+        modulesSnap.forEach(d => { mods[d.id] = { id: d.id, ...d.data() }; });
 
-      const rows = [];
-      notesSnap.forEach(d => {
-        const n = { id: d.id, ...d.data() };
-        const ev = evals[n.evaluationId] || null;
-        const mod = ev ? mods[ev.moduleId] : null;
-        rows.push({
-          noteId: n.id,
-          note: n.note,
-          absent: n.absent,
-          commentaire: n.commentaire || '',
-          evalTitre: ev?.titre || '—',
-          evalType: ev?.type || '',
-          moduleId: ev?.moduleId || null,
-          moduleNom: mod ? `${mod.code} — ${mod.nom}` : (ev?.moduleId || 'Module inconnu'),
-          date: ev?.date || null,
-        });
-      });
-      rows.sort((a, b) => (a.moduleNom > b.moduleNom ? 1 : -1));
-      setNotesData(rows);
-      setNotesLoading(false);
-    }).catch(() => setNotesLoading(false));
-  }, [id]);
+        const seen = new Set();
+        const rows = [];
+        const addSnap = (snap) => {
+          if (!snap) return;
+          snap.forEach(d => {
+            if (seen.has(d.id)) return;
+            seen.add(d.id);
+            const n = { id: d.id, ...d.data() };
+            const ev = evals[n.evaluationId] || null;
+            const mod = ev ? mods[ev.moduleId] : null;
+            rows.push({
+              noteId: n.id,
+              note: n.note,
+              absent: n.absent,
+              commentaire: n.commentaire || '',
+              evalTitre: ev?.titre || '—',
+              evalType: ev?.type || '',
+              moduleId: ev?.moduleId || null,
+              moduleNom: mod ? `${mod.code} — ${mod.nom}` : (ev?.moduleId || 'Module inconnu'),
+              date: ev?.date || null,
+            });
+          });
+        };
+        addSnap(snapById);
+        addSnap(snapByCode);
+        rows.sort((a, b) => (a.moduleNom > b.moduleNom ? 1 : -1));
+        setNotesData(rows);
+        setNotesLoading(false);
+      }).catch(() => setNotesLoading(false));
+  }, [id, student]);
 
   if (loading) return (
     <div className="p-12 text-center">

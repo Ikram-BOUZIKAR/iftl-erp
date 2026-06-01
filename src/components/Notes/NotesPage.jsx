@@ -446,10 +446,11 @@ function SaisieTab({ evaluations, modules, groupes }) {
     if (!selectedEval?.groupeId) return;
     setLoadingStudents(true);
     try {
-      const sq = query(collection(db, 'students'), where('groupeId', '==', selectedEval.groupeId), orderBy('nom', 'asc'));
+      const sq = query(collection(db, 'students'), where('groupeId', '==', selectedEval.groupeId));
       const snap = await getDocs(sq);
       const grpStudents = [];
       snap.forEach(d => grpStudents.push({ id: d.id, ...d.data() }));
+      grpStudents.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
       setStudents(grpStudents);
 
       // Fetch existing notes
@@ -685,10 +686,11 @@ function BulletinsTab({ evaluations, modules, groupes }) {
     setLoadingStudents(true);
     const fetchStudents = async () => {
       try {
-        const sq = query(collection(db, 'students'), where('groupeId', '==', selectedGroupeId), orderBy('nom', 'asc'));
+        const sq = query(collection(db, 'students'), where('groupeId', '==', selectedGroupeId));
         const snap = await getDocs(sq);
         const all = [];
         snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+        all.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
         setStudents(all);
         setSelectedStudentId('');
         setBulletin([]);
@@ -922,10 +924,10 @@ export default function NotesPage() {
   const fetchEvaluations = useCallback(async () => {
     setLoadingEval(true);
     try {
-      const q = query(collection(db, 'evaluations'), orderBy('date', 'desc'));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, 'evaluations'));
       const data = [];
       snap.forEach(d => data.push({ id: d.id, ...d.data() }));
+      data.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       setEvaluations(data);
     } catch {
       // silent
