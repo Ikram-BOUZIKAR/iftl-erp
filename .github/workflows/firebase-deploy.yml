@@ -24,12 +24,12 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_API_KEY: AIzaSyAt0Nb1yxXk9VJ_9F0FEMdS-7sfd6KkZrY
+          VITE_FIREBASE_AUTH_DOMAIN: erp-pedago-iftl.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: erp-pedago-iftl
+          VITE_FIREBASE_STORAGE_BUCKET: erp-pedago-iftl.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "938367552509"
+          VITE_FIREBASE_APP_ID: 1:938367552509:web:60bc41fdc15daa86a02794
 
       - name: Deploy to Firebase Hosting
         run: npx firebase-tools deploy --only hosting --project erp-pedago-iftl --token "$FIREBASE_TOKEN"
