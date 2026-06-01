@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -10,80 +9,63 @@ import SessionForm from './SessionForm';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-const DAYS  = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+// ── Créneaux horaires IFTL par jour (0=Lun … 6=Dim) ──────────────────────────
+export const DAY_SLOTS = [
+  // Lundi
+  [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
+  // Mardi
+  [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
+  // Mercredi
+  [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
+  // Jeudi
+  [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
+  // Vendredi
+  [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '14:15', end: '15:45' }, { start: '16:00', end: '17:30' }],
+  // Samedi
+  [{ start: '09:00', end: '11:00' }, { start: '11:15', end: '13:15' }, { start: '14:15', end: '17:30' }],
+  // Dimanche
+  [{ start: '09:00', end: '13:00' }],
+];
 
-// IFTL brand palette
-const TYPE_STYLES = {
-  cours: {
-    card:   'bg-[#005989]/10 border-[#005989]/30 hover:bg-[#005989]/15',
-    bar:    'bg-[#005989]',
-    text:   'text-[#005989]',
-    badge:  'bg-[#005989] text-white',
-    label:  'Cours',
-  },
-  tp: {
-    card:   'bg-[#c8d45d]/20 border-[#c8d45d]/50 hover:bg-[#c8d45d]/30',
-    bar:    'bg-[#8a9a0a]',
-    text:   'text-[#5a6a00]',
-    badge:  'bg-[#8a9a0a] text-white',
-    label:  'TP',
-  },
-  td: {
-    card:   'bg-[#f5c845]/15 border-[#f5c845]/50 hover:bg-[#f5c845]/25',
-    bar:    'bg-[#d4a000]',
-    text:   'text-[#7a5c00]',
-    badge:  'bg-[#d4a000] text-white',
-    label:  'TD',
-  },
-  exam: {
-    card:   'bg-red-50 border-red-200 hover:bg-red-100',
-    bar:    'bg-red-500',
-    text:   'text-red-700',
-    badge:  'bg-red-500 text-white',
-    label:  'Exam',
-  },
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+const MAX_SLOTS = Math.max(...DAY_SLOTS.map(d => d.length)); // 4
+
+const NIVEAU_ORDER = ['TS 1A', 'TS 2A', 'Technicien', 'T', 'Qualification', 'Licence', 'Mastère'];
+
+export const TYPE_STYLES = {
+  cours: { bar: 'bg-[#005989]', bg: 'bg-[#005989]/10 border-[#005989]/25', text: 'text-[#005989]', label: 'Cours'  },
+  tp:    { bar: 'bg-[#8a9a0a]', bg: 'bg-[#c8d45d]/25 border-[#c8d45d]/40', text: 'text-[#5a6a00]', label: 'TP'    },
+  td:    { bar: 'bg-[#d4a000]', bg: 'bg-[#f5c845]/20 border-[#f5c845]/40', text: 'text-[#7a5c00]', label: 'TD'    },
+  exam:  { bar: 'bg-red-500',   bg: 'bg-red-50 border-red-200',             text: 'text-red-700',   label: 'Exam'  },
 };
 
-const STATUT_DOT = {
-  planifiee:  'bg-slate-400',
-  en_cours:   'bg-emerald-500',
-  terminee:   'bg-[#005989]',
-  annulee:    'bg-red-400',
-};
-
-function PlusIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
-
-function ChevronLeft() {
-  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>;
-}
-function ChevronRight() {
-  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>;
-}
-
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const toast   = useToast();
   const confirm = useConfirm();
-  const [weekStart, setWeekStart]     = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const { data: sessions, refetch }   = useWeekSessions(weekStart);
-  const { data: groupes }             = useGroupes();
-  const { data: intervenants }        = useIntervenants();
-  const [modules, setModules]         = useState([]);
-  const [showForm, setShowForm]       = useState(false);
-  const [editing, setEditing]         = useState(null);
-  const [filterGroupe, setFilterGroupe]   = useState('');
-  const [filterFiliere, setFilterFiliere] = useState('');
-  const [viewMode, setViewMode]       = useState('week');
-  const [defaultSlot, setDefaultSlot] = useState(null);
+
+  const [weekStart, setWeekStart]       = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const { data: sessions, refetch }     = useWeekSessions(weekStart);
+  const { data: groupes }               = useGroupes();
+  const { data: intervenants }          = useIntervenants();
+  const [modules, setModules]           = useState([]);
+  const [showForm, setShowForm]         = useState(false);
+  const [editing, setEditing]           = useState(null);
+  const [defaultSlot, setDefaultSlot]   = useState(null);
+  const [activeNiveau, setActiveNiveau] = useState('');
 
   const weekDays = DAYS.map((_, i) => addDays(weekStart, i));
-  const filieres = [...new Set(groupes.map(g => g.filiere || g.filiereCode).filter(Boolean))].sort();
+
+  const niveaux = [...new Set(groupes.map(g => g.niveau).filter(Boolean))]
+    .sort((a, b) => {
+      const ai = NIVEAU_ORDER.indexOf(a);
+      const bi = NIVEAU_ORDER.indexOf(b);
+      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+    });
+
+  useEffect(() => {
+    if (niveaux.length > 0 && !activeNiveau) setActiveNiveau(niveaux[0]);
+  }, [niveaux.join(',')]);
 
   const fetchModules = useCallback(async () => {
     try {
@@ -96,166 +78,135 @@ export default function PlanningPage() {
 
   useEffect(() => { fetchModules(); }, [fetchModules]);
 
-  const getGroupeName    = (id) => groupes.find(g => g.id === id)?.nom || '—';
-  const getIntervenantName = (id) => {
-    const i = intervenants.find(x => x.id === id);
-    return i ? `${i.prenom} ${i.nom}` : null;
-  };
-
-  const filteredGroupes  = filterFiliere ? groupes.filter(g => (g.filiere || g.filiereCode) === filterFiliere) : groupes;
-  const filteredGroupeIds = new Set(filteredGroupes.map(g => g.id));
-  const filtered = sessions.filter(s =>
-    (!filterGroupe  || s.groupeId === filterGroupe) &&
-    (!filterFiliere || filteredGroupeIds.has(s.groupeId))
-  );
-
-  const getSessionsForSlot = (dayIndex, hour) => {
-    const day = weekDays[dayIndex];
-    return filtered.filter(s => {
-      const d = new Date(s.date);
-      return d.getDate() === day.getDate() && d.getMonth() === day.getMonth() && s.heureDebut === hour;
-    });
-  };
-
   const handleSave = async (data) => {
     try {
-      if (editing) {
+      if (editing?.id) {
         await sessionsService.update(editing.id, data);
         toast.success('Séance modifiée');
       } else {
         await sessionsService.create(data);
         toast.success('Séance créée');
       }
-      setShowForm(false);
-      setEditing(null);
-      setDefaultSlot(null);
+      setShowForm(false); setEditing(null); setDefaultSlot(null);
       refetch();
     } catch (err) {
       toast.error('Erreur : ' + err.message);
+    }
+  };
+
+  const handleMove = async (sessionId, newDateStr, newSlot, newGroupeId) => {
+    try {
+      await sessionsService.update(sessionId, {
+        date: newDateStr,
+        heureDebut: newSlot.start,
+        heureFin: newSlot.end,
+        ...(newGroupeId && { groupeId: newGroupeId }),
+      });
+      refetch();
+    } catch (err) {
+      toast.error('Erreur déplacement : ' + err.message);
     }
   };
 
   const handleDelete = async (id, module) => {
-    const ok = await confirm({
-      title: 'Supprimer cette séance ?',
-      message: `La séance "${module}" sera définitivement supprimée.`,
-      danger: true,
-      confirmLabel: 'Supprimer',
-    });
+    const ok = await confirm({ title: 'Supprimer cette séance ?', message: `"${module}" sera supprimée.`, danger: true, confirmLabel: 'Supprimer' });
     if (!ok) return;
-    try {
-      await sessionsService.delete(id);
-      refetch();
-      toast.success('Séance supprimée');
-    } catch (err) {
-      toast.error('Erreur : ' + err.message);
-    }
+    try { await sessionsService.delete(id); refetch(); toast.success('Séance supprimée'); }
+    catch (err) { toast.error('Erreur : ' + err.message); }
   };
 
-  const openAdd = (date, hour) => {
+  const openAdd = (date, slot, groupeId) => {
     setEditing(null);
-    setDefaultSlot(date && hour ? { date: format(date, 'yyyy-MM-dd'), heureDebut: hour } : null);
+    setDefaultSlot(date && slot ? { date: format(date, 'yyyy-MM-dd'), heureDebut: slot.start, heureFin: slot.end, groupeId } : null);
     setShowForm(true);
   };
 
-  const statsTotal    = filtered.length;
-  const statsTypes    = Object.fromEntries(Object.keys(TYPE_STYLES).map(t => [t, filtered.filter(s => s.type === t).length]));
+  const currentGroupes = groupes.filter(g => g.niveau === activeNiveau);
 
   return (
-    <div className="space-y-5 max-w-7xl">
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between flex-wrap gap-4">
+    <div className="space-y-4 max-w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Planning / EDT</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Semaine du <span className="font-semibold text-[#005989]">{format(weekStart, 'dd MMMM', { locale: fr })}</span> au{' '}
+            Semaine du{' '}
+            <span className="font-semibold text-[#005989]">{format(weekStart, 'dd MMMM', { locale: fr })}</span>
+            {' '}au{' '}
             <span className="font-semibold text-[#005989]">{format(addDays(weekStart, 6), 'dd MMMM yyyy', { locale: fr })}</span>
           </p>
         </div>
-
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Week nav */}
           <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <button onClick={() => setWeekStart(w => subWeeks(w, 1))}
-              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-r border-slate-100">
-              <ChevronLeft />
+              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-r border-slate-100 text-sm">
+              ←
             </button>
             <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
               className="px-4 py-2 text-sm font-semibold text-[#005989] hover:bg-blue-50 transition-colors">
               Aujourd'hui
             </button>
             <button onClick={() => setWeekStart(w => addWeeks(w, 1))}
-              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-l border-slate-100">
-              <ChevronRight />
+              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-l border-slate-100 text-sm">
+              →
             </button>
           </div>
-
-          {/* View toggle */}
-          <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <button onClick={() => setViewMode('week')}
-              className={`px-3 py-2 text-sm font-medium transition-colors ${viewMode === 'week' ? 'bg-[#005989] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
-              ⊞ Semaine
-            </button>
-            <button onClick={() => setViewMode('list')}
-              className={`px-3 py-2 text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-[#005989] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
-              ≡ Liste
-            </button>
-          </div>
-
-          {/* Filters */}
-          <select value={filterFiliere} onChange={e => { setFilterFiliere(e.target.value); setFilterGroupe(''); }}
-            className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#005989]/40">
-            <option value="">Toutes filières</option>
-            {filieres.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
-
-          <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
-            className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#005989]/40">
-            <option value="">Tous les groupes</option>
-            {(filterFiliere ? filteredGroupes : groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
-          </select>
-
-          <button onClick={() => openAdd(null, null)}
+          <button onClick={() => openAdd(null, null, null)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
-            <PlusIcon />
-            Ajouter séance
+            + Ajouter séance
           </button>
         </div>
       </div>
 
-      {/* ── Type legend + stats ── */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {statsTotal > 0 && (
-          <span className="text-xs text-slate-500 font-medium">{statsTotal} séance{statsTotal > 1 ? 's' : ''} ·</span>
-        )}
-        {Object.entries(TYPE_STYLES).map(([type, s]) => {
-          const count = statsTypes[type];
-          if (!count) return null;
-          return (
-            <span key={type} className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>
-              {s.label} <span className="opacity-75">({count})</span>
-            </span>
-          );
-        })}
+      {/* Niveau tabs */}
+      {niveaux.length > 0 && (
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit max-w-full overflow-x-auto">
+          {niveaux.map(n => (
+            <button key={n} onClick={() => setActiveNiveau(n)}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
+                activeNiveau === n ? 'bg-white text-[#005989] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}>
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="flex items-center gap-3 flex-wrap text-xs">
+        {Object.entries(TYPE_STYLES).map(([type, s]) => (
+          <span key={type} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-semibold ${s.bg} ${s.text}`}>
+            {s.label}
+          </span>
+        ))}
+        <span className="text-slate-400 ml-2">• Glissez-déposez pour déplacer une séance • Clic sur + pour en créer une</span>
       </div>
 
-      {/* ── Main view ── */}
-      {viewMode === 'list' ? (
-        <ListView
-          sessions={filtered} groupes={groupes} intervenants={intervenants}
-          onEdit={s => { setEditing(s); setShowForm(true); }}
-          onDelete={handleDelete}
-          onAdd={() => openAdd(null, null)}
-        />
+      {/* EDT Grid */}
+      {activeNiveau ? (
+        currentGroupes.length > 0 ? (
+          <EDTGrid
+            groupes={currentGroupes}
+            sessions={sessions}
+            weekDays={weekDays}
+            modules={modules}
+            intervenants={intervenants}
+            onAdd={openAdd}
+            onEdit={s => { setEditing(s); setShowForm(true); }}
+            onMove={handleMove}
+            onDelete={handleDelete}
+          />
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+            <p className="text-2xl mb-2">📋</p>
+            <p className="text-slate-600 font-semibold">Aucun groupe pour le niveau "{activeNiveau}"</p>
+            <p className="text-slate-400 text-sm mt-1">Créez des groupes avec ce niveau dans la gestion des groupes.</p>
+          </div>
+        )
       ) : (
-        <WeekGrid
-          weekDays={weekDays}
-          getSessionsForSlot={getSessionsForSlot}
-          getGroupeName={getGroupeName}
-          getIntervenantName={getIntervenantName}
-          onEdit={s => { setEditing(s); setShowForm(true); }}
-          onAddSlot={openAdd}
-        />
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+          <p className="text-slate-400 text-sm">Aucun groupe avec un niveau défini.</p>
+        </div>
       )}
 
       {showForm && (
@@ -273,101 +224,154 @@ export default function PlanningPage() {
   );
 }
 
-// ── Week grid ─────────────────────────────────────────────────────────────────
-function WeekGrid({ weekDays, getSessionsForSlot, getGroupeName, getIntervenantName, onEdit, onAddSlot }) {
-  const allSessions = HOURS.flatMap((h, hi) => weekDays.map((_, di) => getSessionsForSlot(di, h))).flat();
-  if (allSessions.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-16 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#005989]/10 flex items-center justify-center mx-auto mb-4 text-3xl">📅</div>
-        <p className="text-slate-700 font-semibold text-lg">Aucune séance cette semaine</p>
-        <p className="text-slate-400 text-sm mt-1 mb-6">Cliquez sur une cellule ou le bouton pour planifier.</p>
-        <button onClick={() => onAddSlot(null, null)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-semibold rounded-xl transition-colors">
-          + Ajouter une séance
-        </button>
-      </div>
-    );
-  }
+// ── EDT Grid ──────────────────────────────────────────────────────────────────
+function EDTGrid({ groupes, sessions, weekDays, modules, intervenants, onAdd, onEdit, onMove, onDelete }) {
+  const [dragId,   setDragId]   = useState(null);
+  const [dropCell, setDropCell] = useState(null); // { groupeId, di, si }
+
+  const getModuleName = (id) => {
+    const m = modules.find(x => x.id === id);
+    return m ? m.nom : (id || '—');
+  };
+  const getIntervenantName = (id) => {
+    const i = intervenants.find(x => x.id === id);
+    return i ? `${i.prenom} ${i.nom}` : null;
+  };
+  const getSession = (groupeId, di, si) => {
+    const slot = DAY_SLOTS[di]?.[si];
+    if (!slot) return null;
+    const dayStr = format(weekDays[di], 'yyyy-MM-dd');
+    return sessions.find(s =>
+      s.groupeId === groupeId &&
+      s.heureDebut === slot.start &&
+      format(new Date(s.date), 'yyyy-MM-dd') === dayStr
+    ) || null;
+  };
+
+  const onDragStart = (e, session) => {
+    setDragId(session.id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', session.id);
+  };
+  const onDragOver = (e, groupeId, di, si) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropCell({ groupeId, di, si });
+  };
+  const onDrop = (e, groupeId, di, si) => {
+    e.preventDefault();
+    const sid = e.dataTransfer.getData('text/plain');
+    const slot = DAY_SLOTS[di]?.[si];
+    if (sid && slot) {
+      onMove(sid, format(weekDays[di], 'yyyy-MM-dd'), slot, groupeId);
+    }
+    setDragId(null); setDropCell(null);
+  };
+  const onDragEnd = () => { setDragId(null); setDropCell(null); };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-      <table className="w-full min-w-[700px] text-xs">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
+      <table className="border-collapse text-xs" style={{ minWidth: `${160 + 7 * 130}px`, width: '100%' }}>
+        {/* Day headers */}
         <thead>
-          <tr className="border-b-2 border-slate-100">
-            <th className="w-14 px-2 py-3 text-slate-400 font-medium text-xs text-left"></th>
-            {weekDays.map((day, i) => {
+          <tr>
+            <th className="sticky left-0 z-20 bg-[#001829] text-white px-3 py-3 text-left text-xs font-semibold w-40 border-r border-white/10">
+              Groupe / Créneau
+            </th>
+            {weekDays.map((day, di) => {
               const isToday = day.toDateString() === new Date().toDateString();
               return (
-                <th key={i} className="px-2 py-3 text-left min-w-[110px]">
-                  <div className={`font-bold text-xs uppercase tracking-wide ${isToday ? 'text-[#005989]' : 'text-slate-500'}`}>
-                    {DAYS[i]}
-                  </div>
-                  <div className={`text-lg font-bold leading-none mt-0.5 ${isToday ? 'text-[#005989]' : 'text-slate-800'}`}>
-                    {format(day, 'dd')}
-                    {isToday && <span className="inline-block w-1.5 h-1.5 bg-[#f5c845] rounded-full ml-1 mb-1"></span>}
-                  </div>
-                  <div className={`text-xs font-normal ${isToday ? 'text-[#005989]/60' : 'text-slate-400'}`}>
-                    {format(day, 'MMM', { locale: fr })}
-                  </div>
+                <th key={di} className={`px-2 py-3 text-center font-semibold border-r border-white/10 ${isToday ? 'bg-[#005989]' : 'bg-[#001829]'} text-white`}>
+                  <div className="font-bold text-xs">{DAYS[di]}</div>
+                  <div className="text-[10px] opacity-60 font-normal mt-0.5">{format(day, 'dd/MM')}</div>
+                  {isToday && <div className="w-1.5 h-1.5 bg-[#f5c845] rounded-full mx-auto mt-1" />}
                 </th>
               );
             })}
           </tr>
         </thead>
+
         <tbody>
-          {HOURS.map(hour => (
-            <tr key={hour} className="border-b border-slate-50 group/row">
-              <td className="px-2 py-1.5 text-slate-300 font-mono text-xs align-top whitespace-nowrap pt-2.5">{hour}</td>
-              {weekDays.map((day, di) => {
-                const slotSessions = getSessionsForSlot(di, hour);
-                return (
-                  <td key={di}
-                    className="px-1 py-1 align-top cursor-pointer group/cell"
-                    onClick={() => { if (slotSessions.length === 0) onAddSlot(day, hour); }}
-                  >
-                    {slotSessions.length === 0 ? (
-                      <div className="h-8 rounded-lg opacity-0 group-hover/cell:opacity-100 transition-opacity border-2 border-dashed border-[#005989]/20 flex items-center justify-center text-[#005989]/40 text-sm">
-                        +
-                      </div>
-                    ) : (
-                      slotSessions.map(s => {
-                        const style = TYPE_STYLES[s.type] || TYPE_STYLES.cours;
-                        const intName = getIntervenantName(s.intervenantId);
-                        return (
-                          <div key={s.id}
-                            onClick={e => { e.stopPropagation(); onEdit(s); }}
-                            className={`rounded-xl border p-2 mb-1 cursor-pointer transition-all shadow-sm hover:shadow-md ${style.card}`}
-                          >
-                            <div className="flex items-start gap-1.5">
-                              <div className={`shrink-0 w-1 h-full min-h-[36px] rounded-full ${style.bar} mt-0.5`}></div>
-                              <div className="flex-1 min-w-0">
-                                <div className={`font-bold text-xs leading-tight truncate ${style.text}`}>
-                                  {s.module}
-                                </div>
-                                <div className="text-slate-600 text-xs truncate mt-0.5">
-                                  {getGroupeName(s.groupeId)}
-                                </div>
-                                {intName && (
-                                  <div className="text-slate-400 text-xs truncate">{intName}</div>
-                                )}
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <span className="text-slate-400 text-xs">{s.heureDebut}–{s.heureFin}</span>
-                                  {s.salle && <span className="text-slate-400 text-xs">· {s.salle}</span>}
-                                  {s.statut && s.statut !== 'planifiee' && (
-                                    <span className={`w-1.5 h-1.5 rounded-full ${STATUT_DOT[s.statut] || 'bg-slate-300'}`}></span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+          {groupes.map((groupe, gi) => (
+            <>
+              {/* Group header */}
+              <tr key={`gh-${groupe.id}`}>
+                <td colSpan={8}
+                  className="sticky left-0 z-10 px-3 py-2 bg-[#005989]/8 border-t-2 border-[#005989]/30">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#005989] text-xs">{groupe.nom}</span>
+                    {groupe.filiere && <span className="text-slate-400 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded">{groupe.filiere}</span>}
+                    {groupe.effectif && <span className="text-slate-400 text-[10px]">{groupe.effectif} étudiants</span>}
+                  </div>
+                </td>
+              </tr>
+
+              {/* Slot rows */}
+              {Array.from({ length: MAX_SLOTS }, (_, si) => (
+                <tr key={`${groupe.id}-${si}`} className="border-b border-slate-100">
+                  {/* Slot label (sticky) */}
+                  <td className="sticky left-0 z-10 bg-slate-50 border-r border-slate-200 px-3 py-1.5 whitespace-nowrap">
+                    <span className="text-[10px] font-bold text-[#005989] bg-[#005989]/10 px-1.5 py-0.5 rounded">C{si + 1}</span>
                   </td>
-                );
-              })}
-            </tr>
+
+                  {/* Day cells */}
+                  {weekDays.map((day, di) => {
+                    const slot     = DAY_SLOTS[di]?.[si];
+                    const session  = slot ? getSession(groupe.id, di, si) : null;
+                    const isActive = !!slot;
+                    const isDrop   = dropCell?.groupeId === groupe.id && dropCell?.di === di && dropCell?.si === si;
+                    const isDrag   = session && dragId === session.id;
+
+                    if (!isActive) {
+                      return (
+                        <td key={di} className="px-1 py-1 bg-slate-50/60 border-r border-slate-100">
+                          <div className="h-14 rounded-lg bg-slate-100/50" />
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td
+                        key={di}
+                        className={`px-1 py-1 align-top border-r border-slate-100 transition-colors ${isDrop && !session ? 'bg-[#005989]/8' : 'bg-white'}`}
+                        onDragOver={e => onDragOver(e, groupe.id, di, si)}
+                        onDrop={e => onDrop(e, groupe.id, di, si)}
+                        onDragLeave={() => setDropCell(null)}
+                      >
+                        <div className="text-[9px] text-slate-300 font-mono text-center mb-0.5">
+                          {slot.start}–{slot.end}
+                        </div>
+
+                        {session ? (
+                          <SessionCard
+                            session={session}
+                            moduleName={getModuleName(session.module)}
+                            intervenantName={getIntervenantName(session.intervenantId)}
+                            isDragging={isDrag}
+                            onDragStart={e => onDragStart(e, session)}
+                            onDragEnd={onDragEnd}
+                            onEdit={() => onEdit(session)}
+                            onDelete={() => onDelete(session.id, session.module)}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => onAdd(day, slot, groupe.id)}
+                            onDragOver={e => onDragOver(e, groupe.id, di, si)}
+                            className={`h-14 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${
+                              isDrop
+                                ? 'border-[#005989] bg-[#005989]/10 text-[#005989]'
+                                : 'border-slate-200 text-slate-200 hover:border-[#005989]/50 hover:text-[#005989]/50 hover:bg-[#005989]/4'
+                            }`}
+                          >
+                            <span className="text-xl font-light">+</span>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </>
           ))}
         </tbody>
       </table>
@@ -375,87 +379,40 @@ function WeekGrid({ weekDays, getSessionsForSlot, getGroupeName, getIntervenantN
   );
 }
 
-// ── List view ─────────────────────────────────────────────────────────────────
-function ListView({ sessions, groupes, intervenants, onEdit, onDelete, onAdd }) {
-  const getGroupeName    = (id) => groupes.find(g => g.id === id)?.nom || '—';
-  const getIntervenantName = (id) => {
-    const i = intervenants.find(x => x.id === id);
-    return i ? `${i.prenom} ${i.nom}` : '—';
-  };
-
-  const STATUT_LABELS = { planifiee: 'Planifiée', en_cours: 'En cours', terminee: 'Terminée', annulee: 'Annulée' };
-  const STATUT_COLORS = {
-    planifiee: 'bg-slate-100 text-slate-600',
-    en_cours:  'bg-emerald-100 text-emerald-700',
-    terminee:  'bg-[#005989]/10 text-[#005989]',
-    annulee:   'bg-red-100 text-red-600',
-  };
-
-  if (sessions.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-16 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#005989]/10 flex items-center justify-center mx-auto mb-4 text-3xl">📅</div>
-        <p className="text-slate-700 font-semibold text-lg">Aucune séance cette semaine</p>
-        <p className="text-slate-400 text-sm mt-1 mb-6">Planifiez votre première séance.</p>
-        <button onClick={onAdd}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-semibold rounded-xl transition-colors">
-          + Ajouter une séance
-        </button>
-      </div>
-    );
-  }
-
+// ── Session card ──────────────────────────────────────────────────────────────
+function SessionCard({ session, moduleName, intervenantName, isDragging, onDragStart, onDragEnd, onEdit, onDelete }) {
+  const s = TYPE_STYLES[session.type] || TYPE_STYLES.cours;
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 border-b border-slate-200">
-          <tr>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Module</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Horaire</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Groupe</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Intervenant</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {sessions.map(s => {
-            const style = TYPE_STYLES[s.type] || TYPE_STYLES.cours;
-            return (
-              <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
-                <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
-                  {s.date ? new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '—'}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-md ${style.badge}`}>{style.label}</span>
-                    <p className="font-semibold text-slate-800 text-sm">{s.module}</p>
-                  </div>
-                  {s.salle && <p className="text-xs text-slate-400 mt-0.5 pl-14">Salle {s.salle}</p>}
-                </td>
-                <td className="px-4 py-3 text-slate-500 hidden sm:table-cell whitespace-nowrap font-mono text-xs">
-                  {s.heureDebut} – {s.heureFin}
-                </td>
-                <td className="px-4 py-3 text-slate-600 hidden md:table-cell text-sm">{getGroupeName(s.groupeId)}</td>
-                <td className="px-4 py-3 text-slate-600 hidden lg:table-cell text-sm">{getIntervenantName(s.intervenantId)}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUT_COLORS[s.statut] || 'bg-slate-100 text-slate-600'}`}>
-                    {STATUT_LABELS[s.statut] || s.statut}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <Link to={`/emargement/${s.id}`} className="text-xs font-semibold text-[#005989] hover:underline">Émargement</Link>
-                    <button onClick={() => onEdit(s)} className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors">Modifier</button>
-                    <button onClick={() => onDelete(s.id, s.module)} className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors">Suppr.</button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`rounded-xl border p-1.5 cursor-grab active:cursor-grabbing group transition-all ${s.bg} ${isDragging ? 'opacity-30 scale-95' : 'hover:shadow-md'}`}
+    >
+      <div className="flex gap-1 items-start">
+        <div className={`shrink-0 w-1 rounded-full self-stretch min-h-[36px] ${s.bar}`} />
+        <div className="flex-1 min-w-0">
+          <div className={`font-bold text-[10px] leading-tight truncate ${s.text}`}>{moduleName}</div>
+          {intervenantName && (
+            <div className="text-slate-500 text-[9px] truncate mt-0.5">{intervenantName}</div>
+          )}
+          {session.salle && (
+            <div className="text-slate-400 text-[9px] mt-0.5">🏫 {session.salle}</div>
+          )}
+        </div>
+        <div className="shrink-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5">
+          <button onClick={e => { e.stopPropagation(); onEdit(); }}
+            title="Modifier"
+            className="w-4 h-4 rounded text-slate-400 hover:text-[#005989] hover:bg-white/80 flex items-center justify-center transition-colors text-[10px]">
+            ✏
+          </button>
+          <button onClick={e => { e.stopPropagation(); onDelete(); }}
+            title="Supprimer"
+            className="w-4 h-4 rounded text-slate-400 hover:text-red-500 hover:bg-white/80 flex items-center justify-center transition-colors text-[10px]">
+            ✕
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -13,11 +13,23 @@ const STATUTS = [
   { value: 'terminee',  label: 'Terminée'  },
   { value: 'annulee',   label: 'Annulée'   },
 ];
-const HOURS = Array.from({ length: 22 }, (_, i) => {
-  const h = Math.floor(i / 2) + 8;
-  const m = i % 2 === 0 ? '00' : '30';
-  return `${String(h).padStart(2, '0')}:${m}`;
-});
+
+// Créneaux IFTL prédéfinis
+const IFTL_SLOTS = [
+  { label: 'C1 Lun–Jeu', start: '09:00', end: '10:30' },
+  { label: 'C2 Lun–Jeu', start: '10:45', end: '12:15' },
+  { label: 'C3 Lun–Jeu', start: '13:15', end: '14:45' },
+  { label: 'C4 Lun–Jeu', start: '15:00', end: '16:30' },
+  { label: 'C3 Ven',     start: '14:15', end: '15:45' },
+  { label: 'C4 Ven',     start: '16:00', end: '17:30' },
+  { label: 'C1 Sam',     start: '09:00', end: '11:00' },
+  { label: 'C2 Sam',     start: '11:15', end: '13:15' },
+  { label: 'C3 Sam',     start: '14:15', end: '17:30' },
+  { label: 'Dim matin',  start: '09:00', end: '13:00' },
+];
+
+// All unique start times for the select
+const ALL_TIMES = [...new Set(IFTL_SLOTS.flatMap(s => [s.start, s.end]))].sort();
 
 function CloseIcon() {
   return (
@@ -127,26 +139,46 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
             {errors.module && <p className="text-xs text-red-500 mt-1">{errors.module}</p>}
           </div>
 
-          {/* Date + Horaire */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls('date')} />
-              {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+          {/* Date */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+              Date <span className="text-red-500">*</span>
+            </label>
+            <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls('date')} />
+            {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+          </div>
+
+          {/* Créneau quick-select */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+              Créneau horaire IFTL
+            </label>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {IFTL_SLOTS.map(sl => (
+                <button key={sl.label} type="button"
+                  onClick={() => { set('heureDebut', sl.start); set('heureFin', sl.end); }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    form.heureDebut === sl.start && form.heureFin === sl.end
+                      ? 'bg-[#005989] text-white border-[#005989]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#005989]/40'
+                  }`}>
+                  {sl.label} ({sl.start}–{sl.end})
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Début</label>
-              <select value={form.heureDebut} onChange={e => set('heureDebut', e.target.value)} className={inputCls('')}>
-                {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Fin</label>
-              <select value={form.heureFin} onChange={e => set('heureFin', e.target.value)} className={inputCls('')}>
-                {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Début personnalisé</label>
+                <select value={form.heureDebut} onChange={e => set('heureDebut', e.target.value)} className={inputCls('')}>
+                  {ALL_TIMES.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Fin personnalisée</label>
+                <select value={form.heureFin} onChange={e => set('heureFin', e.target.value)} className={inputCls('')}>
+                  {ALL_TIMES.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
