@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { sessionsService, presencesService, studentsService, groupesService, intervenantsService } from '../../services/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { generateFeuillEmargement } from '../../services/pdfService';
 import { computeAbsenceScore } from '../../services/absenceService';
 import { useToast } from '../UI/Toast';
@@ -20,6 +22,8 @@ export default function SessionAttendance() {
   const [groupe, setGroupe] = useState(null);
   const [intervenant, setIntervenant] = useState(null);
   const [attendance, setAttendance] = useState({});
+  const [contenuSeance, setContenuSeance] = useState('');
+  const [objectifs, setObjectifs] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -29,6 +33,8 @@ export default function SessionAttendance() {
       const sess = await sessionsService.getById(id);
       if (!sess) { setLoading(false); return; }
       setSession(sess);
+      setContenuSeance(sess.contenuSeance || '');
+      setObjectifs(sess.objectifs || '');
 
       const [presences, studentsData, groupeData, intervenantData] = await Promise.all([
         presencesService.getBySession(id),
@@ -79,7 +85,10 @@ export default function SessionAttendance() {
         heureArrivee: attendance[s.id]?.heureArrivee || '',
         justification: attendance[s.id]?.justification || '',
       }));
-      await presencesService.bulkUpsert(id, entries);
+      await Promise.all([
+        presencesService.bulkUpsert(id, entries),
+        updateDoc(doc(db, 'sessions', id), { contenuSeance, objectifs, updatedAt: new Date() }),
+      ]);
       toast.success('Feuille de présence sauvegardée');
     } catch (err) {
       toast.error('Erreur lors de la sauvegarde : ' + err.message);
@@ -94,7 +103,7 @@ export default function SessionAttendance() {
       statut: attendance[s.id]?.statut || 'present',
       heureArrivee: attendance[s.id]?.heureArrivee || '',
     }));
-    generateFeuillEmargement({ session, students, presences, intervenant, groupe });
+    generateFeuillEmargement({ session: { ...session, contenuSeance, objectifs }, students, presences, intervenant, groupe });
   };
 
   const stats = {
@@ -208,6 +217,35 @@ export default function SessionAttendance() {
             {s.label}
           </button>
         ))}
+      </div>
+
+      {/* Contenu de la séance */}
+      <div className="bg-white rounded-xl border border-[#005989]/20 shadow-sm p-5 space-y-4">
+        <h3 className="text-sm font-bold text-[#005989] uppercase tracking-wide">Contenu pédagogique</h3>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+            📝 Contenu de la séance
+          </label>
+          <textarea
+            rows={4}
+            value={contenuSeance}
+            onChange={e => setContenuSeance(e.target.value)}
+            placeholder="Décrivez le contenu de la séance : sujets traités, activités, supports utilisés, exercices, évaluations…"
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989] resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+            🎯 Objectifs pédagogiques
+          </label>
+          <textarea
+            rows={2}
+            value={objectifs}
+            onChange={e => setObjectifs(e.target.value)}
+            placeholder="Compétences visées, objectifs d'apprentissage attendus…"
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989] resize-none"
+          />
+        </div>
       </div>
 
       {/* Attendance list */}

@@ -540,31 +540,58 @@ export function generateFeuillEmargement({ session, students, presences, interve
     ? format(new Date(session.date), 'EEEE dd MMMM yyyy', { locale: fr })
     : 'Date inconnue';
 
-  // Header
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Feuille de présence', 105, 18, { align: 'center' });
+  let y = drawIftlHeader(doc, 'FEUILLE D\'ÉMARGEMENT', dateStr);
+  y += 2;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const meta = [
-    ['Date', dateStr],
-    ['Horaire', `${session.heureDebut} – ${session.heureFin}`],
-    ['Module', session.module || '—'],
-    ['Groupe', groupe?.nom || '—'],
-    ['Intervenant', intervenant ? `${intervenant.prenom} ${intervenant.nom}` : '—'],
-    ['Salle', session.salle || '—'],
-    ['Type', session.type?.toUpperCase() || '—'],
-  ];
+  // Session info box
+  y = infoBox(doc, [
+    { label: 'Module',      value: session.module || '—' },
+    { label: 'Groupe',      value: groupe?.nom || '—' },
+    { label: 'Horaire',     value: `${session.heureDebut} – ${session.heureFin}` },
+    { label: 'Intervenant', value: intervenant ? `${intervenant.prenom} ${intervenant.nom}` : '—' },
+    { label: 'Salle',       value: session.salle || '—' },
+    { label: 'Type',        value: session.type?.toUpperCase() || '—' },
+  ], y);
 
-  let y = 28;
-  for (const [label, value] of meta) {
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${label} :`, 14, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value, 50, y);
-    y += 6;
+  // Contenu de la séance
+  if (session.contenuSeance || session.objectifs) {
+    const w = doc.internal.pageSize.getWidth();
+    const boxX = 14;
+    const boxW = w - 28;
+
+    if (session.contenuSeance) {
+      y = sectionTitle(doc, 'Contenu de la séance', y);
+      const lines = doc.splitTextToSize(session.contenuSeance, boxW - 8);
+      const boxH = lines.length * 5 + 8;
+      doc.setFillColor(248, 250, 253);
+      doc.setDrawColor(...BRAND.blue);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(boxX, y, boxW, boxH, 2, 2, 'FD');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...BRAND.black);
+      doc.text(lines, boxX + 4, y + 6);
+      y += boxH + 4;
+    }
+
+    if (session.objectifs) {
+      y = sectionTitle(doc, 'Objectifs pédagogiques', y);
+      const lines = doc.splitTextToSize(session.objectifs, boxW - 8);
+      const boxH = lines.length * 5 + 8;
+      doc.setFillColor(248, 250, 253);
+      doc.setDrawColor(...BRAND.blue);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(boxX, y, boxW, boxH, 2, 2, 'FD');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...BRAND.black);
+      doc.text(lines, boxX + 4, y + 6);
+      y += boxH + 4;
+    }
   }
+
+  // Attendance table
+  y = sectionTitle(doc, 'Liste de présence', y);
 
   const presenceMap = {};
   for (const p of presences) presenceMap[p.studentId] = p;
@@ -584,30 +611,34 @@ export function generateFeuillEmargement({ session, students, presences, interve
   });
 
   autoTable(doc, {
-    startY: y + 4,
+    startY: y,
+    margin: { left: 14, right: 14 },
     head: [['#', 'Nom', 'Prénom', 'CIN', 'Statut', 'Heure arr.', 'Signature']],
     body: rows,
     styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [30, 30, 30], textColor: 255 },
+    headStyles: { fillColor: BRAND.blue, textColor: BRAND.white, fontStyle: 'bold', fontSize: 8.5 },
+    alternateRowStyles: { fillColor: BRAND.lightBlue },
     columnStyles: {
-      0: { cellWidth: 10 },
+      0: { cellWidth: 10, halign: 'center' },
       4: { cellWidth: 18, halign: 'center' },
       5: { cellWidth: 22 },
       6: { cellWidth: 30 },
     },
-    alternateRowStyles: { fillColor: [248, 248, 248] },
+    didParseCell(data) {
+      if (data.section === 'body' && data.column.index === 4) {
+        const v = data.cell.text[0];
+        if (v === 'P')   data.cell.styles.textColor = [0, 120, 60];
+        if (v === 'ANJ') data.cell.styles.textColor = [180, 0, 0];
+        if (v === 'AJ')  data.cell.styles.textColor = [0, 80, 160];
+        if (v === 'R')   data.cell.styles.textColor = [180, 120, 0];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
   });
 
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'italic');
-    doc.text(`Page ${i} / ${pageCount}`, 105, 290, { align: 'center' });
-    doc.text('P = Présent  |  AJ = Absent Justifié  |  ANJ = Absent Non Justifié  |  R = Retard', 105, 285, { align: 'center' });
-  }
+  drawFooter(doc);
 
-  const filename = `emargement_${session.module || 'session'}_${format(new Date(session.date), 'yyyyMMdd')}.pdf`;
+  const filename = `emargement_${(session.module || 'session').replace(/[^a-z0-9]/gi, '_')}_${session.date ? format(new Date(session.date), 'yyyyMMdd') : 'export'}.pdf`;
   doc.save(filename);
 }
 

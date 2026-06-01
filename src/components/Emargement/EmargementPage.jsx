@@ -4,6 +4,7 @@ import { useSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import EmargementLibreModal from './EmargementLibreModal';
 
 const STATUT_STYLES = {
   planifiee: { badge: 'bg-slate-100 text-slate-600', label: 'Planifiée' },
@@ -29,6 +30,7 @@ export default function EmargementPage() {
   const [filterStatut, setFilterStatut] = useState('');
   const [filterGroupe, setFilterGroupe] = useState('');
   const [search, setSearch] = useState('');
+  const [showLibreModal, setShowLibreModal] = useState(false);
 
   const getGroupeName = (id) => groupes.find(g => g.id === id)?.nom || '—';
   const getIntervenantName = (id) => {
@@ -72,9 +74,19 @@ export default function EmargementPage() {
 
   return (
     <div className="space-y-5 max-w-6xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Émargement</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Gestion des feuilles de présence</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Émargement</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Gestion des feuilles de présence</p>
+        </div>
+        <button
+          onClick={() => setShowLibreModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-[#005989] hover:bg-[#004a73] rounded-xl transition-colors shadow-sm">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nouvelle feuille libre
+        </button>
       </div>
 
       {/* Filters */}
@@ -190,6 +202,13 @@ export default function EmargementPage() {
           </table>
         )}
       </div>
+      {showLibreModal && (
+        <EmargementLibreModal
+          groupes={groupes}
+          intervenants={intervenants}
+          onClose={() => setShowLibreModal(false)}
+        />
+      )}
     </div>
   );
 }
