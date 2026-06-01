@@ -752,14 +752,14 @@ function ConfigTab() {
     try {
       await sendEmail(db, {
         to: 'directeur@iftl.ma',
-        toName: 'Direction IFTL',
-        subject: 'Test de configuration Brevo — IFTL ERP',
+        toName: 'Direction',
+        subject: 'Test de configuration Brevo — ERP',
         htmlContent: `<div style="font-family:Arial,sans-serif;padding:24px">
           <h2 style="color:#005989">Test de configuration Brevo</h2>
-          <p>Cet email confirme que la configuration Brevo est opérationnelle sur l'ERP IFTL.</p>
+          <p>Cet email confirme que la configuration Brevo est opérationnelle sur l'ERP.</p>
           <p style="color:#64748b;font-size:13px">Envoyé le ${new Date().toLocaleString('fr-FR')}</p>
         </div>`,
-        textContent: 'Test de configuration Brevo — IFTL ERP. La configuration est opérationnelle.',
+        textContent: 'Test de configuration Brevo — ERP. La configuration est opérationnelle.',
       });
       toast.success('Email de test envoyé à directeur@iftl.ma');
     } catch (err) {
@@ -873,7 +873,7 @@ function ConfigTab() {
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-slate-50 rounded-lg p-3">
             <p className="text-xs text-slate-500 mb-0.5">Nom</p>
-            <p className="font-semibold text-slate-800">IFTL</p>
+            <p className="font-semibold text-slate-800">Institut</p>
           </div>
           <div className="bg-slate-50 rounded-lg p-3">
             <p className="text-xs text-slate-500 mb-0.5">Adresse email</p>

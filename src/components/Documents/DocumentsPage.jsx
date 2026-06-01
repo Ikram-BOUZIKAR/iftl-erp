@@ -125,7 +125,7 @@ function ModalNouveauDocument({ groupes, totalDocuments, onClose, onSaved }) {
         type: form.type,
         reference,
         dateEmission: today,
-        generePar: 'IFTL',
+        generePar: 'Institut',
         statut: 'brouillon',
         observations: form.observations.trim(),
       });

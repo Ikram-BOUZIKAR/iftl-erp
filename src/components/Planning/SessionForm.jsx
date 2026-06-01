@@ -14,8 +14,8 @@ const STATUTS = [
   { value: 'annulee',   label: 'Annulée'   },
 ];
 
-// Créneaux IFTL prédéfinis
-const IFTL_SLOTS = [
+// Créneaux prédéfinis
+const PLANNING_SLOTS = [
   { label: 'C1 Lun–Jeu', start: '09:00', end: '10:30' },
   { label: 'C2 Lun–Jeu', start: '10:45', end: '12:15' },
   { label: 'C3 Lun–Jeu', start: '13:15', end: '14:45' },
@@ -29,7 +29,7 @@ const IFTL_SLOTS = [
 ];
 
 // All unique start times for the select
-const ALL_TIMES = [...new Set(IFTL_SLOTS.flatMap(s => [s.start, s.end]))].sort();
+const ALL_TIMES = [...new Set(PLANNING_SLOTS.flatMap(s => [s.start, s.end]))].sort();
 
 function CloseIcon() {
   return (
@@ -151,10 +151,10 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           {/* Créneau quick-select */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
-              Créneau horaire IFTL
+              Créneau horaire
             </label>
             <div className="flex flex-wrap gap-1.5 mb-3">
-              {IFTL_SLOTS.map(sl => (
+              {PLANNING_SLOTS.map(sl => (
                 <button key={sl.label} type="button"
                   onClick={() => { set('heureDebut', sl.start); set('heureFin', sl.end); }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${

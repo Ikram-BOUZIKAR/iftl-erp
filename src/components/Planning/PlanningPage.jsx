@@ -9,7 +9,7 @@ import SessionForm from './SessionForm';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-// ── Créneaux horaires IFTL par jour (0=Lun … 6=Dim) ──────────────────────────
+// ── Créneaux horaires par jour (0=Lun … 6=Dim) ──────────────────────────
 export const DAY_SLOTS = [
   // Lundi
   [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],

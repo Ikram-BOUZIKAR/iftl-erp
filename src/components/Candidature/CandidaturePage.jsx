@@ -49,7 +49,7 @@ const PROGRAM_TYPES   = ['Formation Initiale', 'Formation Continue', 'Apprentiss
 const NIVEAUX_BAC     = ['Baccalauréat', 'Bac+1', 'Bac+2', 'Bac+3 et plus'];
 const MENTIONS_BAC    = ['Très Bien', 'Bien', 'Assez Bien', 'Passable'];
 const TYPES_LYCEE     = ['Public', 'Privé', 'Mission étrangère'];
-const SOURCES         = ['Réseaux sociaux', 'Bouche à oreille', 'Site web IFTL', 'Conseiller orientation', 'Ancien étudiant', 'Autre'];
+const SOURCES         = ['Réseaux sociaux', 'Bouche à oreille', 'Site web Institut', 'Conseiller orientation', 'Ancien étudiant', 'Autre'];
 const SITUATIONS_PRO  = ['Étudiant(e)', 'Demandeur d\'emploi', 'Salarié(e)', 'Entrepreneur(e)', 'Autre'];
 const ANNEES_ENTREE   = ['2025-2026', '2026-2027'];
 const LIENS_URGENCE   = ['Parent', 'Tuteur', 'Conjoint(e)', 'Frère / Sœur', 'Ami(e)', 'Autre'];
@@ -366,7 +366,7 @@ export default function CandidaturePage() {
               <span className="font-black text-sm text-white tracking-tight">IF</span>
             </div>
             <div className="text-left">
-              <p className="font-black text-slate-800 text-lg leading-none">IFTL</p>
+              <p className="font-black text-slate-800 text-lg leading-none"> Institut </p>
               <p className="text-xs text-slate-500 mt-0.5">Institut de Formation · Transport & Logistique</p>
             </div>
           </div>
@@ -518,7 +518,7 @@ export default function CandidaturePage() {
             {/* ── Étape 4 : Compléments ─────────────────────────────────── */}
             {step === 4 && <>
               <TTextarea label="Lettre de motivation" name="motivations" form={form} set={set} errors={errors} required rows={5}
-                placeholder="Décrivez votre projet professionnel, vos atouts et pourquoi vous choisissez l'IFTL…" />
+                placeholder="Décrivez votre projet professionnel, vos atouts et pourquoi vous postulez…" />
               <TSelect label="Comment nous avez-vous connu ?" name="sourceInfo" form={form} set={set} errors={errors} options={SOURCES} placeholder="— Optionnel —" />
 
               <div className="pt-3 border-t border-slate-100">
@@ -550,7 +550,7 @@ export default function CandidaturePage() {
                 <input type="checkbox" checked={form.acceptComm} onChange={e => set('acceptComm', e.target.checked)}
                   className="mt-0.5 w-4 h-4 rounded accent-[#005989]" />
                 <span className="text-sm text-slate-500 leading-relaxed">
-                  J'accepte de recevoir des informations sur les formations et événements de l'IFTL par e-mail et WhatsApp.
+                  J'accepte de recevoir des informations sur les formations et événements de l'Institut par e-mail et WhatsApp.
                 </span>
               </label>
             </>}

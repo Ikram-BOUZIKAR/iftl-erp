@@ -11,14 +11,14 @@ const ROLES = [
     id: 'intervenant',
     label: 'Intervenant',
     icon: '🧑‍🏫',
-    desc: 'Formateur ou enseignant à l\'IFTL',
+    desc: 'Formateur ou enseignant',
     color: BRAND.blue,
   },
   {
     id: 'apprenant',
     label: 'Apprenant',
     icon: '🎓',
-    desc: 'Étudiant inscrit à l\'IFTL',
+    desc: 'Étudiant inscrit',
     color: BRAND.green,
     colorDark: '#2d6a2d',
   },
@@ -287,7 +287,7 @@ export default function RegisterPage() {
             value={form.email}
             onChange={e => set('email', e.target.value)}
             placeholder={role === 'intervenant' ? 'prenom.nom@iftl.ma' : 'votre@email.com'}
-            hint={role === 'intervenant' ? 'De préférence votre adresse @iftl.ma' : undefined}
+            hint={role === 'intervenant' ? 'Adresse professionnelle de préférence' : undefined}
             error={errors.email}
             icon={
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

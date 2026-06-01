@@ -56,11 +56,11 @@ function drawIftlHeader(doc, title, subtitle) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(...BRAND.white);
-  doc.text('IFTL', 14, 16);
+  doc.text('Institut', 14, 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text('Institut de Formation en Transport et Logistique', 14, 22);
+  doc.text('ERP Pédagogique', 14, 22);
 
   // Document title (right-aligned)
   doc.setFont('helvetica', 'bold');
@@ -92,7 +92,7 @@ function drawFooter(doc) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(...BRAND.white);
     doc.text(
-      'Document généré automatiquement — IFTL · Institut de Formation en Transport et Logistique',
+      'Document généré automatiquement — ERP Pédagogique',
       w / 2,
       h - 3.5,
       { align: 'center' }
@@ -454,7 +454,7 @@ export function generateBulletin(student, groupeNom, bulletin, anneeAcad = '2025
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(...BRAND.grey);
-  doc.text('Direction pédagogique — IFTL', sigX + 35, y + 8, { align: 'center' });
+  doc.text('Direction pédagogique', sigX + 35, y + 8, { align: 'center' });
 
   drawFooter(doc);
 

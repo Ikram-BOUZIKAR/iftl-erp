@@ -204,7 +204,7 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
         </div>
         {open && (
           <div className="min-w-0">
-            <p className="text-white font-black text-sm tracking-wider leading-tight">IFTL</p>
+            <p className="text-white font-black text-sm tracking-wider leading-tight">Institut</p>
             <p className="text-[10px] leading-tight font-medium" style={{ color: 'rgba(245,200,69,0.8)' }}>
               ERP Pédagogique
             </p>

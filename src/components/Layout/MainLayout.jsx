@@ -148,7 +148,7 @@ export default function MainLayout({ auth, children }) {
         {/* ── Footer ────────────────────────────────────────────────────── */}
         <footer className="px-6 py-3 border-t border-slate-100 flex items-center justify-between">
           <p className="text-[11px] text-slate-400">
-            IFTL · ERP Pédagogique · {new Date().getFullYear()}
+            ERP Pédagogique · {new Date().getFullYear()}
           </p>
           <p className="text-[11px] text-slate-300">
             CNDP n° A-PO-268/2024

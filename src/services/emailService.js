@@ -9,7 +9,7 @@
 
 import { doc, getDoc, setDoc, addDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 
-const SENDER = { name: 'IFTL', email: 'ikrambouzi@gmail.com' };
+const SENDER = { name: 'Institut', email: 'ikrambouzi@gmail.com' };
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
 
 // ─── Key management ────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ function baseLayout(content) {
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
 <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
   <div style="background:linear-gradient(135deg,#002d47 0%,#005989 100%);padding:28px 32px;text-align:center">
-    <h1 style="color:#f5c845;margin:0;font-size:26px;font-weight:900;letter-spacing:2px">IFTL</h1>
+    <h1 style="color:#f5c845;margin:0;font-size:26px;font-weight:900;letter-spacing:2px">Institut</h1>
     <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:13px;letter-spacing:1px">Institut de Formation Transport &amp; Logistique</p>
   </div>
   <div style="padding:32px 36px;background:#f8fafc;color:#1e293b">
@@ -160,7 +160,7 @@ function relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, f
     </table>
     <p style="line-height:1.7">Merci de régulariser votre situation auprès du secrétariat dans les meilleurs délais.</p>
     <p style="line-height:1.7;color:#64748b;font-size:13px">Pour tout renseignement, contactez-nous à <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a>.</p>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration</strong></p>
   `);
 }
 
@@ -171,9 +171,9 @@ export async function sendRelancePaiement(db, { studentNom, studentPrenom, stude
   return sendEmail(db, {
     to: studentEmail,
     toName: `${studentPrenom} ${studentNom}`,
-    subject: `Rappel de règlement — ${montantDu} MAD — IFTL`,
+    subject: `Rappel de règlement — ${montantDu} MAD — Institut`,
     htmlContent: relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, facturRef }),
-    textContent: `Bonjour ${studentPrenom} ${studentNom},\n\nNous vous rappelons qu'un règlement de ${montantDu} MAD est attendu avant le ${echeance}.\nRéf. dossier : ${facturRef || '—'}.\n\nMerci de régulariser votre situation auprès du secrétariat.\n\nCordialement,\nL'administration IFTL`,
+    textContent: `Bonjour ${studentPrenom} ${studentNom},\n\nNous vous rappelons qu'un règlement de ${montantDu} MAD est attendu avant le ${echeance}.\nRéf. dossier : ${facturRef || '—'}.\n\nMerci de régulariser votre situation auprès du secrétariat.\n\nCordialement,\nL'administration`,
   });
 }
 
@@ -201,7 +201,7 @@ function convocationHtml({ studentNom, date, heure, salle, objet }) {
       </table>
     </div>
     <p style="line-height:1.7;color:#64748b;font-size:13px">Veuillez vous présenter 10 minutes avant l'heure indiquée, muni(e) de votre carte d'étudiant.</p>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration</strong></p>
   `);
 }
 
@@ -212,9 +212,9 @@ export async function sendConvocation(db, { studentNom, studentEmail, date, heur
   return sendEmail(db, {
     to: studentEmail,
     toName: studentNom,
-    subject: `Convocation — ${objet} — IFTL`,
+    subject: `Convocation — ${objet} — Institut`,
     htmlContent: convocationHtml({ studentNom, date, heure, salle, objet }),
-    textContent: `Bonjour ${studentNom},\n\nVous êtes convoqué(e) pour : ${objet}\nDate : ${date} à ${heure}\nSalle : ${salle}\n\nVeuillez vous présenter 10 minutes avant l'heure indiquée.\n\nCordialement,\nL'administration IFTL`,
+    textContent: `Bonjour ${studentNom},\n\nVous êtes convoqué(e) pour : ${objet}\nDate : ${date} à ${heure}\nSalle : ${salle}\n\nVeuillez vous présenter 10 minutes avant l'heure indiquée.\n\nCordialement,\nL'administration`,
   });
 }
 
@@ -228,10 +228,10 @@ function bulletinHtml({ studentNom, groupeNom, annee }) {
       <h2 style="margin:0 0 8px;color:#065f46;font-size:18px">Votre bulletin est disponible</h2>
       <p style="color:#047857;margin:0;font-size:14px">${groupeNom} — Année ${annee}</p>
     </div>
-    <p style="line-height:1.7">Votre bulletin de notes est désormais disponible sur votre espace étudiant IFTL.</p>
+    <p style="line-height:1.7">Votre bulletin de notes est désormais disponible sur votre espace étudiant.</p>
     <p style="line-height:1.7;color:#64748b;font-size:13px">Connectez-vous au portail ou contactez le secrétariat pour en obtenir une copie imprimée.</p>
     <a href="https://iftl.ma" style="${btnStyle()}">Accéder au portail</a>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'équipe pédagogique IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'équipe pédagogique</strong></p>
   `);
 }
 
@@ -242,9 +242,9 @@ export async function sendBulletinNotif(db, { studentNom, studentEmail, groupeNo
   return sendEmail(db, {
     to: studentEmail,
     toName: studentNom,
-    subject: `Votre bulletin est disponible — ${groupeNom} — IFTL`,
+    subject: `Votre bulletin est disponible — ${groupeNom} — Institut`,
     htmlContent: bulletinHtml({ studentNom, groupeNom, annee }),
-    textContent: `Bonjour ${studentNom},\n\nVotre bulletin de notes est désormais disponible.\nGroupe : ${groupeNom} — Année : ${annee}\n\nConnectez-vous au portail IFTL pour le consulter.\n\nCordialement,\nL'équipe pédagogique IFTL`,
+    textContent: `Bonjour ${studentNom},\n\nVotre bulletin de notes est désormais disponible.\nGroupe : ${groupeNom} — Année : ${annee}\n\nConnectez-vous au portail pour le consulter.\n\nCordialement,\nL'équipe pédagogique`,
   });
 }
 
@@ -255,7 +255,7 @@ function bienvenueHtml({ studentNom, studentPrenom, filiere, groupe }) {
     <p style="font-size:15px;line-height:1.7">Bonjour <strong>${studentPrenom} ${studentNom}</strong>,</p>
     <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:8px;padding:24px;margin:20px 0;text-align:center">
       <div style="font-size:40px;margin-bottom:8px">🎉</div>
-      <h2 style="margin:0 0 8px;color:#1e40af;font-size:18px">Bienvenue à l'IFTL !</h2>
+      <h2 style="margin:0 0 8px;color:#1e40af;font-size:18px">Bienvenue !</h2>
       <p style="color:#1d4ed8;margin:0;font-size:14px">${filiere}${groupe ? ` — ${groupe}` : ''}</p>
     </div>
     <p style="line-height:1.7">Nous sommes ravis de vous accueillir au sein de l'Institut de Formation Transport &amp; Logistique.</p>
@@ -265,7 +265,7 @@ function bienvenueHtml({ studentNom, studentPrenom, filiere, groupe }) {
       <p style="margin:4px 0;font-size:13px;color:#64748b">Scolarité : <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
       <p style="margin:4px 0;font-size:13px;color:#64748b">Site web : <a href="https://iftl.ma" style="color:#005989">iftl.ma</a></p>
     </div>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La direction IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La direction</strong></p>
   `);
 }
 
@@ -276,9 +276,9 @@ export async function sendBienvenue(db, { studentNom, studentPrenom, studentEmai
   return sendEmail(db, {
     to: studentEmail,
     toName: `${studentPrenom} ${studentNom}`,
-    subject: `Bienvenue à l'IFTL, ${studentPrenom} !`,
+    subject: `Bienvenue, ${studentPrenom} !`,
     htmlContent: bienvenueHtml({ studentNom, studentPrenom, filiere, groupe }),
-    textContent: `Bonjour ${studentPrenom} ${studentNom},\n\nBienvenue à l'IFTL ! Votre inscription en ${filiere} est confirmée.\n\nNous vous contacterons prochainement pour les détails de votre rentrée.\n\nCordialement,\nLa direction IFTL`,
+    textContent: `Bonjour ${studentPrenom} ${studentNom},\n\nBienvenue ! Votre inscription en ${filiere} est confirmée.\n\nNous vous contacterons prochainement pour les détails de votre rentrée.\n\nCordialement,\nLa direction`,
   });
 }
 

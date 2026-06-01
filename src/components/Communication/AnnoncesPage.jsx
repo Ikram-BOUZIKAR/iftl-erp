@@ -137,7 +137,7 @@ function AnnonceForm({ groupes, onClose, onSaved }) {
         contenu: form.contenu.trim(),
         type: form.type,
         auteurId: null,
-        auteurNom: 'Administration IFTL',
+        auteurNom: 'Administration',
         datePublication: new Date().toISOString(),
         expirationDate: form.expirationDate || null,
         cibleGroupes: form.cibleGroupes,

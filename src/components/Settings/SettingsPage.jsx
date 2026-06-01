@@ -93,7 +93,7 @@ function EtablissementTab({ settings, setSettings, onSave, saving }) {
         <Input
           value={settings.nomEcole || ''}
           onChange={e => setSettings(s => ({ ...s, nomEcole: e.target.value }))}
-          placeholder="Ex: IFTL – Institut de Formation en Technologies Linguistiques"
+          placeholder="Ex: Mon Institut de Formation"
         />
       </FieldRow>
       <FieldRow label="Adresse" hint="Adresse postale complète">
@@ -493,7 +493,7 @@ function DonneesTab() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `iftl-erp-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `erp-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Export réussi ! Le fichier a été téléchargé.');

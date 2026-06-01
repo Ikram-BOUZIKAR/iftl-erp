@@ -182,7 +182,7 @@ export default function PortailResultats() {
             <span className="font-black text-base" style={{ color: BRAND.blue }}>IF</span>
           </div>
           <h1 className="text-white font-black text-2xl tracking-tight">Portail Résultats</h1>
-          <p className="text-white/75 text-sm mt-1">IFTL — Année académique 2025-2026</p>
+          <p className="text-white/75 text-sm mt-1">Institut — Année académique 2025-2026</p>
           <div className="flex justify-center gap-2 mt-4 flex-wrap">
             {stats.niveaux.map(n => (
               <span key={n} className="text-xs font-semibold px-3 py-1 rounded-full"

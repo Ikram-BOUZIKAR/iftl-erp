@@ -187,7 +187,7 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
             </div>
           </div>
 
-          {/* Créneaux IFTL */}
+          {/* Créneaux */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
               Créneau horaire <span className="text-red-500">*</span>
