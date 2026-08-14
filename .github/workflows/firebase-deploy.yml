@@ -11,6 +11,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Test runner
+        run: echo "Runner OK"
+
       - uses: actions/checkout@v4
 
       - name: Deploy to Firebase Hosting
