@@ -347,3 +347,58 @@ export const EMAIL_TEMPLATES = [
     previewFn: (vals) => bienvenueHtml(vals),
   },
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EmailJS — Planning & Absence notifications
+// (config stored in Firestore settings/emailjs)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import emailjs from '@emailjs/browser';
+
+let _ejsConfig = null;
+
+export async function loadEmailJSConfig(db) {
+  const { getDoc: _getDoc, doc: _doc } = await import('firebase/firestore');
+  try {
+    const snap = await _getDoc(_doc(db, 'settings', 'emailjs'));
+    if (snap.exists()) {
+      _ejsConfig = snap.data();
+      if (_ejsConfig.publicKey) emailjs.init(_ejsConfig.publicKey);
+    }
+  } catch { /* config not set yet */ }
+  return _ejsConfig;
+}
+
+export function getEmailJSConfig() { return _ejsConfig; }
+
+export function setEmailJSConfig(cfg) {
+  _ejsConfig = cfg;
+  if (cfg?.publicKey) emailjs.init(cfg.publicKey);
+}
+
+export function isEmailJSConfigured() {
+  return !!(_ejsConfig?.publicKey && _ejsConfig?.serviceId && _ejsConfig?.planningTemplateId);
+}
+
+export async function sendPlanningEmail({ to_email, to_name, semaine_debut, semaine_fin, nb_seances, planning_html }) {
+  if (!_ejsConfig?.serviceId || !_ejsConfig?.planningTemplateId || !_ejsConfig?.publicKey) {
+    throw new Error('Configuration EmailJS incomplète. Configurez-la dans Paramètres > Notifications.');
+  }
+  return emailjs.send(_ejsConfig.serviceId, _ejsConfig.planningTemplateId, {
+    to_email, to_name, semaine_debut, semaine_fin,
+    nb_seances: String(nb_seances),
+    planning_html,
+    expediteur_nom: _ejsConfig.expediteurNom || 'IFTL',
+  });
+}
+
+export async function sendAbsenceEmail({ to_email, to_name, module_nom, date_seance, heure_debut, heure_fin, groupe_nom, message_custom }) {
+  if (!_ejsConfig?.serviceId || !_ejsConfig?.absenceTemplateId || !_ejsConfig?.publicKey) {
+    throw new Error('Configuration EmailJS incomplète. Configurez-la dans Paramètres > Notifications.');
+  }
+  return emailjs.send(_ejsConfig.serviceId, _ejsConfig.absenceTemplateId, {
+    to_email, to_name, module_nom, date_seance, heure_debut, heure_fin, groupe_nom,
+    message_custom: message_custom || '',
+    expediteur_nom: _ejsConfig.expediteurNom || 'IFTL',
+  });
+}

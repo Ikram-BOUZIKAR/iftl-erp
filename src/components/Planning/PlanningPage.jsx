@@ -6,6 +6,7 @@ import { db } from '../../services/firebase';
 import { useWeekSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import SessionForm from './SessionForm';
+import PlanningNotificationModal from '../Notifications/PlanningNotificationModal';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
@@ -53,6 +54,7 @@ export default function PlanningPage() {
   const [editing, setEditing]           = useState(null);
   const [defaultSlot, setDefaultSlot]   = useState(null);
   const [activeNiveau, setActiveNiveau] = useState('');
+  const [showNotify, setShowNotify]     = useState(false);
 
   const weekDays = DAYS.map((_, i) => addDays(weekStart, i));
 
@@ -151,6 +153,13 @@ export default function PlanningPage() {
               →
             </button>
           </div>
+          <button
+            onClick={() => setShowNotify(true)}
+            title="Envoyer le planning de la semaine aux intervenants"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-[#005989] text-[#005989] hover:bg-[#005989]/5 rounded-xl text-sm font-semibold transition-colors"
+          >
+            ✉ Notifier
+          </button>
           <button onClick={() => openAdd(null, null, null)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
             + Ajouter séance
@@ -219,6 +228,17 @@ export default function PlanningPage() {
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); setDefaultSlot(null); }}
           onIntervenantCreated={refetchIntervenants}
+        />
+      )}
+
+      {showNotify && (
+        <PlanningNotificationModal
+          sessions={sessions}
+          intervenants={intervenants}
+          modules={modules}
+          groupes={groupes}
+          weekStart={weekStart}
+          onClose={() => setShowNotify(false)}
         />
       )}
     </div>

@@ -12,6 +12,7 @@ import { useStudents, useSessions, useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { getAlertLevel } from '../../services/absenceService';
+import AbsenceNotificationModal from '../Notifications/AbsenceNotificationModal';
 
 const MOIS_OPTIONS = [
   { value: '', label: 'Tous les mois' },
@@ -309,23 +310,49 @@ export default function AbsencesPage() {
     toast.info('Export en cours de préparation… (fonctionnalité à venir)');
   };
 
+  const [showNotify, setShowNotify] = useState(false);
+
+  // Build list of enriched absences for the notification modal
+  const absencesForNotif = useMemo(() => filtered.map(row => ({
+    id: row.id,
+    studentId: row.studentId,
+    nom: row.student?.nom || '',
+    prenom: row.student?.prenom || '',
+    email: row.student?.email || '',
+    module: row.session?.module || '',
+    date: row.sessionDate,
+    heureDebut: row.session?.heureDebut || '',
+    heureFin: row.session?.heureFin || '',
+    groupe: row.groupe?.nom || '',
+    statut: row.statut,
+  })), [filtered]);
+
   const currentMonthLabel = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-5 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Gestion des absences</h1>
           <p className="text-slate-500 text-sm mt-0.5">Suivi des présences, retards et justifications</p>
         </div>
-        <button
-          onClick={handleExport}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium rounded-xl transition-colors"
-        >
-          <ExportIcon />
-          Exporter
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNotify(true)}
+            disabled={filtered.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-red-400 text-red-600 hover:bg-red-50 text-sm font-medium rounded-xl transition-colors disabled:opacity-40"
+          >
+            ✉ Notifier les absents ({filtered.length})
+          </button>
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium rounded-xl transition-colors"
+          >
+            <ExportIcon />
+            Exporter
+          </button>
+        </div>
       </div>
 
       {/* KPI cards */}
@@ -562,6 +589,14 @@ export default function AbsencesPage() {
           presence={justifyTarget}
           onClose={() => setJustifyTarget(null)}
           onSave={handleJustifySave}
+        />
+      )}
+
+      {/* Absence notification modal */}
+      {showNotify && (
+        <AbsenceNotificationModal
+          absences={absencesForNotif}
+          onClose={() => setShowNotify(false)}
         />
       )}
     </div>

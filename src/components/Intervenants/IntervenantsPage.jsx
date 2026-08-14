@@ -5,9 +5,11 @@ import { useIntervenants } from '../../hooks/useData';
 import { intervenantsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 
-const SPECIALITES = [
-  'Développement Web', 'Réseaux & Systèmes', 'Bases de données',
-  'Algorithmique', 'Gestion de projet', 'Marketing Digital', 'Comptabilité', 'Autre',
+const MODULES_SUGGESTIONS = [
+  'Logistique', 'Transport & Douane', 'Commerce International', 'Gestion des Achats',
+  'Marketing', 'Communication Professionnelle', 'Anglais des Affaires',
+  'Comptabilité Analytique', 'Finance d\'Entreprise', 'Droit Commercial',
+  'Management de la Qualité', 'Informatique de Gestion', 'Statistiques', 'Autre',
 ];
 
 const MOIS_LABELS = [
@@ -102,7 +104,8 @@ function IntervenantModal({ editing, onClose, onSaved }) {
     prenom: editing?.prenom || '',
     email: editing?.email || '',
     telephone: editing?.telephone || '',
-    specialite: editing?.specialite || '',
+    modules: editing?.modules || editing?.specialite || '',
+    niveaux: editing?.niveaux || '',
     tauxHoraire: editing?.tauxHoraire != null ? String(editing.tauxHoraire) : '',
     actif: editing ? editing.actif !== false : true,
   });
@@ -118,7 +121,8 @@ function IntervenantModal({ editing, onClose, onSaved }) {
         prenom: form.prenom.trim(),
         email: form.email.trim(),
         telephone: form.telephone.trim(),
-        specialite: form.specialite,
+        modules: form.modules.trim(),
+        niveaux: form.niveaux.trim(),
         actif: form.actif,
         tauxHoraire: form.tauxHoraire !== '' ? Number(form.tauxHoraire) : null,
       };
@@ -167,20 +171,35 @@ function IntervenantModal({ editing, onClose, onSaved }) {
             <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Téléphone</label>
-              <input type="tel" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Spécialité</label>
-              <select value={form.specialite} onChange={e => setForm(f => ({ ...f, specialite: e.target.value }))}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                <option value="">— Sélectionner —</option>
-                {SPECIALITES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Téléphone</label>
+            <input type="tel" value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+              className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Module(s) enseigné(s)</label>
+            <input
+              type="text"
+              value={form.modules}
+              onChange={e => setForm(f => ({ ...f, modules: e.target.value }))}
+              placeholder="Ex: Logistique, Transport & Douane, Marketing…"
+              list="modules-suggestions"
+              className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <datalist id="modules-suggestions">
+              {MODULES_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+            </datalist>
+            <p className="text-xs text-slate-400 mt-1">Séparez plusieurs modules par une virgule</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Niveau(x) / Groupes</label>
+            <input
+              type="text"
+              value={form.niveaux}
+              onChange={e => setForm(f => ({ ...f, niveaux: e.target.value }))}
+              placeholder="Ex: 1A TS, 2A TS, Licence…"
+              className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Taux horaire (DH/h)</label>
@@ -376,8 +395,8 @@ function ListeTab({ intervenants, loading, refetch }) {
                   </td>
                   <td className="px-4 py-3 text-slate-600 hidden sm:table-cell">{i.email || '—'}</td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    {i.specialite ? (
-                      <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{i.specialite}</span>
+                    {(i.modules || i.specialite) ? (
+                      <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{i.modules || i.specialite}</span>
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
