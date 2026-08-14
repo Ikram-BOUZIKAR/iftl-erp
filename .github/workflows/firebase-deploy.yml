@@ -10,10 +10,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: FIREBASE_TOKEN
     steps:
-      - name: Test runner
-        run: echo "Runner OK"
-
       - uses: actions/checkout@v4
 
       - name: Deploy to Firebase Hosting
