@@ -47,7 +47,7 @@ export default function PlanningPage() {
   const [weekStart, setWeekStart]       = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const { data: sessions, refetch }     = useWeekSessions(weekStart);
   const { data: groupes }               = useGroupes();
-  const { data: intervenants }          = useIntervenants();
+  const { data: intervenants, refetch: refetchIntervenants } = useIntervenants();
   const [modules, setModules]           = useState([]);
   const [showForm, setShowForm]         = useState(false);
   const [editing, setEditing]           = useState(null);
@@ -218,6 +218,7 @@ export default function PlanningPage() {
           defaultDate={defaultSlot?.date ? new Date(defaultSlot.date) : weekStart}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); setDefaultSlot(null); }}
+          onIntervenantCreated={refetchIntervenants}
         />
       )}
     </div>

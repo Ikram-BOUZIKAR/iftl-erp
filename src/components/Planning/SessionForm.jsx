@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
+import { intervenantsService } from '../../services/firestore';
 
 const TYPES = [
   { value: 'cours', label: 'Cours',  color: 'bg-[#005989] text-white' },
@@ -12,6 +13,11 @@ const STATUTS = [
   { value: 'en_cours',  label: 'En cours'  },
   { value: 'terminee',  label: 'Terminée'  },
   { value: 'annulee',   label: 'Annulée'   },
+];
+
+const SPECIALITES = [
+  'Développement Web', 'Réseaux & Systèmes', 'Bases de données',
+  'Algorithmique', 'Gestion de projet', 'Marketing Digital', 'Comptabilité', 'Autre',
 ];
 
 // Créneaux prédéfinis
@@ -28,7 +34,6 @@ const PLANNING_SLOTS = [
   { label: 'Dim matin',  start: '09:00', end: '13:00' },
 ];
 
-// All unique start times for the select
 const ALL_TIMES = [...new Set(PLANNING_SLOTS.flatMap(s => [s.start, s.end]))].sort();
 
 function CloseIcon() {
@@ -39,7 +44,129 @@ function CloseIcon() {
   );
 }
 
-export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, onSave, onClose }) {
+function PlusIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
+}
+
+// ── Mini-modal: Nouvel intervenant ──────────────────────────────────────────
+function NouvelIntervenantModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({ nom: '', prenom: '', specialite: '', email: '', telephone: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!form.nom.trim() || !form.prenom.trim()) { setError('Nom et prénom obligatoires'); return; }
+    setSaving(true);
+    try {
+      const created = await intervenantsService.create({
+        nom: form.nom.trim(),
+        prenom: form.prenom.trim(),
+        email: form.email.trim(),
+        telephone: form.telephone.trim(),
+        specialite: form.specialite,
+        actif: true,
+      });
+      onCreated(created);
+    } catch (err) {
+      setError('Erreur : ' + err.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+          <h3 className="text-sm font-bold text-slate-800">Nouvel intervenant</h3>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <CloseIcon />
+          </button>
+        </div>
+        <form onSubmit={handleSave} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Nom *</label>
+              <input
+                type="text"
+                value={form.nom}
+                onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+                autoFocus
+                required
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Prénom *</label>
+              <input
+                type="text"
+                value={form.prenom}
+                onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
+                required
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989]"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Téléphone</label>
+              <input
+                type="tel"
+                value={form.telephone}
+                onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Spécialité</label>
+              <select
+                value={form.specialite}
+                onChange={e => setForm(f => ({ ...f, specialite: e.target.value }))}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989] bg-white"
+              >
+                <option value="">—</option>
+                {SPECIALITES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex justify-end gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-sm font-bold text-white bg-[#005989] hover:bg-[#004a73] rounded-xl transition-colors disabled:opacity-60"
+            >
+              {saving ? 'Ajout…' : 'Ajouter'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── SessionForm ───────────────────────────────────────────────────────────────
+export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, onSave, onClose, onIntervenantCreated }) {
   const resolvedDate = initial?.date
     ? format(new Date(initial.date), 'yyyy-MM-dd')
     : (defaultDate ? format(new Date(defaultDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
@@ -58,6 +185,14 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showNewIntervenant, setShowNewIntervenant] = useState(false);
+  const [newlyAdded, setNewlyAdded] = useState([]);
+
+  // Merge prop list with locally-created intervenants, avoiding duplicates
+  const allIntervenants = useMemo(() => {
+    const ids = new Set(intervenants.map(i => i.id));
+    return [...intervenants, ...newlyAdded.filter(i => !ids.has(i.id))];
+  }, [intervenants, newlyAdded]);
 
   const validate = () => {
     const e = {};
@@ -86,6 +221,13 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     }`;
 
   const selectedType = TYPES.find(t => t.value === form.type) || TYPES[0];
+
+  const handleIntervenantCreated = (newIntervenant) => {
+    setNewlyAdded(prev => [...prev, newIntervenant]);
+    set('intervenantId', newIntervenant.id);
+    setShowNewIntervenant(false);
+    onIntervenantCreated?.();
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -205,10 +347,32 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           {/* Intervenant */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Intervenant</label>
-            <select value={form.intervenantId} onChange={e => set('intervenantId', e.target.value)} className={inputCls('')}>
-              <option value="">— Sélectionner —</option>
-              {intervenants.map(i => <option key={i.id} value={i.id}>{i.prenom} {i.nom}</option>)}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={form.intervenantId}
+                onChange={e => set('intervenantId', e.target.value)}
+                className={`${inputCls('')} flex-1`}
+              >
+                <option value="">— Sélectionner —</option>
+                {allIntervenants.map(i => (
+                  <option key={i.id} value={i.id}>{i.prenom} {i.nom}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowNewIntervenant(true)}
+                title="Ajouter un nouvel intervenant"
+                className="px-3 py-2.5 border border-slate-200 rounded-xl text-slate-500 hover:text-[#005989] hover:border-[#005989] hover:bg-[#005989]/5 transition-colors flex-shrink-0"
+              >
+                <PlusIcon />
+              </button>
+            </div>
+            {newlyAdded.length > 0 && form.intervenantId && newlyAdded.find(i => i.id === form.intervenantId) && (
+              <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                <span>✓</span>
+                <span>Nouvel intervenant ajouté et sélectionné</span>
+              </p>
+            )}
           </div>
 
           {/* Statut */}
@@ -250,6 +414,14 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           </div>
         </form>
       </div>
+
+      {/* Mini-modal nouvel intervenant — z-index supérieur au formulaire */}
+      {showNewIntervenant && (
+        <NouvelIntervenantModal
+          onClose={() => setShowNewIntervenant(false)}
+          onCreated={handleIntervenantCreated}
+        />
+      )}
     </div>
   );
 }
