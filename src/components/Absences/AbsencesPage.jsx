@@ -6,7 +6,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useStudents, useSessions, useGroupes } from '../../hooks/useData';
@@ -169,27 +168,20 @@ export default function AbsencesPage() {
     try {
       const q = query(
         collection(db, 'presences'),
-        where('statut', 'in', ['absent', 'retard', 'absent_non_justifie', 'absent_justifie']),
-        orderBy('createdAt', 'desc')
+        where('statut', 'in', ['absent', 'retard', 'absent_non_justifie', 'absent_justifie'])
       );
       const snap = await getDocs(q);
       const data = [];
       snap.forEach(d => data.push({ id: d.id, ...d.data() }));
+      // Sort in memory — no composite index needed
+      data.sort((a, b) => {
+        const ta = a.createdAt?.toDate?.() ?? new Date(a.createdAt || 0);
+        const tb = b.createdAt?.toDate?.() ?? new Date(b.createdAt || 0);
+        return tb - ta;
+      });
       setPresences(data);
-    } catch {
-      // Fallback without orderBy if index not ready
-      try {
-        const q2 = query(
-          collection(db, 'presences'),
-          where('statut', 'in', ['absent', 'retard', 'absent_non_justifie', 'absent_justifie'])
-        );
-        const snap2 = await getDocs(q2);
-        const data2 = [];
-        snap2.forEach(d => data2.push({ id: d.id, ...d.data() }));
-        setPresences(data2);
-      } catch (err2) {
-        toast.error('Erreur lors du chargement des absences : ' + err2.message);
-      }
+    } catch (err) {
+      toast.error('Erreur lors du chargement des absences : ' + err.message);
     } finally {
       setLoadingPresences(false);
     }

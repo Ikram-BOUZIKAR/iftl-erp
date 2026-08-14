@@ -100,18 +100,19 @@ export const groupesService = {
 // ─── Intervenants ─────────────────────────────────────────────────────────────
 export const intervenantsService = {
   async getAll() {
-    const q = query(collection(db, 'intervenants'), where('actif', '==', true), orderBy('nom', 'asc'));
-    const snapshot = await getDocs(q);
+    // No where+orderBy on different fields (requires composite index). Fetch all, filter in memory.
+    const snapshot = await getDocs(collection(db, 'intervenants'));
     const intervenants = [];
     snapshot.forEach(d => intervenants.push({ id: d.id, ...d.data() }));
-    return intervenants;
+    return intervenants
+      .filter(i => i.actif !== false)
+      .sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
   },
   async getAllIncludingInactive() {
-    const q = query(collection(db, 'intervenants'), orderBy('nom', 'asc'));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(collection(db, 'intervenants'));
     const intervenants = [];
     snapshot.forEach(d => intervenants.push({ id: d.id, ...d.data() }));
-    return intervenants;
+    return intervenants.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
   },
   async getById(id) {
     const docSnap = await getDoc(doc(db, 'intervenants', id));
@@ -198,10 +199,16 @@ export const presencesService = {
     return presences;
   },
   async getByStudent(studentId) {
-    const q = query(collection(db, 'presences'), where('studentId', '==', studentId), orderBy('createdAt', 'desc'));
+    // No where+orderBy on different fields. Fetch + sort in memory.
+    const q = query(collection(db, 'presences'), where('studentId', '==', studentId));
     const snapshot = await getDocs(q);
     const presences = [];
     snapshot.forEach(d => presences.push({ id: d.id, ...d.data() }));
+    presences.sort((a, b) => {
+      const ta = a.createdAt?.toDate?.() ?? new Date(a.createdAt || 0);
+      const tb = b.createdAt?.toDate?.() ?? new Date(b.createdAt || 0);
+      return tb - ta;
+    });
     return presences;
   },
   async upsert(sessionId, studentId, statut, extra = {}) {

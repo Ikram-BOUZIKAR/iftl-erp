@@ -8,11 +8,10 @@ import {
   doc,
   query,
   where,
-  orderBy,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useGroupes, useIntervenants } from '../../hooks/useData';
+import { useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateBulletin } from '../../services/pdfService';
@@ -372,13 +371,20 @@ function StudentHistoryModal({ student, evaluations, modules, onClose }) {
   useEffect(() => {
     if (!student) return;
     setLoading(true);
-    getDocs(query(collection(db, 'notes'), where('studentId', '==', student.id))).then(snap => {
+    const studentCode = student.code || '';
+    const byId = getDocs(query(collection(db, 'notes'), where('studentId', '==', student.id)));
+    const byCode = studentCode && studentCode !== student.id
+      ? getDocs(query(collection(db, 'notes'), where('studentId', '==', studentCode)))
+      : Promise.resolve(null);
+    Promise.all([byId, byCode]).then(([snapId, snapCode]) => {
+      const seen = new Set();
       const ns = [];
-      snap.forEach(d => ns.push({ id: d.id, ...d.data() }));
+      const add = (snap) => { if (!snap) return; snap.forEach(d => { if (seen.has(d.id)) return; seen.add(d.id); ns.push({ id: d.id, ...d.data() }); }); };
+      add(snapId); add(snapCode);
       setAllNotes(ns);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [student?.id]);
+  }, [student?.id, student?.code]);
 
   const rows = allNotes.map(n => {
     const ev = evaluations.find(e => e.id === n.evaluationId);
@@ -461,10 +467,10 @@ function SaisieTab({ evaluations, modules, groupes }) {
         const nd = d.data();
         existing[nd.studentId] = { id: d.id, note: nd.note ?? '', absent: nd.absent ?? false, commentaire: nd.commentaire ?? '' };
       });
-      // Initialise missing students
+      // Initialise missing students — check both Firestore ID and student code (injected notes use code)
       const init = {};
       for (const s of grpStudents) {
-        init[s.id] = existing[s.id] || { note: '', absent: false, commentaire: '' };
+        init[s.id] = existing[s.id] || existing[s.code] || { note: '', absent: false, commentaire: '' };
       }
       setNotes(init);
     } catch (err) {
@@ -708,10 +714,18 @@ function BulletinsTab({ evaluations, modules, groupes }) {
     setLoadingBulletin(true);
     const fetchBulletin = async () => {
       try {
-        const nq = query(collection(db, 'notes'), where('studentId', '==', selectedStudentId));
-        const nSnap = await getDocs(nq);
+        const student = students.find(s => s.id === selectedStudentId);
+        const studentCode = student?.code || '';
+        const [snapById, snapByCode] = await Promise.all([
+          getDocs(query(collection(db, 'notes'), where('studentId', '==', selectedStudentId))),
+          studentCode && studentCode !== selectedStudentId
+            ? getDocs(query(collection(db, 'notes'), where('studentId', '==', studentCode)))
+            : Promise.resolve(null),
+        ]);
+        const seen = new Set();
         const studentNotes = [];
-        nSnap.forEach(d => studentNotes.push({ id: d.id, ...d.data() }));
+        const addSnap = (snap) => { if (!snap) return; snap.forEach(d => { if (seen.has(d.id)) return; seen.add(d.id); studentNotes.push({ id: d.id, ...d.data() }); }); };
+        addSnap(snapById); addSnap(snapByCode);
 
         // Group by module via evaluations
         const byModule = {};
@@ -754,7 +768,7 @@ function BulletinsTab({ evaluations, modules, groupes }) {
       }
     };
     fetchBulletin();
-  }, [selectedStudentId, evaluations, modules]);
+  }, [selectedStudentId, students, evaluations, modules]);
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
 
@@ -938,10 +952,10 @@ export default function NotesPage() {
 
   const fetchModules = useCallback(async () => {
     try {
-      const q = query(collection(db, 'modules'), orderBy('code', 'asc'));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, 'modules'));
       const data = [];
       snap.forEach(d => data.push({ id: d.id, ...d.data() }));
+      data.sort((a, b) => (a.code || a.nom || '').localeCompare(b.code || b.nom || ''));
       setModules(data);
     } catch {
       // silent
