@@ -110,7 +110,11 @@ export default function ApprenantsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Apprenants</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {loading ? 'Chargement…' : `${filtered.length} apprenant${filtered.length !== 1 ? 's' : ''} ${filterStatut ? `· ${filterStatut}` : ''}`}
+            {loading ? 'Chargement…' : (() => {
+              const actifs = students.filter(s => s.statut === 'actif').length;
+              const laureats = students.filter(s => s.statut === 'laureat').length;
+              return `${filtered.length} affiché${filtered.length > 1 ? 's' : ''} · ${actifs} actif${actifs > 1 ? 's' : ''} · ${laureats} lauréat${laureats > 1 ? 's' : ''}`;
+            })()}
           </p>
         </div>
         <button
@@ -153,6 +157,7 @@ export default function ApprenantsPage() {
           <option value="actif">Actif</option>
           <option value="inactif">Inactif</option>
           <option value="archive">Archivé</option>
+          <option value="laureat">Lauréat 🎓</option>
         </select>
       </div>
 
@@ -233,11 +238,12 @@ export default function ApprenantsPage() {
 
 function StatutBadge({ statut }) {
   const map = {
-    actif: 'bg-emerald-100 text-emerald-700',
-    inactif: 'bg-slate-100 text-slate-600',
-    archive: 'bg-amber-100 text-amber-700'
+    actif:    'bg-emerald-100 text-emerald-700',
+    inactif:  'bg-slate-100 text-slate-600',
+    archive:  'bg-amber-100 text-amber-700',
+    laureat:  'bg-violet-100 text-violet-700',
   };
-  const labels = { actif: 'Actif', inactif: 'Inactif', archive: 'Archivé' };
+  const labels = { actif: 'Actif', inactif: 'Inactif', archive: 'Archivé', laureat: 'Lauréat 🎓' };
   return (
     <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${map[statut] || 'bg-slate-100 text-slate-600'}`}>
       {labels[statut] || statut}
