@@ -7,31 +7,12 @@ on:
       - claude/scheduling-attendance-app-zxwsP
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-        env:
-          VITE_FIREBASE_API_KEY: AIzaSyAt0Nb1yxXk9VJ_9F0FEMdS-7sfd6KkZrY
-          VITE_FIREBASE_AUTH_DOMAIN: erp-pedago-iftl.firebaseapp.com
-          VITE_FIREBASE_PROJECT_ID: erp-pedago-iftl
-          VITE_FIREBASE_STORAGE_BUCKET: erp-pedago-iftl.firebasestorage.app
-          VITE_FIREBASE_MESSAGING_SENDER_ID: "938367552509"
-          VITE_FIREBASE_APP_ID: 1:938367552509:web:60bc41fdc15daa86a02794
-
-      - name: Deploy to Firebase Hosting + Firestore rules
-        run: npx firebase-tools deploy --only hosting,firestore:rules,firestore:indexes --project erp-pedago-iftl --token "$FIREBASE_TOKEN"
+      - name: Deploy to Firebase Hosting
+        run: npx firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project erp-pedago-iftl --token "$FIREBASE_TOKEN" --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
