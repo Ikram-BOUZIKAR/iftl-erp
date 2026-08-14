@@ -10,11 +10,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: FIREBASE_TOKEN
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Firebase Hosting
-        run: npx firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project erp-pedago-iftl --token "$FIREBASE_TOKEN" --non-interactive
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      - name: Hello test
+        run: echo "Runner works!"
