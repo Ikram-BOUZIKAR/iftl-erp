@@ -67,10 +67,11 @@ export const studentsService = {
 // ─── Groupes ──────────────────────────────────────────────────────────────────
 export const groupesService = {
   async getAll(filters = {}) {
-    const q = query(collection(db, 'groupes'), orderBy('nom', 'asc'));
-    const snapshot = await getDocs(q);
+    // No orderBy — fetch all docs regardless of whether they have a 'nom' field, sort in memory
+    const snapshot = await getDocs(collection(db, 'groupes'));
     let groupes = [];
     snapshot.forEach(d => groupes.push({ id: d.id, ...d.data() }));
+    groupes.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
     if (filters.actif !== undefined) groupes = groupes.filter(g => g.actif === filters.actif);
     if (filters.filiere) groupes = groupes.filter(g => g.filiere === filters.filiere);
     return groupes;

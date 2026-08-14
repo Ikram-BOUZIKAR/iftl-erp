@@ -448,8 +448,8 @@ export default function Dashboard({ auth }) {
           value={atRisk.length}
           trend={atRisk.length > 0 ? `${atRisk.length} apprenant${atRisk.length > 1 ? 's' : ''}` : 'Tout va bien'}
           IconComponent={IconWarning}
-          from={atRisk.length > 0 ? BRAND.red : BRAND.green}
-          toColor={atRisk.length > 0 ? '#8e0e12' : '#6a7d10'}
+          from={BRAND.red}
+          toColor="#8e0e12"
           isLink
           linkTo="/rapports"
         />
