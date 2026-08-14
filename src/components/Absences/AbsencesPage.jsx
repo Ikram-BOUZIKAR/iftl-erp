@@ -595,6 +595,7 @@ export default function AbsencesPage() {
       {/* Absence notification modal */}
       {showNotify && (
         <AbsenceNotificationModal
+          db={db}
           absences={absencesForNotif}
           onClose={() => setShowNotify(false)}
         />

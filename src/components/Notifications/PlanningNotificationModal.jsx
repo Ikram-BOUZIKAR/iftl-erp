@@ -3,7 +3,7 @@ import { format, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { sendPlanningEmail, getEmailJSConfig } from '../../services/emailService';
+import { sendPlanningEmail } from '../../services/emailService';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function timeToMin(t) {
@@ -121,8 +121,7 @@ function PdfIcon() {
 }
 
 // ── Main modal ────────────────────────────────────────────────────────────────
-export default function PlanningNotificationModal({ sessions, intervenants, modules, groupes, weekStart, onClose }) {
-  const cfg = getEmailJSConfig();
+export default function PlanningNotificationModal({ db, sessions, intervenants, modules, groupes, weekStart, onClose }) {
   const weekEnd = addDays(weekStart, 6);
 
   // Group sessions by intervenantId
@@ -166,10 +165,6 @@ export default function PlanningNotificationModal({ sessions, intervenants, modu
   };
 
   const handleSend = async () => {
-    if (!cfg?.publicKey) {
-      alert('Configuration EmailJS manquante. Allez dans Paramètres > Notifications.');
-      return;
-    }
     setSending(true);
     const toSend = activeIntervenants.filter(i => selected.has(i.id));
     for (const inv of toSend) {
@@ -181,13 +176,13 @@ export default function PlanningNotificationModal({ sessions, intervenants, modu
       try {
         const ivSessions = byIntervenant[inv.id] || [];
         const html = buildPlanningHTML(ivSessions, modules, groupes);
-        await sendPlanningEmail({
-          to_email: inv.email,
-          to_name: `${inv.prenom} ${inv.nom}`,
-          semaine_debut: format(weekStart, 'dd/MM/yyyy'),
-          semaine_fin: format(weekEnd, 'dd/MM/yyyy'),
-          nb_seances: ivSessions.length,
-          planning_html: html,
+        await sendPlanningEmail(db, {
+          toEmail: inv.email,
+          toName: `${inv.prenom} ${inv.nom}`,
+          semaineDebut: format(weekStart, 'dd/MM/yyyy'),
+          semaineFin: format(weekEnd, 'dd/MM/yyyy'),
+          nbSeances: ivSessions.length,
+          planningHtml: html,
         });
         setStatus(s => ({ ...s, [inv.id]: 'sent' }));
       } catch {
@@ -221,14 +216,6 @@ export default function PlanningNotificationModal({ sessions, intervenants, modu
             <CloseIcon />
           </button>
         </div>
-
-        {/* EmailJS warning */}
-        {!cfg?.publicKey && (
-          <div className="mx-6 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            ⚠️ EmailJS non configuré. Allez dans <strong>Paramètres → Notifications</strong> pour activer l'envoi d'emails.
-            Vous pouvez néanmoins télécharger les PDFs.
-          </div>
-        )}
 
         {/* List */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
@@ -338,7 +325,7 @@ export default function PlanningNotificationModal({ sessions, intervenants, modu
               </button>
               <button
                 onClick={handleSend}
-                disabled={sending || selected.size === 0 || !cfg?.publicKey}
+                disabled={sending || selected.size === 0}
                 className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-[#005989] hover:bg-[#004a73] rounded-xl transition-colors disabled:opacity-50"
               >
                 <SendIcon />

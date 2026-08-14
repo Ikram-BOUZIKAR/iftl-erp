@@ -233,6 +233,7 @@ export default function PlanningPage() {
 
       {showNotify && (
         <PlanningNotificationModal
+          db={db}
           sessions={sessions}
           intervenants={intervenants}
           modules={modules}

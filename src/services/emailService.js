@@ -349,56 +349,72 @@ export const EMAIL_TEMPLATES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// EmailJS — Planning & Absence notifications
-// (config stored in Firestore settings/emailjs)
+// Notifications planning & absences — envoi via Brevo (même service que ci-dessus)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import emailjs from '@emailjs/browser';
-
-let _ejsConfig = null;
-
-export async function loadEmailJSConfig(db) {
-  const { getDoc: _getDoc, doc: _doc } = await import('firebase/firestore');
-  try {
-    const snap = await _getDoc(_doc(db, 'settings', 'emailjs'));
-    if (snap.exists()) {
-      _ejsConfig = snap.data();
-      if (_ejsConfig.publicKey) emailjs.init(_ejsConfig.publicKey);
-    }
-  } catch { /* config not set yet */ }
-  return _ejsConfig;
+function planningHtmlEmail({ toName, semaineDebut, semaineFin, nbSeances, planningHtml }) {
+  return baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${toName}</strong>,</p>
+    <p style="line-height:1.7">Veuillez trouver ci-dessous votre planning d'interventions pour la semaine du
+      <strong style="color:#005989">${semaineDebut}</strong> au <strong style="color:#005989">${semaineFin}</strong>.</p>
+    <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-left:4px solid #005989;border-radius:8px;padding:12px 20px;margin:16px 0;text-align:center">
+      <span style="font-size:28px;font-weight:900;color:#005989">${nbSeances}</span>
+      <span style="font-size:14px;color:#475569;margin-left:8px">séance${nbSeances > 1 ? 's' : ''} cette semaine</span>
+    </div>
+    <div style="overflow-x:auto;margin:20px 0">${planningHtml}</div>
+    <p style="line-height:1.7;color:#64748b;font-size:13px">
+      En cas d'empêchement ou pour toute question, veuillez nous contacter dès que possible à
+      <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a>.
+    </p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'équipe pédagogique IFTL</strong></p>
+  `);
 }
 
-export function getEmailJSConfig() { return _ejsConfig; }
-
-export function setEmailJSConfig(cfg) {
-  _ejsConfig = cfg;
-  if (cfg?.publicKey) emailjs.init(cfg.publicKey);
+function absenceHtmlEmail({ toName, moduleNom, dateSeance, heureDebut, heureFin, groupeNom, messageCustom }) {
+  return baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${toName}</strong>,</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:8px;padding:20px 24px;margin:20px 0">
+      <h2 style="margin:0 0 12px;color:#dc2626;font-size:16px">Absence enregistrée</h2>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="padding:5px 0;color:#64748b;font-size:13px;width:90px;font-weight:600">Module</td>
+            <td style="padding:5px 0;font-size:13px;font-weight:700">${moduleNom}</td></tr>
+        <tr><td style="padding:5px 0;color:#64748b;font-size:13px;font-weight:600">Date</td>
+            <td style="padding:5px 0;font-size:13px;font-weight:700">${dateSeance}</td></tr>
+        <tr><td style="padding:5px 0;color:#64748b;font-size:13px;font-weight:600">Horaire</td>
+            <td style="padding:5px 0;font-size:13px;font-weight:700">${heureDebut} – ${heureFin}</td></tr>
+        <tr><td style="padding:5px 0;color:#64748b;font-size:13px;font-weight:600">Groupe</td>
+            <td style="padding:5px 0;font-size:13px">${groupeNom}</td></tr>
+      </table>
+    </div>
+    ${messageCustom ? `<p style="line-height:1.7;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 18px;font-size:14px">${messageCustom}</p>` : ''}
+    <p style="line-height:1.7">Merci de justifier votre absence auprès du secrétariat dans les meilleurs délais.</p>
+    <p style="line-height:1.7;color:#64748b;font-size:13px">Contact : <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration IFTL</strong></p>
+  `);
 }
 
-export function isEmailJSConfigured() {
-  return !!(_ejsConfig?.publicKey && _ejsConfig?.serviceId && _ejsConfig?.planningTemplateId);
-}
-
-export async function sendPlanningEmail({ to_email, to_name, semaine_debut, semaine_fin, nb_seances, planning_html }) {
-  if (!_ejsConfig?.serviceId || !_ejsConfig?.planningTemplateId || !_ejsConfig?.publicKey) {
-    throw new Error('Configuration EmailJS incomplète. Configurez-la dans Paramètres > Notifications.');
-  }
-  return emailjs.send(_ejsConfig.serviceId, _ejsConfig.planningTemplateId, {
-    to_email, to_name, semaine_debut, semaine_fin,
-    nb_seances: String(nb_seances),
-    planning_html,
-    expediteur_nom: _ejsConfig.expediteurNom || 'IFTL',
+/**
+ * Sends the weekly planning email to an intervenant via Brevo.
+ */
+export async function sendPlanningEmail(db, { toEmail, toName, semaineDebut, semaineFin, nbSeances, planningHtml }) {
+  return sendEmail(db, {
+    to: toEmail,
+    toName,
+    subject: `Votre planning IFTL — semaine du ${semaineDebut} au ${semaineFin}`,
+    htmlContent: planningHtmlEmail({ toName, semaineDebut, semaineFin, nbSeances, planningHtml }),
+    textContent: `Bonjour ${toName},\n\nVotre planning pour la semaine du ${semaineDebut} au ${semaineFin} : ${nbSeances} séance(s).\n\nCordialement,\nL'équipe pédagogique IFTL`,
   });
 }
 
-export async function sendAbsenceEmail({ to_email, to_name, module_nom, date_seance, heure_debut, heure_fin, groupe_nom, message_custom }) {
-  if (!_ejsConfig?.serviceId || !_ejsConfig?.absenceTemplateId || !_ejsConfig?.publicKey) {
-    throw new Error('Configuration EmailJS incomplète. Configurez-la dans Paramètres > Notifications.');
-  }
-  return emailjs.send(_ejsConfig.serviceId, _ejsConfig.absenceTemplateId, {
-    to_email, to_name, module_nom, date_seance, heure_debut, heure_fin, groupe_nom,
-    message_custom: message_custom || '',
-    expediteur_nom: _ejsConfig.expediteurNom || 'IFTL',
+/**
+ * Sends an absence notification email to a student via Brevo.
+ */
+export async function sendAbsenceEmail(db, { toEmail, toName, moduleNom, dateSeance, heureDebut, heureFin, groupeNom, messageCustom }) {
+  return sendEmail(db, {
+    to: toEmail,
+    toName,
+    subject: `Absence enregistrée — ${moduleNom} — IFTL`,
+    htmlContent: absenceHtmlEmail({ toName, moduleNom, dateSeance, heureDebut, heureFin, groupeNom, messageCustom }),
+    textContent: `Bonjour ${toName},\n\nUne absence a été enregistrée pour :\nModule : ${moduleNom}\nDate : ${dateSeance}\nHoraire : ${heureDebut}–${heureFin}\nGroupe : ${groupeNom}\n${messageCustom ? '\n' + messageCustom : ''}\n\nMerci de la justifier auprès du secrétariat.\n\nCordialement,\nL'administration IFTL`,
   });
 }

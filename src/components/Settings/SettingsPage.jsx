@@ -4,7 +4,6 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import ImportDataPage from './ImportDataPage';
-import { setEmailJSConfig, getEmailJSConfig } from '../../services/emailService';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -556,126 +555,6 @@ function DonneesTab() {
   );
 }
 
-// ─── Notifications tab (EmailJS) ──────────────────────────────────────────────
-
-function BellIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
-        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-    </svg>
-  );
-}
-
-function NotificationsTab() {
-  const toast = useToast();
-  const [cfg, setCfg] = useState(() => getEmailJSConfig() || {
-    publicKey: '',
-    serviceId: '',
-    planningTemplateId: '',
-    absenceTemplateId: '',
-    expediteurNom: 'IFTL Formation Professionnelle',
-  });
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-
-  useEffect(() => {
-    getDoc(doc(db, 'settings', 'emailjs')).then(snap => {
-      if (snap.exists()) setCfg(c => ({ ...c, ...snap.data() }));
-    }).catch(() => {});
-  }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await setDoc(doc(db, 'settings', 'emailjs'), { ...cfg, updatedAt: new Date() });
-      setEmailJSConfig(cfg);
-      toast.success('Configuration EmailJS enregistrée');
-    } catch (err) {
-      toast.error('Erreur : ' + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const set = (k, v) => setCfg(c => ({ ...c, [k]: v }));
-
-  const isConfigured = !!(cfg.publicKey && cfg.serviceId && cfg.planningTemplateId);
-
-  return (
-    <div className="space-y-5">
-      {/* Status badge */}
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${isConfigured ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-        <span className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-        {isConfigured ? 'EmailJS configuré — envoi d\'emails activé' : 'EmailJS non configuré — créez un compte sur emailjs.com'}
-      </div>
-
-      <SectionCard
-        title="Configuration EmailJS"
-        description="Créez un compte gratuit sur emailjs.com (200 emails/mois), reliez un service Gmail/Outlook, et créez les templates ci-dessous."
-      >
-        <FieldRow label="Public Key" hint="Depuis emailjs.com → Account → API Keys">
-          <Input value={cfg.publicKey} onChange={e => set('publicKey', e.target.value)} placeholder="user_XXXXXXXXXXXXXXXXXXXX" />
-        </FieldRow>
-        <FieldRow label="Service ID" hint="Email Services → Service ID">
-          <Input value={cfg.serviceId} onChange={e => set('serviceId', e.target.value)} placeholder="service_xxxxxxx" />
-        </FieldRow>
-        <FieldRow label="Template Planning" hint="ID du template pour le planning hebdomadaire des intervenants">
-          <Input value={cfg.planningTemplateId} onChange={e => set('planningTemplateId', e.target.value)} placeholder="template_planning" />
-        </FieldRow>
-        <FieldRow label="Template Absences" hint="ID du template pour notifier les apprenants de leur absence">
-          <Input value={cfg.absenceTemplateId} onChange={e => set('absenceTemplateId', e.target.value)} placeholder="template_absence" />
-        </FieldRow>
-        <FieldRow label="Expéditeur (nom)" hint="Nom affiché dans les emails envoyés">
-          <Input value={cfg.expediteurNom} onChange={e => set('expediteurNom', e.target.value)} placeholder="IFTL Formation Professionnelle" />
-        </FieldRow>
-        <div className="pt-4 flex justify-end">
-          <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60">
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-        </div>
-      </SectionCard>
-
-      {/* Template guide */}
-      <SectionCard title="Guide des templates EmailJS" description="Copiez ces templates dans votre compte EmailJS.">
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-700 mb-2">Template Planning (intervenants)</p>
-            <div className="bg-slate-50 rounded-lg p-4 text-xs font-mono text-slate-700 space-y-1 border border-slate-200">
-              <p className="text-slate-500">Sujet :</p>
-              <p>Votre planning — semaine du {'{{semaine_debut}}'} au {'{{semaine_fin}}'}</p>
-              <p className="text-slate-500 mt-3">Corps (HTML activé) :</p>
-              <p>Bonjour {'{{to_name}}'},</p>
-              <p className="mt-1">Voici votre planning pour la semaine du <strong>{'{{semaine_debut}}'}</strong> au <strong>{'{{semaine_fin}}'}</strong> : {'{{nb_seances}}'} séance(s).</p>
-              <p className="mt-1">{'{{planning_html}}'}</p>
-              <p className="mt-2">Cordialement, {'{{expediteur_nom}}'}</p>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">Variables : to_email, to_name, semaine_debut, semaine_fin, nb_seances, planning_html, expediteur_nom</p>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-700 mb-2">Template Absences (apprenants)</p>
-            <div className="bg-slate-50 rounded-lg p-4 text-xs font-mono text-slate-700 space-y-1 border border-slate-200">
-              <p className="text-slate-500">Sujet :</p>
-              <p>Absence enregistrée — {'{{module_nom}}'} — {'{{date_seance}}'}</p>
-              <p className="text-slate-500 mt-3">Corps :</p>
-              <p>Bonjour {'{{to_name}}'},</p>
-              <p className="mt-1">Votre absence a été enregistrée :</p>
-              <p>• Module : {'{{module_nom}}'}</p>
-              <p>• Date : {'{{date_seance}}'}</p>
-              <p>• Horaire : {'{{heure_debut}}'} – {'{{heure_fin}}'}</p>
-              <p>• Groupe : {'{{groupe_nom}}'}</p>
-              <p className="mt-1">{'{{message_custom}}'}</p>
-              <p className="mt-2">Cordialement, {'{{expediteur_nom}}'}</p>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">Variables : to_email, to_name, module_nom, date_seance, heure_debut, heure_fin, groupe_nom, message_custom, expediteur_nom</p>
-          </div>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
 // ─── Main SettingsPage ────────────────────────────────────────────────────────
 
 const TABS = [
@@ -684,7 +563,6 @@ const TABS = [
   { id: 'utilisateurs', label: 'Utilisateurs', Icon: UsersIcon },
   { id: 'donnees', label: 'Données', Icon: DatabaseIcon },
   { id: 'import', label: 'Import données', Icon: UploadIcon },
-  { id: 'notifications', label: 'Notifications', Icon: BellIcon },
 ];
 
 export default function SettingsPage({ auth }) {
@@ -786,7 +664,6 @@ export default function SettingsPage({ auth }) {
               {activeTab === 'utilisateurs' && <UtilisateursTab />}
               {activeTab === 'donnees' && <DonneesTab />}
               {activeTab === 'import' && <ImportDataPage />}
-              {activeTab === 'notifications' && <NotificationsTab />}
             </>
           )}
         </div>

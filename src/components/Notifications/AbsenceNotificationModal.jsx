@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { sendAbsenceEmail, getEmailJSConfig } from '../../services/emailService';
+import { sendAbsenceEmail } from '../../services/emailService';
 
 function CloseIcon() {
   return (
@@ -21,9 +21,7 @@ function SendIcon() {
  * absences: array of enriched absence records with:
  *   { id, studentId, nom, prenom, email, module, date (Date), heureDebut, heureFin, groupe, statut }
  */
-export default function AbsenceNotificationModal({ absences, onClose }) {
-  const cfg = getEmailJSConfig();
-
+export default function AbsenceNotificationModal({ db, absences, onClose }) {
   const withEmail = absences.filter(a => a.email);
 
   const [selected, setSelected] = useState(() => new Set(withEmail.map(a => a.id)));
@@ -51,24 +49,20 @@ export default function AbsenceNotificationModal({ absences, onClose }) {
   };
 
   const handleSend = async () => {
-    if (!cfg?.publicKey) {
-      alert('Configuration EmailJS manquante. Allez dans Paramètres > Notifications.');
-      return;
-    }
     setSending(true);
     const toSend = withEmail.filter(a => selected.has(a.id));
     for (const abs of toSend) {
       setStatus(s => ({ ...s, [abs.id]: 'sending' }));
       try {
-        await sendAbsenceEmail({
-          to_email: abs.email,
-          to_name: `${abs.prenom} ${abs.nom}`,
-          module_nom: abs.module || '—',
-          date_seance: formatDate(abs.date),
-          heure_debut: abs.heureDebut || '',
-          heure_fin: abs.heureFin || '',
-          groupe_nom: abs.groupe || '',
-          message_custom: message,
+        await sendAbsenceEmail(db, {
+          toEmail: abs.email,
+          toName: `${abs.prenom} ${abs.nom}`,
+          moduleNom: abs.module || '—',
+          dateSeance: formatDate(abs.date),
+          heureDebut: abs.heureDebut || '',
+          heureFin: abs.heureFin || '',
+          groupeNom: abs.groupe || '',
+          messageCustom: message,
         });
         setStatus(s => ({ ...s, [abs.id]: 'sent' }));
       } catch {
@@ -95,13 +89,6 @@ export default function AbsenceNotificationModal({ absences, onClose }) {
             <CloseIcon />
           </button>
         </div>
-
-        {/* Warning emailjs */}
-        {!cfg?.publicKey && (
-          <div className="mx-6 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            ⚠️ EmailJS non configuré. Allez dans <strong>Paramètres → Notifications</strong>.
-          </div>
-        )}
 
         {/* Custom message */}
         <div className="px-6 pt-4 shrink-0">
@@ -194,7 +181,7 @@ export default function AbsenceNotificationModal({ absences, onClose }) {
             </button>
             <button
               onClick={handleSend}
-              disabled={sending || selected.size === 0 || !cfg?.publicKey}
+              disabled={sending || selected.size === 0}
               className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-50"
             >
               <SendIcon />
