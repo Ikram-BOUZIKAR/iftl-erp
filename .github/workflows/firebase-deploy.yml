@@ -14,7 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Firebase Hosting
-        run: npx firebase-tools@latest deploy --only hosting --project erp-pedago-iftl --token "$FIREBASE_TOKEN" --non-interactive
+      - name: Write service account key
+        run: echo "$FIREBASE_TOKEN" > /tmp/sa.json
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy to Firebase Hosting
+        run: npx firebase-tools@latest deploy --only hosting --project erp-pedago-iftl --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa.json
