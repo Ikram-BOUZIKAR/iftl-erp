@@ -15,6 +15,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy to Firebase Hosting
-        run: npx firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project erp-pedago-iftl --token "$FIREBASE_TOKEN" --non-interactive
+        run: npx firebase-tools@latest deploy --only hosting --project erp-pedago-iftl --token "$FIREBASE_TOKEN" --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
