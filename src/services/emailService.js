@@ -78,7 +78,7 @@ export async function sendEmail(db, { to, toName, subject, htmlContent, textCont
     try {
       const errData = await response.json();
       errMsg = errData?.message || errMsg;
-    } catch (_) { /* ignore */ }
+    } catch { /* ignore parse error */ }
     throw new Error(errMsg);
   }
 

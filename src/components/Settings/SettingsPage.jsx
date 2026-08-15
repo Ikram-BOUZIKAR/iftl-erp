@@ -266,7 +266,7 @@ function UtilisateursTab() {
     }
   };
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRoleChange = async (userId, newRole) => {
     setUpdatingId(userId);
