@@ -175,7 +175,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     date:          resolvedDate,
     heureDebut:    initial?.heureDebut || '08:00',
     heureFin:      initial?.heureFin   || '10:00',
-    module:        initial?.module     || '',
+    module:        initial?.moduleId   || initial?.module || '',
     type:          initial?.type       || 'cours',
     groupeId:      initial?.groupeId   || '',
     intervenantId: initial?.intervenantId || '',
@@ -207,7 +207,17 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true);
-    try { await onSave(form); } finally { setSaving(false); }
+    try {
+      const data = { ...form };
+      if (modules.length > 0 && form.module) {
+        const mod = modules.find(m => m.id === form.module);
+        if (mod) {
+          data.module = `${mod.code} — ${mod.nom}`;
+          data.moduleId = mod.id;
+        }
+      }
+      await onSave(data);
+    } finally { setSaving(false); }
   };
 
   const set = (key, val) => {

@@ -367,7 +367,7 @@ function EDTGrid({ groupes, sessions, weekDays, modules, intervenants, onAdd, on
                         {session ? (
                           <SessionCard
                             session={session}
-                            moduleName={getModuleName(session.module)}
+                            moduleName={getModuleName(session.moduleId || session.module)}
                             intervenantName={getIntervenantName(session.intervenantId)}
                             isDragging={isDrag}
                             onDragStart={e => onDragStart(e, session)}

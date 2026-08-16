@@ -56,17 +56,16 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
   const selectedGroupe = groupes.find(g => g.id === form.groupeId);
 
   useEffect(() => {
-    if (!selectedGroupe?.filiereCode) { setModules([]); return; }
-    getDocs(query(
-      collection(db, 'modules'),
-      where('filiereCode', '==', selectedGroupe.filiereCode),
-      orderBy('code', 'asc')
-    )).then(snap => {
+    if (!selectedGroupe?.id) { setModules([]); return; }
+    const q = selectedGroupe.filiereCode
+      ? query(collection(db, 'modules'), where('filiereCode', '==', selectedGroupe.filiereCode), orderBy('code', 'asc'))
+      : query(collection(db, 'modules'), orderBy('code', 'asc'));
+    getDocs(q).then(snap => {
       const mods = [];
       snap.forEach(d => mods.push({ id: d.id, ...d.data() }));
       setModules(mods);
     }).catch(() => setModules([]));
-  }, [selectedGroupe?.filiereCode]);
+  }, [selectedGroupe?.id, selectedGroupe?.filiereCode]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 

@@ -4,7 +4,15 @@ import { groupesService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-const FILIERES = ['Développement Digital', 'Infrastructure Digitale', 'Gestion', 'Marketing', 'Comptabilité'];
+const FILIERE_CODES = ['OTM', 'OFLP', 'AEL', 'ECOM', 'ADEE', 'LIC'];
+const FILIERE_LABELS = {
+  OTM:  'Organisation du Transport de Marchandises',
+  OFLP: 'Organisation et Gestion des Flux Logistiques et de Production',
+  AEL:  "Agent d'Exploitation Logistique",
+  ECOM: 'E-Commerce',
+  ADEE: 'Agent Déclarant et Exportation',
+  LIC:  'Licence Professionnelle CNAM',
+};
 const NIVEAUX = ['Technicien Spécialisé', 'Technicien', 'Qualification'];
 
 function PlusIcon() {
@@ -49,17 +57,17 @@ export default function GroupesPage() {
   const { data: intervenants } = useIntervenants();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ nom: '', filiere: '', niveau: '', intervenantId: '', annee: '2025-2026', actif: true });
+  const [form, setForm] = useState({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2025-2026', actif: true });
   const [saving, setSaving] = useState(false);
 
   const openAdd = () => {
-    setForm({ nom: '', filiere: '', niveau: '', intervenantId: '', annee: '2025-2026', actif: true });
+    setForm({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2025-2026', actif: true });
     setEditing(null);
     setShowForm(true);
   };
 
   const openEdit = (g) => {
-    setForm({ nom: g.nom, filiere: g.filiere || '', niveau: g.niveau || '', intervenantId: g.intervenantId || '', annee: g.annee || '2025-2026', actif: g.actif !== false });
+    setForm({ nom: g.nom, filiereCode: g.filiereCode || '', niveau: g.niveau || '', intervenantId: g.intervenantId || '', annee: g.annee || '2025-2026', actif: g.actif !== false });
     setEditing(g);
     setShowForm(true);
   };
@@ -69,11 +77,12 @@ export default function GroupesPage() {
     if (!form.nom.trim()) return;
     setSaving(true);
     try {
+      const data = { ...form, filiere: FILIERE_LABELS[form.filiereCode] || form.filiereCode };
       if (editing) {
-        await groupesService.update(editing.id, form);
+        await groupesService.update(editing.id, data);
         toast.success('Groupe modifié avec succès');
       } else {
-        await groupesService.create(form);
+        await groupesService.create(data);
         toast.success('Groupe créé avec succès');
       }
       setShowForm(false);
@@ -141,7 +150,7 @@ export default function GroupesPage() {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0 mr-3">
                   <p className="font-bold text-slate-800 text-base truncate">{g.nom}</p>
-                  {g.filiere && <p className="text-sm text-slate-500 mt-0.5 truncate">{g.filiere}</p>}
+                  {(g.filiereCode || g.filiere) && <p className="text-sm text-slate-500 mt-0.5 truncate">{FILIERE_LABELS[g.filiereCode] || g.filiere}</p>}
                 </div>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${g.actif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                   {g.actif ? 'Actif' : 'Inactif'}
@@ -208,10 +217,10 @@ export default function GroupesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Filière</label>
-                  <select value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}
+                  <select value={form.filiereCode} onChange={e => setForm(f => ({ ...f, filiereCode: e.target.value }))}
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">— Sélectionner —</option>
-                    {FILIERES.map(f => <option key={f} value={f}>{f}</option>)}
+                    {FILIERE_CODES.map(code => <option key={code} value={code}>{code} — {FILIERE_LABELS[code]}</option>)}
                   </select>
                 </div>
                 <div>
