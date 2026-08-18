@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
@@ -374,10 +375,13 @@ function UtilisateursTab() {
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                             {ROLE_LABEL[u.role] || u.role}
                           </span>
-                          {u.codeApprenant && (
-                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                              Code: {u.codeApprenant}
-                            </span>
+                          {(u.studentCode || u.codeApprenant) && (
+                            <Link
+                              to={`/apprenants/${u.studentCode || u.codeApprenant}`}
+                              className="text-xs bg-[#005989]/10 text-[#005989] px-2 py-0.5 rounded-full hover:bg-[#005989]/20 transition-colors font-medium"
+                            >
+                              Code: {u.studentCode || u.codeApprenant}
+                            </Link>
                           )}
                           {u.specialite && (
                             <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">

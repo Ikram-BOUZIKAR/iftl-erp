@@ -20,6 +20,7 @@ import RapportsPage from './components/Rapports/RapportsPage';
 import CandidaturePage from './components/Candidature/CandidaturePage';
 import SettingsPage from './components/Settings/SettingsPage';
 import PortailResultats from './components/Portail/PortailResultats';
+import PortailApprenant from './components/Portail/PortailApprenant';
 import RegisterPage from './components/Auth/RegisterPage';
 // New modules
 import ModulesPage from './components/Modules/ModulesPage';
@@ -67,6 +68,13 @@ function App() {
             <Route path="/candidature" element={<CandidaturePage />} />
             <Route path="/resultats" element={<PortailResultats />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/portail-apprenant" element={
+              !hasFirebaseConfig ? <Navigate to="/setup" replace /> : (
+                <PrivateRoute auth={auth}>
+                  <PortailApprenant auth={auth} />
+                </PrivateRoute>
+              )
+            } />
             <Route path="/login" element={
               !hasFirebaseConfig ? <SetupPage /> : <LoginPage auth={auth} />
             } />

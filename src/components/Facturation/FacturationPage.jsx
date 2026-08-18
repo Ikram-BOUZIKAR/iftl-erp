@@ -200,9 +200,11 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
   const [form, setForm] = useState({
     studentNom: '',
     studentPrenom: '',
+    studentCode: '',
     studentId: '',
     montantTotal: '',
-    description: '',
+    description: 'Frais de scolarité',
+    referencePaiement: '',
     dateEcheance: '',
     anneeAcademique: '2025-2026',
     filiere: '',
@@ -219,12 +221,14 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
       const now = new Date().toISOString().split('T')[0];
       const year = new Date().getFullYear();
       const rand = String(Math.floor(Math.random() * 9000) + 1000);
-      const reference = `FAC-${year}-${rand}`;
+      const reference = `REC-${year}-${rand}`;
       await addDoc(collection(db, 'factures'), {
         studentId: form.studentId || null,
+        studentCode: form.studentCode.trim() || null,
         studentNom: form.studentNom.trim().toUpperCase(),
         studentPrenom: form.studentPrenom.trim(),
         reference,
+        referencePaiement: form.referencePaiement.trim() || null,
         anneeAcademique: form.anneeAcademique,
         filiere: form.filiere.trim() || null,
         montantTotal: Number(form.montantTotal),
@@ -234,8 +238,9 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
         dateEcheance: form.dateEcheance || null,
         statut: 'impayee',
         paiements: [],
+        type: 'recu_paiement',
       });
-      toast.success(`Facture ${reference} créée`);
+      toast.success(`Reçu ${reference} créé`);
       onSaved();
       onClose();
     } catch (err) {
@@ -249,7 +254,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50">
       <div className="bg-white rounded-2xl max-w-lg w-full mx-4 p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-bold text-slate-800">Nouvelle facture</h2>
+          <h2 className="text-base font-bold text-slate-800">Nouveau reçu de paiement</h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
             <CloseIcon />
           </button>
@@ -279,15 +284,27 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Filière / Groupe</label>
-            <input
-              type="text"
-              value={form.filiere}
-              onChange={e => set('filiere', e.target.value)}
-              placeholder="ex. Informatique, BTS Commerce…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Code apprenant</label>
+              <input
+                type="text"
+                value={form.studentCode}
+                onChange={e => set('studentCode', e.target.value)}
+                placeholder="ex. TS0417"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Filière / Groupe</label>
+              <input
+                type="text"
+                value={form.filiere}
+                onChange={e => set('filiere', e.target.value)}
+                placeholder="ex. TMLI, LIPF…"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -316,15 +333,27 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={e => set('description', e.target.value)}
-              placeholder="Frais de scolarité, inscription…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+              <input
+                type="text"
+                value={form.description}
+                onChange={e => set('description', e.target.value)}
+                placeholder="Frais de scolarité, inscription…"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Référence paiement</label>
+              <input
+                type="text"
+                value={form.referencePaiement}
+                onChange={e => set('referencePaiement', e.target.value)}
+                placeholder="ex. VIR-2026-001"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]"
+              />
+            </div>
           </div>
 
           <div>
@@ -344,7 +373,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
             </button>
             <button type="submit" disabled={saving}
               className="px-4 py-2 text-sm font-medium bg-[#005989] hover:bg-[#004a73] text-white rounded-xl transition-colors disabled:opacity-60">
-              {saving ? 'Enregistrement…' : 'Créer la facture'}
+              {saving ? 'Enregistrement…' : 'Créer le reçu'}
             </button>
           </div>
         </form>
@@ -515,15 +544,15 @@ export default function FacturationPage() {
 
   const handleDelete = async (facture) => {
     const ok = await confirm({
-      title: 'Supprimer cette facture ?',
-      message: `La facture ${facture.reference} sera définitivement supprimée.`,
+      title: 'Supprimer ce reçu ?',
+      message: `Le reçu ${facture.reference} sera définitivement supprimé.`,
       danger: true,
       confirmLabel: 'Supprimer',
     });
     if (!ok) return;
     try {
       await deleteDoc(doc(db, 'factures', facture.id));
-      toast.success('Facture supprimée');
+      toast.success('Reçu supprimé');
       loadFactures();
     } catch (err) {
       toast.error('Erreur : ' + err.message);
@@ -562,9 +591,9 @@ export default function FacturationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Facturation</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Reçus de paiement</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {loading ? 'Chargement…' : `${factures.length} facture${factures.length !== 1 ? 's' : ''}`}
+            {loading ? 'Chargement…' : `${factures.length} reçu${factures.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <button
@@ -572,16 +601,16 @@ export default function FacturationPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           <PlusIcon />
-          Nouvelle facture
+          Nouveau reçu
         </button>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total facturé" value={formatCurrency(totalFacture)} color="border-[#005989]" />
+        <KpiCard label="Total émis" value={formatCurrency(totalFacture)} color="border-[#005989]" />
         <KpiCard label="Total encaissé" value={formatCurrency(totalEncaisse)} color="border-emerald-500" />
         <KpiCard label="Solde impayé" value={formatCurrency(soldeImpaye)} color="border-red-400" />
-        <KpiCard label="Taux de recouvrement" value={`${tauxRecouvrement}%`} color="border-amber-400" sub={`${factures.filter(f => f.statut === 'payee').length} factures soldées`} />
+        <KpiCard label="Taux de recouvrement" value={`${tauxRecouvrement}%`} color="border-amber-400" sub={`${factures.filter(f => f.statut === 'payee').length} reçus soldés`} />
       </div>
 
       {/* Filters */}
@@ -637,8 +666,8 @@ export default function FacturationPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-slate-500 font-medium">Aucune facture trouvée</p>
-            <p className="text-slate-400 text-sm mt-1">Modifiez vos filtres ou créez une nouvelle facture.</p>
+            <p className="text-slate-500 font-medium">Aucun reçu trouvé</p>
+            <p className="text-slate-400 text-sm mt-1">Modifiez vos filtres ou créez un nouveau reçu.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

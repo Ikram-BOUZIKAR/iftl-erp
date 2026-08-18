@@ -128,7 +128,8 @@ export default function RegisterPage() {
         telephone: form.telephone.trim() || null,
         ...(role === 'intervenant' && { specialite: form.specialite.trim() || null }),
         ...((role === 'apprenant' || role === 'parent') && {
-          codeApprenant: form.codeApprenant.trim().toUpperCase()
+          studentCode:   form.codeApprenant.trim().toUpperCase(),
+          codeApprenant: form.codeApprenant.trim().toUpperCase(), // kept for backward compatibility
         }),
         createdAt: new Date().toISOString(),
         validatedAt: null,
@@ -163,8 +164,7 @@ export default function RegisterPage() {
           </div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Demande envoyée !</h2>
           <p className="text-slate-500 text-sm leading-relaxed mb-6">
-            Votre compte a été créé avec succès. Un administrateur va examiner votre demande et
-            activer votre accès dans les plus brefs délais.
+            Votre demande est en cours de validation par l'administration. Vous recevrez un accès sous peu.
           </p>
           <div className="rounded-xl p-4 mb-6 text-left"
                style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
