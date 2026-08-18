@@ -74,7 +74,7 @@ function genEmailIftl(prenom, nom) {
   const n = toAscii(nom);
   if (!p && !n) return null;
   if (!n) return `${p}@iftl.ma`;
-  return `${p[0]}.${n}@iftl.ma`;
+  return `${n}.${p}@iftl.ma`;
 }
 
 function InfoField({ label, value }) {

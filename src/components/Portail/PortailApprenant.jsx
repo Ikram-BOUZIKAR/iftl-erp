@@ -10,6 +10,7 @@ const TABS = [
   { id: 'planning',      label: 'Mon Planning' },
   { id: 'resultats',     label: 'Mes Résultats' },
   { id: 'absences',      label: 'Mes Absences' },
+  { id: 'ressources',    label: 'Ressources' },
   { id: 'notifications', label: 'Notifications' },
 ];
 
@@ -519,6 +520,103 @@ function AbsencesTab({ studentId, studentCode }) {
   );
 }
 
+// ── Ressources numériques ──────────────────────────────────────────────────────
+
+const PLATFORMS = [
+  {
+    id: 'scholarvox',
+    name: 'ScholarVox',
+    tagline: 'Bibliothèque numérique',
+    description: 'Accès illimité à des milliers d\'ouvrages académiques, manuels et ressources pédagogiques en ligne.',
+    url: 'https://international.scholarvox.com/',
+    bgGradient: 'linear-gradient(135deg, #e65c00 0%, #f9a825 100%)',
+    iconBg: 'rgba(255,255,255,0.15)',
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-10 h-10">
+        <rect x="6" y="8" width="28" height="36" rx="3" fill="white" fillOpacity="0.9"/>
+        <rect x="10" y="8" width="28" height="36" rx="3" fill="white" fillOpacity="0.6"/>
+        <rect x="14" y="8" width="28" height="36" rx="3" fill="white" fillOpacity="0.3"/>
+        <path d="M10 16h16M10 22h14M10 28h12" stroke="#e65c00" strokeWidth="2.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    badge: 'Catalogue',
+    badgeColor: '#fff7ed',
+    badgeText: '#ea580c',
+  },
+  {
+    id: 'altissia',
+    name: 'ALTISSIA',
+    tagline: 'Language empowers people',
+    description: 'Apprenez et perfectionnez vos langues étrangères avec la plateforme e-learning interactive ALTISSIA.',
+    url: 'https://learn.altissia.org/platform/login?interfaceLg=fr_FR',
+    bgGradient: 'linear-gradient(135deg, #162a4a 0%, #1e3a6e 100%)',
+    iconBg: 'rgba(157,196,31,0.2)',
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-10 h-10">
+        {/* ALTISSIA geometric A logo */}
+        <rect x="10" y="8" width="28" height="28" rx="5" fill="#9dc41f" opacity="0.9"/>
+        <path d="M24 12 L32 32 M24 12 L16 32 M19 24 L29 24" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    badge: 'Langues',
+    badgeColor: 'rgba(157,196,31,0.2)',
+    badgeText: '#9dc41f',
+  },
+];
+
+function RessourcesTab() {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-slate-400 font-medium px-1 pb-1">
+        Plateformes numériques accessibles avec votre compte IFTL
+      </p>
+      {PLATFORMS.map(p => (
+        <a
+          key={p.id}
+          href={p.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+          style={{ background: p.bgGradient }}
+        >
+          <div className="p-5 flex gap-4 items-start">
+            <div className="shrink-0 w-16 h-16 rounded-xl flex items-center justify-center"
+                 style={{ background: p.iconBg }}>
+              {p.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-white font-black text-lg leading-tight">{p.name}</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: p.badgeColor, color: p.badgeText }}>
+                  {p.badge}
+                </span>
+              </div>
+              <p className="text-white/70 text-xs font-medium mb-2">{p.tagline}</p>
+              <p className="text-white/80 text-sm leading-relaxed">{p.description}</p>
+            </div>
+          </div>
+          <div className="px-5 pb-4">
+            <span className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-colors text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Accéder à la plateforme
+            </span>
+          </div>
+        </a>
+      ))}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mt-2">
+        <p className="text-xs text-blue-700 font-medium">
+          💡 Pour accéder à ces plateformes, utilisez vos identifiants IFTL communiqués par l'administration.
+          En cas de problème, contactez <a href="mailto:scolarite@iftl.ma" className="underline">scolarite@iftl.ma</a>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Notifications (examens à venir) ────────────────────────────────────────────
 
 function NotificationsTab({ groupeId }) {
@@ -773,6 +871,9 @@ export default function PortailApprenant({ auth }) {
             )}
             {activeTab === 'absences' && (
               <AbsencesTab studentId={studentId} studentCode={studentCode} />
+            )}
+            {activeTab === 'ressources' && (
+              <RessourcesTab />
             )}
             {activeTab === 'notifications' && (
               <NotificationsTab groupeId={groupeId} />

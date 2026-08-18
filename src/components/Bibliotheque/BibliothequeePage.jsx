@@ -562,6 +562,88 @@ export default function BibliothequeePage() {
         <KpiCard label="Vidéos"           value={videos}    color="border-purple-400" />
       </div>
 
+      {/* Plateformes numériques partenaires */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          Plateformes numériques
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ScholarVox */}
+          <a
+            href="https://international.scholarvox.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-shadow flex flex-col"
+            style={{ background: 'linear-gradient(135deg, #e65c00 0%, #f9a825 100%)' }}
+          >
+            <div className="p-6 flex gap-4 items-start flex-1">
+              <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center"
+                   style={{ background: 'rgba(255,255,255,0.2)' }}>
+                <svg viewBox="0 0 48 48" fill="none" className="w-9 h-9">
+                  <rect x="6" y="8" width="28" height="36" rx="3" fill="white" fillOpacity="0.9"/>
+                  <rect x="10" y="8" width="28" height="36" rx="3" fill="white" fillOpacity="0.6"/>
+                  <rect x="14" y="8" width="28" height="36" rx="3" fill="white" fillOpacity="0.3"/>
+                  <path d="M10 16h16M10 22h14M10 28h12" stroke="#e65c00" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-black text-xl">ScholarVox</p>
+                <p className="text-white/70 text-xs font-medium mt-0.5">Bibliothèque numérique internationale</p>
+                <p className="text-white/80 text-sm mt-2 leading-relaxed">
+                  Accès illimité à des milliers d'ouvrages académiques, manuels et ressources pédagogiques.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 pb-5">
+              <span className="inline-flex items-center gap-1.5 bg-white/15 group-hover:bg-white/25 transition-colors text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Accéder au catalogue
+              </span>
+            </div>
+            <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white opacity-5" />
+          </a>
+
+          {/* ALTISSIA */}
+          <a
+            href="https://learn.altissia.org/platform/login?interfaceLg=fr_FR"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-shadow flex flex-col"
+            style={{ background: 'linear-gradient(135deg, #162a4a 0%, #1e3a6e 100%)' }}
+          >
+            <div className="p-6 flex gap-4 items-start flex-1">
+              <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center"
+                   style={{ background: 'rgba(157,196,31,0.2)' }}>
+                <svg viewBox="0 0 48 48" fill="none" className="w-9 h-9">
+                  <rect x="8" y="8" width="32" height="32" rx="6" fill="#9dc41f" opacity="0.9"/>
+                  <path d="M24 13 L33 35 M24 13 L15 35 M18.5 26 L29.5 26" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-black text-xl tracking-wide">ALTISSIA</p>
+                <p className="text-[#9dc41f] text-xs font-semibold mt-0.5 uppercase tracking-wider">Language empowers people</p>
+                <p className="text-white/80 text-sm mt-2 leading-relaxed">
+                  Apprenez et perfectionnez vos langues étrangères avec la plateforme e-learning interactive.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 pb-5">
+              <span className="inline-flex items-center gap-1.5 bg-white/10 group-hover:bg-white/20 transition-colors text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Accéder à la plateforme
+              </span>
+            </div>
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white opacity-5" />
+          </a>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
         <div className="flex flex-wrap gap-3">
