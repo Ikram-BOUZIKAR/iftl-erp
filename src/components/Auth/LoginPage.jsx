@@ -91,7 +91,7 @@ export default function LoginPage({ auth }) {
 
           <div className="relative z-10 flex flex-col items-center gap-4">
             <span className="text-lg sm:text-xl font-black tracking-wide uppercase text-white">
-              Espace Apprenant
+              Portail de résultats
             </span>
 
             <div
@@ -115,7 +115,7 @@ export default function LoginPage({ auth }) {
               Consulter<br />mes résultats
             </h2>
             <p className="text-sm mt-2.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              Notes · Bulletins · Attestations
+              Notes · Bulletins · Planning · Absences
             </p>
           </div>
 
@@ -178,7 +178,7 @@ export default function LoginPage({ auth }) {
           </div>
 
           <div className="flex flex-wrap justify-center gap-1.5">
-            {['OTM','OFLP','AEL','ECOM','ADEE','LIC'].map(f => (
+            {['TMLI','LIPF','GOL','ECMD','DMVT','LE','CTM','CTP'].map(f => (
               <span
                 key={f}
                 className="text-[10px] font-black px-2.5 py-1 rounded-full"

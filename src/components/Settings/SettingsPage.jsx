@@ -223,6 +223,114 @@ function ProfilTab({ auth }) {
   );
 }
 
+// ─── Create User Modal ────────────────────────────────────────────────────────
+
+function ModalCreateUser({ onClose, onCreated }) {
+  const toast = useToast();
+  const [form, setForm] = useState({ prenom: '', nom: '', email: '', role: 'scolarite', password: '' });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.email.trim() || !form.password || form.password.length < 6) {
+      toast.error('Email et mot de passe (min 6 car.) requis');
+      return;
+    }
+    setSaving(true);
+    try {
+      // Create Auth user via REST API (no sign-out of current admin)
+      const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+      const authRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email.trim(), password: form.password, returnSecureToken: false }),
+        }
+      );
+      const authData = await authRes.json();
+      if (authData.error) throw new Error(authData.error.message);
+      const uid = authData.localId;
+
+      // Create Firestore document
+      await setDoc(doc(db, 'users', uid), {
+        uid,
+        email: form.email.trim().toLowerCase(),
+        prenom: form.prenom.trim(),
+        nom: form.nom.trim(),
+        role: form.role,
+        statut: 'actif',
+        createdAt: new Date().toISOString(),
+        createdBy: 'admin',
+      });
+      toast.success(`Compte créé : ${form.email}`);
+      onCreated();
+      onClose();
+    } catch (err) {
+      const msg = err.message.replace('EMAIL_EXISTS', 'Cet email est déjà utilisé')
+                             .replace('WEAK_PASSWORD', 'Mot de passe trop faible (min 6 caractères)');
+      toast.error('Erreur : ' + msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inp = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="text-base font-bold text-slate-800">Créer un compte utilisateur</h2>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Prénom</label>
+              <input value={form.prenom} onChange={e => set('prenom', e.target.value)} className={inp} placeholder="Prénom" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nom</label>
+              <input value={form.nom} onChange={e => set('nom', e.target.value)} className={inp} placeholder="Nom" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email *</label>
+            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inp} placeholder="prenom.nom@iftl.ma" required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Mot de passe initial *</label>
+            <input type="password" value={form.password} onChange={e => set('password', e.target.value)} className={inp} placeholder="Minimum 6 caractères" required minLength={6} />
+            <p className="text-xs text-slate-400 mt-1">L'utilisateur pourra le modifier à sa première connexion.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Rôle *</label>
+            <select value={form.role} onChange={e => set('role', e.target.value)} className={`${inp} bg-white`}>
+              <option value="scolarite">Scolarité</option>
+              <option value="direction">Direction</option>
+              <option value="intervenant">Intervenant</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+              Annuler
+            </button>
+            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60">
+              {saving ? 'Création…' : 'Créer le compte'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Utilisateurs tab ─────────────────────────────────────────────────────────
 
 const ROLES = [
@@ -245,13 +353,15 @@ const ROLE_BADGE = {
 
 const ROLE_LABEL = Object.fromEntries(ROLES.map(r => [r.value, r.label]));
 
-function UtilisateursTab() {
+function UtilisateursTab({ userRole }) {
   const toast = useToast();
   const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [tab, setTab] = useState('actifs');
+  const [showCreate, setShowCreate] = useState(false);
+  const isAdmin = ['admin', 'direction'].includes(userRole);
 
   const loadUsers = async () => {
     try {
@@ -320,25 +430,41 @@ function UtilisateursTab() {
 
   return (
     <div className="space-y-4">
-      {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        <button
-          onClick={() => setTab('actifs')}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === 'actifs' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          Actifs ({actifs.length})
-        </button>
-        <button
-          onClick={() => setTab('pending')}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'pending' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          En attente
-          {pending.length > 0 && (
-            <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center">
-              {pending.length}
-            </span>
-          )}
-        </button>
+      {showCreate && (
+        <ModalCreateUser onClose={() => setShowCreate(false)} onCreated={loadUsers} />
+      )}
+      {/* Header with tabs + create button */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+          <button
+            onClick={() => setTab('actifs')}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === 'actifs' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Actifs ({actifs.length})
+          </button>
+          <button
+            onClick={() => setTab('pending')}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'pending' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            En attente
+            {pending.length > 0 && (
+              <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center">
+                {pending.length}
+              </span>
+            )}
+          </button>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Créer un compte
+          </button>
+        )}
       </div>
 
       {tab === 'pending' && (
@@ -564,13 +690,15 @@ function DonneesTab() {
 const TABS = [
   { id: 'etablissement', label: 'Établissement', Icon: BuildingIcon },
   { id: 'profil', label: 'Mon profil', Icon: UserIcon },
-  { id: 'utilisateurs', label: 'Utilisateurs', Icon: UsersIcon },
+  { id: 'utilisateurs', label: 'Utilisateurs', Icon: UsersIcon, adminOnly: true },
   { id: 'donnees', label: 'Données', Icon: DatabaseIcon },
   { id: 'import', label: 'Import données', Icon: UploadIcon },
 ];
 
 export default function SettingsPage({ auth }) {
   const toast = useToast();
+  const userRole = auth?.userProfile?.role || '';
+  const isAdmin = ['admin', 'direction'].includes(userRole);
   const [activeTab, setActiveTab] = useState('etablissement');
   const [settings, setSettings] = useState({
     nomEcole: '',
@@ -627,7 +755,7 @@ export default function SettingsPage({ auth }) {
         {/* Left sidebar tabs */}
         <nav className="w-52 shrink-0">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2">
-            {TABS.map(tab => {
+            {TABS.filter(t => !t.adminOnly || isAdmin).map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -665,7 +793,7 @@ export default function SettingsPage({ auth }) {
                 />
               )}
               {activeTab === 'profil' && <ProfilTab auth={auth} />}
-              {activeTab === 'utilisateurs' && <UtilisateursTab />}
+              {activeTab === 'utilisateurs' && <UtilisateursTab userRole={userRole} />}
               {activeTab === 'donnees' && <DonneesTab />}
               {activeTab === 'import' && <ImportDataPage />}
             </>

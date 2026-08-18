@@ -96,30 +96,46 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+    let firebaseUser = null;
 
     try {
-      // Verify code apprenant if needed
+      // 1. Create Firebase Auth account first (so the user is authenticated for Firestore reads)
+      const credential = await createUserWithEmailAndPassword(auth, form.email.trim(), form.password);
+      firebaseUser = credential.user;
+
+      // 2. Verify code apprenant (now authenticated — Firestore rules allow read)
       if (role === 'apprenant' || role === 'parent') {
         const code = form.codeApprenant.trim().toUpperCase();
+
+        // Check if code already has a registered account (duplicate detection)
+        const dupSnap = await getDocs(query(collection(db, 'users'), where('studentCode', '==', code)));
+        if (!dupSnap.empty) {
+          await firebaseUser.delete();
+          setErrors(e => ({
+            ...e,
+            codeApprenant: 'Un compte avec ce code existe déjà. Contactez l\'administration (scolarite@iftl.ma) pour récupérer vos accès.',
+          }));
+          setLoading(false);
+          return;
+        }
+
+        // Verify the code exists in students collection
         const snap = await getDoc(doc(db, 'students', code));
         if (!snap.exists()) {
-          // Also try searching by codeApprenant field
-          const q = query(collection(db, 'students'), where('codeApprenant', '==', code));
+          const q = query(collection(db, 'students'), where('code', '==', code));
           const res = await getDocs(q);
           if (res.empty) {
-            setErrors(e => ({ ...e, codeApprenant: 'Code apprenant introuvable dans notre base' }));
+            await firebaseUser.delete();
+            setErrors(e => ({ ...e, codeApprenant: 'Code apprenant introuvable. Vérifiez votre code ou contactez l\'administration.' }));
             setLoading(false);
             return;
           }
         }
       }
 
-      // Create Firebase Auth account
-      const { user } = await createUserWithEmailAndPassword(auth, form.email.trim(), form.password);
-
-      // Write to Firestore with pending status
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
+      // 3. Write Firestore user document (authenticated, write succeeds)
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        uid: firebaseUser.uid,
         email: form.email.trim().toLowerCase(),
         prenom: form.prenom.trim(),
         nom: form.nom.trim(),
@@ -129,20 +145,24 @@ export default function RegisterPage() {
         ...(role === 'intervenant' && { specialite: form.specialite.trim() || null }),
         ...((role === 'apprenant' || role === 'parent') && {
           studentCode:   form.codeApprenant.trim().toUpperCase(),
-          codeApprenant: form.codeApprenant.trim().toUpperCase(), // kept for backward compatibility
+          codeApprenant: form.codeApprenant.trim().toUpperCase(),
         }),
         createdAt: new Date().toISOString(),
         validatedAt: null,
         validatedBy: null,
       });
 
-      // Sign out immediately — account must be validated first
+      // 4. Sign out immediately — account must be validated by admin first
       await auth.signOut();
       setDone(true);
 
     } catch (err) {
+      // Clean up auth user if Firestore write failed
+      if (firebaseUser && err.code !== 'auth/email-already-in-use') {
+        try { await firebaseUser.delete(); } catch {}
+      }
       if (err.code === 'auth/email-already-in-use') {
-        setErrors(e => ({ ...e, email: 'Cette adresse email est déjà utilisée' }));
+        setErrors(e => ({ ...e, email: 'Cette adresse email est déjà utilisée. Contactez l\'administration pour récupérer vos accès.' }));
       } else {
         setErrors(e => ({ ...e, general: err.message }));
       }
