@@ -197,5 +197,66 @@ service cloud.firestore {
       allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
       allow delete: if hasRole(['admin', 'direction']);
     }
+
+    // ── Formation continue ─────────────────────────────────────────────────────
+    match /sessions_fc/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /devis_fc/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Entreprises & Personnel ────────────────────────────────────────────────
+    match /entreprises/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /personnel/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Ressources pédagogiques ────────────────────────────────────────────────
+    match /ressources/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Tâches & Suivi ────────────────────────────────────────────────────────
+    match /taches/{docId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    // ── Véhicules ─────────────────────────────────────────────────────────────
+    match /vehicules/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Emails & Logs ─────────────────────────────────────────────────────────
+    match /emails_log/{docId} {
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
+      allow create: if isAuth();
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Concours & Admissions ─────────────────────────────────────────────────
+    match /concours/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
   }
 }

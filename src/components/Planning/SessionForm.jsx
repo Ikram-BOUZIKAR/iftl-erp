@@ -3,10 +3,14 @@ import { format } from 'date-fns';
 import { intervenantsService } from '../../services/firestore';
 
 const TYPES = [
-  { value: 'cours', label: 'Cours',  color: 'bg-[#005989] text-white' },
-  { value: 'tp',    label: 'TP',     color: 'bg-[#8a9a0a] text-white' },
-  { value: 'td',    label: 'TD',     color: 'bg-[#d4a000] text-white' },
-  { value: 'exam',  label: 'Examen', color: 'bg-red-500 text-white'   },
+  { value: 'cours',     label: 'Cours',     color: 'bg-[#005989] text-white'  },
+  { value: 'tp',        label: 'TP',        color: 'bg-[#8a9a0a] text-white'  },
+  { value: 'td',        label: 'TD',        color: 'bg-[#d4a000] text-white'  },
+  { value: 'exam',      label: 'Examen',    color: 'bg-red-500 text-white'    },
+  { value: 'efm',       label: 'EFM',       color: 'bg-orange-500 text-white' },
+  { value: 'eff',       label: 'EFF',       color: 'bg-rose-700 text-white'   },
+  { value: 'cc',        label: 'Contrôle Continu', color: 'bg-violet-500 text-white' },
+  { value: 'seminaire', label: 'Séminaire', color: 'bg-teal-500 text-white'   },
 ];
 const STATUTS = [
   { value: 'planifiee', label: 'Planifiée' },

@@ -7,10 +7,14 @@ import { useToast } from '../UI/Toast';
 
 const NIVEAU_ORDER = ['TS 1A', 'TS 2A', 'Technicien', 'T', 'Qualification', 'Licence', 'Mastère'];
 const TYPES = [
-  { value: 'cours', label: 'Cours'  },
-  { value: 'tp',    label: 'TP'     },
-  { value: 'td',    label: 'TD'     },
-  { value: 'exam',  label: 'Examen' },
+  { value: 'cours',     label: 'Cours'           },
+  { value: 'tp',        label: 'TP'              },
+  { value: 'td',        label: 'TD'              },
+  { value: 'exam',      label: 'Examen'          },
+  { value: 'efm',       label: 'EFM'             },
+  { value: 'eff',       label: 'EFF'             },
+  { value: 'cc',        label: 'Contrôle Continu'},
+  { value: 'seminaire', label: 'Séminaire'       },
 ];
 const ALL_SLOTS = [
   { label: 'C1 Lun–Jeu',   start: '09:00', end: '10:30' },

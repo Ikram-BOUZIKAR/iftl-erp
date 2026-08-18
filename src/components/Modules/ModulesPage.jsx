@@ -14,24 +14,28 @@ import { useIntervenants } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-const FILIERES = ['OTM', 'OFLP', 'AEL', 'ECOM', 'ADEE', 'LIC'];
+const FILIERES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP'];
 
 const FILIERE_LABELS = {
-  OTM: 'Organisation du Transport de Marchandises',
-  OFLP: 'Organisation et Gestion des Flux Logistiques et de Production',
-  AEL: "Agent d'Exploitation Logistique",
-  ECOM: 'E-Commerce',
-  ADEE: 'Agent Déclarant et Exportation',
-  LIC: 'Licence Professionnelle CNAM',
+  TMLI: 'Transport Multimodal et Logistique Internationale',
+  LIPF: 'Logistique Industrielle et Pilotage des Flux',
+  GOL:  "Gestionnaire des opérations logistiques et d'entrepôt",
+  ECMD: 'E-Commerce, Marketing Digital et Distribution',
+  DMVT: 'Diagnostic et Maintenance des Véhicules de Transport',
+  LE:   "Logistique d'entreposage",
+  CTM:  'Conducteur(rice) en transport routier – Option Marchandises',
+  CTP:  'Conducteur(rice) en transport routier – Option Personnes',
 };
 
 const FILIERE_COLORS = {
-  OTM: 'bg-blue-100 text-blue-700',
-  OFLP: 'bg-violet-100 text-violet-700',
-  AEL: 'bg-emerald-100 text-emerald-700',
-  ECOM: 'bg-amber-100 text-amber-700',
-  ADEE: 'bg-rose-100 text-rose-700',
-  LIC: 'bg-slate-100 text-slate-700',
+  TMLI: 'bg-blue-100 text-blue-700',
+  LIPF: 'bg-violet-100 text-violet-700',
+  GOL:  'bg-emerald-100 text-emerald-700',
+  ECMD: 'bg-amber-100 text-amber-700',
+  DMVT: 'bg-rose-100 text-rose-700',
+  LE:   'bg-teal-100 text-teal-700',
+  CTM:  'bg-orange-100 text-orange-700',
+  CTP:  'bg-sky-100 text-sky-700',
 };
 
 const TYPE_STYLES = {

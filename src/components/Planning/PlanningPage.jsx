@@ -34,10 +34,14 @@ const MAX_SLOTS = Math.max(...DAY_SLOTS.map(d => d.length)); // 4
 const NIVEAU_ORDER = ['TS 1A', 'TS 2A', 'Technicien', 'T', 'Qualification', 'Licence', 'Mastère'];
 
 export const TYPE_STYLES = {
-  cours: { bar: 'bg-[#005989]', bg: 'bg-[#005989]/10 border-[#005989]/25', text: 'text-[#005989]', label: 'Cours'  },
-  tp:    { bar: 'bg-[#8a9a0a]', bg: 'bg-[#c8d45d]/25 border-[#c8d45d]/40', text: 'text-[#5a6a00]', label: 'TP'    },
-  td:    { bar: 'bg-[#d4a000]', bg: 'bg-[#f5c845]/20 border-[#f5c845]/40', text: 'text-[#7a5c00]', label: 'TD'    },
-  exam:  { bar: 'bg-red-500',   bg: 'bg-red-50 border-red-200',             text: 'text-red-700',   label: 'Exam'  },
+  cours:     { bar: 'bg-[#005989]', bg: 'bg-[#005989]/10 border-[#005989]/25', text: 'text-[#005989]', label: 'Cours'     },
+  tp:        { bar: 'bg-[#8a9a0a]', bg: 'bg-[#c8d45d]/25 border-[#c8d45d]/40', text: 'text-[#5a6a00]', label: 'TP'        },
+  td:        { bar: 'bg-[#d4a000]', bg: 'bg-[#f5c845]/20 border-[#f5c845]/40', text: 'text-[#7a5c00]', label: 'TD'        },
+  exam:      { bar: 'bg-red-500',   bg: 'bg-red-50 border-red-200',             text: 'text-red-700',   label: 'Examen'    },
+  efm:       { bar: 'bg-orange-500',bg: 'bg-orange-50 border-orange-200',       text: 'text-orange-700',label: 'EFM'       },
+  eff:       { bar: 'bg-rose-700',  bg: 'bg-rose-50 border-rose-200',           text: 'text-rose-800',  label: 'EFF'       },
+  cc:        { bar: 'bg-violet-500',bg: 'bg-violet-50 border-violet-200',       text: 'text-violet-700',label: 'CC'        },
+  seminaire: { bar: 'bg-teal-500',  bg: 'bg-teal-50 border-teal-200',           text: 'text-teal-700',  label: 'Séminaire' },
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────

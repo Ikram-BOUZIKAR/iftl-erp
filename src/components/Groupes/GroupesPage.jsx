@@ -4,15 +4,18 @@ import { groupesService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-const FILIERE_CODES = ['OTM', 'OFLP', 'AEL', 'ECOM', 'ADEE', 'LIC'];
+const FILIERE_CODES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP'];
 const FILIERE_LABELS = {
-  OTM:  'Organisation du Transport de Marchandises',
-  OFLP: 'Organisation et Gestion des Flux Logistiques et de Production',
-  AEL:  "Agent d'Exploitation Logistique",
-  ECOM: 'E-Commerce',
-  ADEE: 'Agent Déclarant et Exportation',
-  LIC:  'Licence Professionnelle CNAM',
+  TMLI: 'Transport Multimodal et Logistique Internationale',
+  LIPF: 'Logistique Industrielle et Pilotage des Flux',
+  GOL:  "Gestionnaire des opérations logistiques et d'entrepôt",
+  ECMD: 'E-Commerce, Marketing Digital et Distribution',
+  DMVT: 'Diagnostic et Maintenance des Véhicules de Transport',
+  LE:   "Logistique d'entreposage",
+  CTM:  'Conducteur(rice) en transport routier – Option Marchandises',
+  CTP:  'Conducteur(rice) en transport routier – Option Personnes',
 };
+const FILIERE_NIVEAU = { TMLI:'Technicien Spécialisé', LIPF:'Technicien Spécialisé', GOL:'Technicien Spécialisé', ECMD:'Technicien Spécialisé', DMVT:'Technicien Spécialisé', LE:'Technicien', CTM:'Qualification', CTP:'Qualification' };
 const NIVEAUX = ['Technicien Spécialisé', 'Technicien', 'Qualification'];
 
 function PlusIcon() {
@@ -217,7 +220,10 @@ export default function GroupesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Filière</label>
-                  <select value={form.filiereCode} onChange={e => setForm(f => ({ ...f, filiereCode: e.target.value }))}
+                  <select value={form.filiereCode} onChange={e => {
+                      const code = e.target.value;
+                      setForm(f => ({ ...f, filiereCode: code, niveau: FILIERE_NIVEAU[code] || f.niveau }));
+                    }}
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">— Sélectionner —</option>
                     {FILIERE_CODES.map(code => <option key={code} value={code}>{code} — {FILIERE_LABELS[code]}</option>)}
