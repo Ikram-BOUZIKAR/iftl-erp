@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   collection,
   addDoc,
@@ -96,6 +96,269 @@ function Spinner() {
   );
 }
 
+const CSV_HEADERS = ['code', 'nom', 'filiereCode', 'anneeFormation', 'type', 'coeff', 'heuresTotal', 'description'];
+const VALID_TYPES = ['theorique', 'pratique', 'professionnel'];
+const VALID_ANNEES = ['1', '2', '3'];
+
+function downloadCSVTemplate() {
+  const exampleRows = [
+    ['TMLI101', 'Introduction au Transport Multimodal', 'TMLI', '1', 'theorique', '2', '40', 'Fondamentaux du transport multimodal international'],
+    ['TMLI201', 'Logistique Internationale Avancée', 'TMLI', '2', 'theorique', '3', '60', ''],
+    ['LIPF101', 'Pilotage des Flux Industriels', 'LIPF', '1', 'pratique', '2', '35', ''],
+    ['GOL101', 'Gestion des Opérations en Entrepôt', 'GOL', '1', 'professionnel', '2', '50', ''],
+    ['ECMD101', 'Marketing Digital et E-Commerce', 'ECMD', '1', 'theorique', '2', '40', ''],
+  ];
+  const lines = [CSV_HEADERS.join(','), ...exampleRows.map(r => r.map(v => `"${v}"`).join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'canevas_modules_iftl.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], rows: [] };
+
+  const sep = lines[0].includes(';') ? ';' : ',';
+  const parseRow = (line) => {
+    const cells = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === sep && !inQ) { cells.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    cells.push(cur.trim());
+    return cells;
+  };
+
+  const headers = parseRow(lines[0]).map(h => h.toLowerCase().trim());
+  const rows = lines.slice(1).map((line, i) => {
+    const vals = parseRow(line);
+    const obj = {};
+    headers.forEach((h, j) => { obj[h] = vals[j] ?? ''; });
+    return { _lineNum: i + 2, ...obj };
+  });
+  return { headers, rows };
+}
+
+function validateRow(row, existingCodes) {
+  const errors = [];
+  if (!row.code || !row.code.trim()) errors.push('Code manquant');
+  if (!row.nom || !row.nom.trim()) errors.push('Intitulé manquant');
+  if (row.filierecode && !FILIERES.includes(row.filierecode.toUpperCase()))
+    errors.push(`Filière invalide: ${row.filierecode} (valides: ${FILIERES.join(', ')})`);
+  if (row.anneeformation && !VALID_ANNEES.includes(String(row.anneeformation)))
+    errors.push(`Année invalide: ${row.anneeformation} (valides: 1, 2, 3)`);
+  if (row.type && !VALID_TYPES.includes(row.type.toLowerCase()))
+    errors.push(`Type invalide: ${row.type} (valides: theorique, pratique, professionnel)`);
+  if (row.coeff && isNaN(Number(row.coeff))) errors.push('Coefficient non numérique');
+  if (row.heurestotal && isNaN(Number(row.heurestotal))) errors.push('Volume horaire non numérique');
+  return errors;
+}
+
+function rowToPayload(row) {
+  return {
+    code: (row.code || '').trim().toUpperCase(),
+    nom: (row.nom || '').trim(),
+    filiereCode: (row.filierecode || '').trim().toUpperCase(),
+    anneeFormation: String(row.anneeformation || '1').trim(),
+    type: (row.type || 'theorique').trim().toLowerCase(),
+    coeff: Number(row.coeff) || 1,
+    heuresTotal: Number(row.heurestotal) || 0,
+    description: (row.description || '').trim(),
+  };
+}
+
+function ImportCSVModal({ onClose, onImported, existingModules }) {
+  const toast = useToast();
+  const [preview, setPreview] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importDone, setImportDone] = useState(null);
+  const inputRef = useRef(null);
+
+  const existingCodes = new Set(existingModules.map(m => m.code?.toUpperCase()));
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const { headers, rows } = parseCSV(ev.target.result);
+      const mapped = rows.map(row => {
+        const errs = validateRow(row, existingCodes);
+        const code = (row.code || '').trim().toUpperCase();
+        const duplicate = existingCodes.has(code);
+        return { row, errs, code, duplicate, valid: errs.length === 0 };
+      });
+      setPreview({ headers, rows: mapped });
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
+  const validRows = preview?.rows.filter(r => r.valid) || [];
+  const errorRows = preview?.rows.filter(r => !r.valid) || [];
+  const dupRows = preview?.rows.filter(r => r.valid && r.duplicate) || [];
+  const newRows = preview?.rows.filter(r => r.valid && !r.duplicate) || [];
+
+  const handleImport = async () => {
+    if (!validRows.length) return;
+    setImporting(true);
+    let created = 0, updated = 0, failed = 0;
+    for (const { row, duplicate } of validRows) {
+      try {
+        const payload = rowToPayload(row);
+        if (duplicate) {
+          const existing = existingModules.find(m => m.code?.toUpperCase() === payload.code);
+          if (existing) { await updateDoc(doc(db, 'modules', existing.id), { ...payload, updatedAt: new Date() }); updated++; }
+        } else {
+          await addDoc(collection(db, 'modules'), { ...payload, createdAt: new Date() });
+          created++;
+        }
+      } catch { failed++; }
+    }
+    setImportDone({ created, updated, failed });
+    setImporting(false);
+    onImported();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Importer des modules via CSV</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Colonnes attendues : code, nom, filiereCode, anneeFormation, type, coeff, heuresTotal, description</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Step 1: download template */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">1. Télécharger le canevas</p>
+              <p className="text-xs text-slate-400 mt-0.5">Fichier CSV avec les colonnes exactes et des lignes d'exemple.</p>
+            </div>
+            <button
+              onClick={downloadCSVTemplate}
+              className="shrink-0 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Télécharger le canevas
+            </button>
+          </div>
+
+          {/* Step 2: upload file */}
+          {!importDone && (
+            <div>
+              <p className="text-sm font-semibold text-slate-700 mb-2">2. Sélectionner votre fichier CSV</p>
+              <label className="flex items-center justify-center gap-3 border-2 border-dashed border-slate-300 rounded-xl p-6 cursor-pointer hover:border-[#005989] hover:bg-blue-50/30 transition-colors group">
+                <svg className="w-6 h-6 text-slate-400 group-hover:text-[#005989]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-sm text-slate-500 group-hover:text-[#005989]">
+                  {preview ? 'Changer le fichier' : 'Cliquer pour sélectionner un fichier CSV'}
+                </span>
+                <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+              </label>
+            </div>
+          )}
+
+          {/* Preview */}
+          {preview && !importDone && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-slate-700">3. Aperçu et validation</p>
+              <div className="flex gap-3 flex-wrap">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">{preview.rows.length} lignes lues</span>
+                {newRows.length > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">{newRows.length} nouveaux</span>}
+                {dupRows.length > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">{dupRows.length} à mettre à jour (code existant)</span>}
+                {errorRows.length > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-600 font-medium">{errorRows.length} erreurs (ignorées)</span>}
+              </div>
+
+              {errorRows.length > 0 && (
+                <div className="border border-red-200 rounded-xl overflow-hidden">
+                  <p className="text-xs font-semibold text-red-600 px-3 py-2 bg-red-50">Lignes avec erreurs (non importées)</p>
+                  <div className="divide-y divide-red-100 max-h-36 overflow-y-auto">
+                    {errorRows.map(({ row, errs }, i) => (
+                      <div key={i} className="px-3 py-2 text-xs">
+                        <span className="font-medium text-slate-700">Ligne {row._lineNum} ({row.code || '—'})</span>
+                        <span className="text-red-500 ml-2">{errs.join(' · ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {validRows.length > 0 && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <p className="text-xs font-semibold text-slate-600 px-3 py-2 bg-slate-50">Modules à importer</p>
+                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                    {validRows.map(({ row, duplicate }, i) => {
+                      const p = rowToPayload(row);
+                      return (
+                        <div key={i} className="px-3 py-2 flex items-center gap-3 text-xs">
+                          <span className="font-mono font-semibold text-[#005989] bg-blue-50 px-1.5 py-0.5 rounded">{p.code}</span>
+                          <span className="flex-1 text-slate-700 truncate">{p.nom}</span>
+                          {p.filiereCode && <span className={`px-1.5 py-0.5 rounded-full font-semibold ${FILIERE_COLORS[p.filiereCode] || 'bg-slate-100 text-slate-600'}`}>{p.filiereCode}</span>}
+                          {duplicate && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">màj</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Done state */}
+          {importDone && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center space-y-2">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-semibold text-emerald-800">Import terminé</p>
+              <p className="text-sm text-emerald-700">
+                {importDone.created} créé{importDone.created !== 1 ? 's' : ''}
+                {importDone.updated > 0 ? ` · ${importDone.updated} mis à jour` : ''}
+                {importDone.failed > 0 ? ` · ${importDone.failed} échoué${importDone.failed !== 1 ? 's' : ''}` : ''}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 px-6 py-4 border-t border-slate-200 flex justify-between gap-3 bg-slate-50">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-xl hover:bg-slate-100 transition-colors">
+            {importDone ? 'Fermer' : 'Annuler'}
+          </button>
+          {!importDone && (
+            <button
+              onClick={handleImport}
+              disabled={!validRows.length || importing}
+              className="px-5 py-2 text-sm font-semibold bg-[#005989] hover:bg-[#004a73] text-white rounded-xl transition-colors disabled:opacity-50"
+            >
+              {importing ? 'Import en cours…' : `Importer ${validRows.length} module${validRows.length !== 1 ? 's' : ''}`}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ModulesPage() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -112,6 +375,7 @@ export default function ModulesPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const fetchModules = async () => {
     setLoading(true);
@@ -223,20 +487,31 @@ export default function ModulesPage() {
   return (
     <div className="space-y-5 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Modules & Référentiel</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${modules.length} module${modules.length !== 1 ? 's' : ''} au total`}
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
-        >
-          <PlusIcon />
-          Nouveau module
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-xl transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Importer CSV
+          </button>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+          >
+            <PlusIcon />
+            Nouveau module
+          </button>
+        </div>
       </div>
 
       {/* Summary by filière */}
@@ -380,6 +655,14 @@ export default function ModulesPage() {
           </table>
         )}
       </div>
+
+      {showImportModal && (
+        <ImportCSVModal
+          existingModules={modules}
+          onClose={() => setShowImportModal(false)}
+          onImported={() => { fetchModules(); }}
+        />
+      )}
 
       {/* Slide-in panel */}
       {showPanel && (
