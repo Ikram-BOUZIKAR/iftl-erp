@@ -301,9 +301,32 @@ function PlanningTab({ groupeId }) {
 
 // ── Mes Résultats ──────────────────────────────────────────────────────────────
 
+function moyColor(n) {
+  const v = parseFloat(n);
+  if (isNaN(v)) return '#94a3b8';
+  return v >= 10 ? '#16a34a' : '#dc2626';
+}
+
+function DecisionBadge({ decision }) {
+  if (!decision) return null;
+  const lo = decision.toLowerCase();
+  const style = lo.includes('admis') || lo.includes('valid') || lo.includes('passage')
+    ? { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' }
+    : lo.includes('rattrapage') || lo.includes('ajourné')
+    ? { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' }
+    : { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
+  return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+          style={{ background: style.bg, color: style.text, borderColor: style.border }}>
+      {decision}
+    </span>
+  );
+}
+
 function ResultatsTab({ studentId, studentCode }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [bulletins, setBulletins] = useState([]);
+  const [notes,     setNotes]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -313,20 +336,12 @@ function ResultatsTab({ studentId, studentCode }) {
           { field: 'studentCode',  value: studentCode },
           { field: 'codeApprenant',value: studentCode },
         ];
-        const [bulletins, notes] = await Promise.all([
+        const [bulls, rawNotes] = await Promise.all([
           fetchByMultipleKeys('bulletins', keys),
           fetchByMultipleKeys('notes',     keys),
         ]);
-        // Merge, bulletins first
-        const seen = new Set();
-        const merged = [];
-        [...bulletins, ...notes].forEach(item => {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            merged.push(item);
-          }
-        });
-        setItems(merged);
+        setBulletins(bulls);
+        setNotes(rawNotes);
       } catch (err) {
         console.error('Resultats load error:', err);
       } finally {
@@ -336,76 +351,96 @@ function ResultatsTab({ studentId, studentCode }) {
   }, [studentId, studentCode]);
 
   if (loading) return <Spinner />;
-  if (items.length === 0) return <EmptyState message="Aucun résultat disponible pour le moment." />;
-
-  const moyenneColor = (m) => {
-    const n = parseFloat(m);
-    if (isNaN(n)) return '#94a3b8';
-    return n >= 10 ? '#16a34a' : '#dc2626';
-  };
-
-  const decisionBadge = (decision) => {
-    if (!decision) return null;
-    const lo = decision.toLowerCase();
-    const style = lo.includes('admis') || lo.includes('valid')
-      ? { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' }
-      : lo.includes('rattrapage') || lo.includes('ajourné')
-      ? { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' }
-      : { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
-    return (
-      <span className="text-xs font-semibold px-2 py-0.5 rounded-full border"
-            style={{ background: style.bg, color: style.text, borderColor: style.border }}>
-        {decision}
-      </span>
-    );
-  };
-
-  // Read a note value from an item using several common field name patterns
-  const getNote = (item, type) => {
-    const candidates = [
-      item[`note${type}`],
-      item[type.toLowerCase()],
-      item[`note_${type.toLowerCase()}`],
-      item[type],
-    ];
-    return candidates.find(v => v !== undefined && v !== null);
-  };
+  if (bulletins.length === 0 && notes.length === 0)
+    return <EmptyState message="Aucun résultat disponible pour le moment." />;
 
   return (
-    <div className="space-y-3">
-      {items.map(item => {
-        const label = item.module || item.moduleId || item.libelle || 'Module';
-        const moy = item.moyenne ?? item.moyenneGenerale;
+    <div className="space-y-5">
+      {bulletins.map(bull => {
+        const modules = Array.isArray(bull.modules) ? bull.modules : [];
+        const moy = bull.moyenneGenerale ?? bull.moyenne;
+        const mention = bull.mention || bull.mentionGenerale;
+        const decision = bull.decisionLabel || bull.decision;
+        const annee = bull.anneeFormation || bull.anneeAcademique || '';
+        const filiere = bull.filiere || '';
         return (
-          <div key={item.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-800 flex-1 min-w-0 truncate">{label}</p>
-              <div className="flex items-center gap-2 shrink-0">
-                {decisionBadge(item.decision)}
-                {moy !== undefined && (
-                  <span className="text-xl font-black" style={{ color: moyenneColor(moy) }}>
-                    {parseFloat(moy).toFixed(2)}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="px-5 py-3.5 grid grid-cols-3 gap-3 text-center">
-              {['EFM', 'EFF', 'CC'].map(type => {
-                const val = getNote(item, type);
-                return (
-                  <div key={type}>
-                    <p className="text-xs text-slate-400 font-medium mb-1">{type}</p>
-                    <p className="text-sm font-bold"
-                       style={{ color: val !== undefined ? moyenneColor(val) : '#cbd5e1' }}>
-                      {val !== undefined ? val : '—'}
+          <div key={bull.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            {/* Bulletin header */}
+            <div className="px-5 py-4 border-b border-slate-100"
+                 style={{ background: 'linear-gradient(135deg,#005989,#0077b6)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-white font-bold text-sm">Relevé de notes {annee}</p>
+                  {filiere && <p className="text-white/70 text-xs mt-0.5">{filiere}</p>}
+                </div>
+                <div className="text-right">
+                  {moy !== undefined && (
+                    <p className="text-2xl font-black text-white">
+                      {parseFloat(moy).toFixed(2)}
+                      <span className="text-xs font-normal text-white/70 ml-1">/20</span>
                     </p>
-                  </div>
-                );
-              })}
+                  )}
+                  {mention && <p className="text-white/80 text-xs">{mention}</p>}
+                </div>
+              </div>
+              {decision && (
+                <div className="mt-3">
+                  <DecisionBadge decision={decision} />
+                </div>
+              )}
             </div>
+            {/* Module list */}
+            {modules.length > 0 && (
+              <div className="divide-y divide-slate-50">
+                {modules.map((m, i) => {
+                  const nom  = m.nom  || m.module || m.libelle || m.moduleId || `Module ${i+1}`;
+                  const note = m.note ?? m.moyenne ?? m.moyenneModule;
+                  const coef = m.coefficient ?? m.coef ?? 1;
+                  return (
+                    <div key={i} className="px-5 py-3 flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-700 font-medium truncate">{nom}</p>
+                        {coef > 1 && (
+                          <p className="text-xs text-slate-400">Coef. {coef}</p>
+                        )}
+                      </div>
+                      <span className="text-base font-black shrink-0"
+                            style={{ color: note !== undefined ? moyColor(note) : '#cbd5e1' }}>
+                        {note !== undefined ? parseFloat(note).toFixed(2) : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
+
+      {/* Raw notes fallback (when no bulletin available yet) */}
+      {bulletins.length === 0 && notes.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100">
+            <p className="text-sm font-semibold text-slate-700">Notes en cours de semestre</p>
+            <p className="text-xs text-slate-400 mt-0.5">Le bulletin définitif sera disponible en fin de semestre.</p>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {notes.map(n => {
+              const label = n.module || n.moduleId || n.evaluationId || n.libelle || 'Évaluation';
+              const note  = n.note ?? n.moyenne;
+              return (
+                <div key={n.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <p className="text-sm text-slate-700 truncate flex-1">{label}</p>
+                  <span className="text-base font-black shrink-0"
+                        style={{ color: note !== undefined ? moyColor(note) : '#cbd5e1' }}>
+                    {note !== undefined ? parseFloat(note).toFixed(2) : '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
