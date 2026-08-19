@@ -21,6 +21,7 @@ import CandidaturePage from './components/Candidature/CandidaturePage';
 import SettingsPage from './components/Settings/SettingsPage';
 import PortailResultats from './components/Portail/PortailResultats';
 import PortailApprenant from './components/Portail/PortailApprenant';
+import PortailIntervenant from './components/Portail/PortailIntervenant';
 import RegisterPage from './components/Auth/RegisterPage';
 // New modules
 import ModulesPage from './components/Modules/ModulesPage';
@@ -72,6 +73,13 @@ function App() {
               !hasFirebaseConfig ? <Navigate to="/setup" replace /> : (
                 <PrivateRoute auth={auth}>
                   <PortailApprenant auth={auth} />
+                </PrivateRoute>
+              )
+            } />
+            <Route path="/portail-intervenant" element={
+              !hasFirebaseConfig ? <Navigate to="/setup" replace /> : (
+                <PrivateRoute auth={auth}>
+                  <PortailIntervenant auth={auth} />
                 </PrivateRoute>
               )
             } />

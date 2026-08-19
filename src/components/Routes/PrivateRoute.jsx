@@ -15,12 +15,12 @@ export default function PrivateRoute({ auth, children }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Apprenants have a dedicated portal — redirect them away from the admin layout
-  if (
-    auth.userProfile?.role === 'apprenant' &&
-    !location.pathname.startsWith('/portail-apprenant')
-  ) {
+  // Apprenants and intervenants have dedicated portals — redirect them away from admin
+  if (auth.userProfile?.role === 'apprenant' && !location.pathname.startsWith('/portail-apprenant')) {
     return <Navigate to="/portail-apprenant" replace />;
+  }
+  if (auth.userProfile?.role === 'intervenant' && !location.pathname.startsWith('/portail-intervenant')) {
+    return <Navigate to="/portail-intervenant" replace />;
   }
 
   return children;

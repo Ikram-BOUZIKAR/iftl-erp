@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 function Ico({ path, path2, size = 'w-6 h-6', stroke = 'currentColor', strokeWidth = 1.5 }) {
   return (
@@ -45,8 +47,12 @@ export default function LoginPage({ auth }) {
     setError('');
     setLoading(true);
     try {
-      await auth.login(email, password);
-      navigate('/');
+      const firebaseUser = await auth.login(email, password);
+      const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+      const role = snap.data()?.role;
+      if (role === 'intervenant') navigate('/portail-intervenant');
+      else if (role === 'apprenant') navigate('/portail-apprenant');
+      else navigate('/');
     } catch {
       setError('Identifiants incorrects. Vérifiez votre email et mot de passe.');
     } finally {

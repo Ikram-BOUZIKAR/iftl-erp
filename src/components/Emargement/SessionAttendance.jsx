@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { sessionsService, presencesService, studentsService, groupesService, intervenantsService } from '../../services/firestore';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { generateFeuillEmargement } from '../../services/pdfService';
 import { computeAbsenceScore } from '../../services/absenceService';
@@ -27,8 +27,11 @@ export default function SessionAttendance() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [liveUpdate, setLiveUpdate] = useState(false);
+  const dirtyRef = useRef(new Set()); // tracks locally-modified student IDs
 
   useEffect(() => {
+    let unsub;
     const load = async () => {
       const sess = await sessionsService.getById(id);
       if (!sess) { setLoading(false); return; }
@@ -36,37 +39,56 @@ export default function SessionAttendance() {
       setContenuSeance(sess.contenuSeance || '');
       setObjectifs(sess.objectifs || '');
 
-      const [presences, studentsData, groupeData, intervenantData] = await Promise.all([
-        presencesService.getBySession(id),
+      const [studentsData, groupeData, intervenantData] = await Promise.all([
         sess.groupeId ? studentsService.getAll({ groupeId: sess.groupeId }) : Promise.resolve([]),
         sess.groupeId ? groupesService.getById(sess.groupeId) : Promise.resolve(null),
         sess.intervenantId ? intervenantsService.getById(sess.intervenantId) : Promise.resolve(null),
       ]);
 
-      setStudents(studentsData.filter(s => s.statut === 'actif'));
+      const active = studentsData.filter(s => s.statut === 'actif');
+      setStudents(active);
       setGroupe(groupeData);
       setIntervenant(intervenantData);
 
       const init = {};
-      for (const s of studentsData.filter(s => s.statut === 'actif')) {
-        init[s.id] = { statut: 'present', heureArrivee: '', justification: '' };
-      }
-      for (const p of presences) {
-        if (init[p.studentId] !== undefined) {
-          init[p.studentId] = { statut: p.statut, heureArrivee: p.heureArrivee || '', justification: p.justification || '' };
-        }
-      }
+      for (const s of active) init[s.id] = { statut: 'present', heureArrivee: '', justification: '' };
       setAttendance(init);
       setLoading(false);
+
+      // Real-time presence subscription — only updates non-dirty records
+      unsub = onSnapshot(
+        query(collection(db, 'presences'), where('sessionId', '==', id)),
+        snap => {
+          setAttendance(prev => {
+            const next = { ...prev };
+            let changed = false;
+            snap.forEach(d => {
+              const p = d.data();
+              if (next[p.studentId] !== undefined && !dirtyRef.current.has(p.studentId)) {
+                const cur = next[p.studentId];
+                if (cur.statut !== p.statut || cur.heureArrivee !== (p.heureArrivee || '') || cur.justification !== (p.justification || '')) {
+                  next[p.studentId] = { statut: p.statut, heureArrivee: p.heureArrivee || '', justification: p.justification || '' };
+                  changed = true;
+                }
+              }
+            });
+            if (changed) setLiveUpdate(true);
+            return changed ? next : prev;
+          });
+        }
+      );
     };
     load();
+    return () => unsub?.();
   }, [id]);
 
   const setStatut = (studentId, statut) => {
+    dirtyRef.current.add(studentId);
     setAttendance(prev => ({ ...prev, [studentId]: { ...prev[studentId], statut } }));
   };
 
   const setExtra = (studentId, key, val) => {
+    dirtyRef.current.add(studentId);
     setAttendance(prev => ({ ...prev, [studentId]: { ...prev[studentId], [key]: val } }));
   };
 
@@ -89,6 +111,8 @@ export default function SessionAttendance() {
         presencesService.bulkUpsert(id, entries),
         updateDoc(doc(db, 'sessions', id), { contenuSeance, objectifs, updatedAt: new Date() }),
       ]);
+      dirtyRef.current.clear(); // reset dirty tracking after save
+      setLiveUpdate(false);
       toast.success('Feuille de présence sauvegardée');
     } catch (err) {
       toast.error('Erreur lors de la sauvegarde : ' + err.message);
@@ -133,6 +157,15 @@ export default function SessionAttendance() {
 
   return (
     <div className="space-y-5 max-w-4xl">
+      {/* Live update badge */}
+      {liveUpdate && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-700">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"/>
+          Données mises à jour en temps réel par un autre utilisateur
+          <button onClick={() => setLiveUpdate(false)} className="ml-auto text-emerald-500 hover:text-emerald-700">✕</button>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-slate-500">
         <Link to="/emargement" className="hover:text-slate-700 transition-colors">Émargement</Link>
