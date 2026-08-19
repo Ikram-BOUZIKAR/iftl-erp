@@ -281,20 +281,45 @@ export default function GroupesPage() {
   const confirm = useConfirm();
   const { data: groupes, loading, refetch } = useGroupes();
   const { data: intervenants } = useIntervenants();
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2026-2027', actif: true });
-  const [saving, setSaving] = useState(false);
+  const [activeTab,      setActiveTab]      = useState('groupes');
+  const [showForm,       setShowForm]       = useState(false);
+  const [editing,        setEditing]        = useState(null);
+  const [form,           setForm]           = useState({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
+  const [saving,         setSaving]         = useState(false);
   const [selectedGroupe, setSelectedGroupe] = useState(null);
+  const [archives,       setArchives]       = useState([]);
+  const [archLoading,    setArchLoading]    = useState(false);
+
+  // Load archived students grouped by promotionLabel
+  useEffect(() => {
+    if (activeTab !== 'archives') return;
+    setArchLoading(true);
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'students'), where('statut', '==', 'laureat')));
+        const map = {};
+        snap.forEach(d => {
+          const s = { id: d.id, ...d.data() };
+          const label = s.promotionLabel || s.promotionSortie || 'Non classé';
+          if (!map[label]) map[label] = [];
+          map[label].push(s);
+        });
+        // Sort by label descending (most recent first)
+        const sorted = Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+        setArchives(sorted);
+      } catch (err) { console.error(err); }
+      finally { setArchLoading(false); }
+    })();
+  }, [activeTab]);
 
   const openAdd = () => {
-    setForm({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2025-2026', actif: true });
+    setForm({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
     setEditing(null);
     setShowForm(true);
   };
 
   const openEdit = (g) => {
-    setForm({ nom: g.nom, filiereCode: g.filiereCode || '', niveau: g.niveau || '', intervenantId: g.intervenantId || '', annee: g.annee || '2025-2026', actif: g.actif !== false });
+    setForm({ nom: g.nom, filiereCode: g.filiereCode || '', niveau: g.niveau || '', intervenantId: g.intervenantId || '', annee: g.annee || '2026-2027', statut: g.statut || (g.actif === false ? 'inactif' : 'actif') });
     setEditing(g);
     setShowForm(true);
   };
@@ -304,38 +329,34 @@ export default function GroupesPage() {
     if (!form.nom.trim()) return;
     setSaving(true);
     try {
-      const data = { ...form, filiere: FILIERE_LABELS[form.filiereCode] || form.filiereCode };
+      const data = { ...form, actif: form.statut === 'actif', filiere: FILIERE_LABELS[form.filiereCode] || form.filiereCode };
       if (editing) {
         await groupesService.update(editing.id, data);
-        toast.success('Groupe modifié avec succès');
+        toast.success('Groupe modifié');
       } else {
         await groupesService.create(data);
-        toast.success('Groupe créé avec succès');
+        toast.success('Groupe créé');
       }
       setShowForm(false);
       refetch();
     } catch (err) {
       toast.error('Erreur : ' + err.message);
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+  };
+
+  const handleSetStatut = async (g, statut) => {
+    try {
+      await groupesService.update(g.id, { statut, actif: statut === 'actif' });
+      refetch();
+      toast.success(statut === 'actif' ? 'Groupe activé' : statut === 'inactif' ? 'Groupe désactivé' : 'Groupe archivé');
+    } catch (err) { toast.error('Erreur : ' + err.message); }
   };
 
   const handleDelete = async (id, nom) => {
-    const ok = await confirm({
-      title: 'Supprimer ce groupe ?',
-      message: `"${nom}" sera définitivement supprimé. Les apprenants associés ne seront pas supprimés.`,
-      danger: true,
-      confirmLabel: 'Supprimer',
-    });
+    const ok = await confirm({ title: 'Supprimer ce groupe ?', message: `"${nom}" sera définitivement supprimé.`, danger: true, confirmLabel: 'Supprimer' });
     if (!ok) return;
-    try {
-      await groupesService.delete(id);
-      refetch();
-      toast.success('Groupe supprimé');
-    } catch (err) {
-      toast.error('Erreur : ' + err.message);
-    }
+    try { await groupesService.delete(id); refetch(); toast.success('Groupe supprimé'); }
+    catch (err) { toast.error('Erreur : ' + err.message); }
   };
 
   const getIntervenantName = (id) => {
@@ -343,106 +364,182 @@ export default function GroupesPage() {
     return i ? `${i.prenom} ${i.nom}` : null;
   };
 
+  const groupeStatut = (g) => g.statut || (g.actif === false ? 'inactif' : 'actif');
+  const STATUT_STYLE = {
+    actif:    'bg-emerald-100 text-emerald-700',
+    inactif:  'bg-amber-100 text-amber-700',
+    archive:  'bg-slate-100 text-slate-500',
+  };
+  const STATUT_LABEL = { actif: 'Actif', inactif: 'Inactif', archive: 'Archivé' };
+
+  const activeGroupes   = groupes.filter(g => groupeStatut(g) === 'actif');
+  const inactifGroupes  = groupes.filter(g => groupeStatut(g) === 'inactif');
+  const archivedGroupes = groupes.filter(g => groupeStatut(g) === 'archive');
+
+  const renderGroupeCard = (g) => {
+    const intervenantName = getIntervenantName(g.intervenantId);
+    const st = groupeStatut(g);
+    return (
+      <div key={g.id} className={`bg-white rounded-xl border shadow-sm p-5 transition-shadow hover:shadow-md ${st === 'actif' ? 'border-slate-200' : st === 'inactif' ? 'border-amber-200' : 'border-slate-100 opacity-60'}`}>
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0 mr-3">
+            <p className="font-bold text-slate-800 text-base truncate">{g.nom}</p>
+            {(g.filiereCode || g.filiere) && <p className="text-sm text-slate-500 mt-0.5 truncate">{FILIERE_LABELS[g.filiereCode] || g.filiere}</p>}
+          </div>
+          {/* Statut dropdown */}
+          <div className="relative group shrink-0">
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer ${STATUT_STYLE[st] || 'bg-slate-100 text-slate-500'}`}>
+              {STATUT_LABEL[st] || st}
+            </span>
+            <div className="absolute right-0 top-6 bg-white border border-slate-200 rounded-xl shadow-lg z-10 hidden group-hover:block min-w-32 overflow-hidden">
+              {['actif','inactif','archive'].map(s => (
+                <button key={s} onClick={() => handleSetStatut(g, s)}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors ${s === st ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600'}`}>
+                  {s === 'actif' ? '✓ Actif' : s === 'inactif' ? '⏸ Inactif' : '📦 Archiver'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-1 mb-4">
+          {g.niveau && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>{g.niveau}</p>}
+          {g.annee  && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>Année {g.annee}</p>}
+          {intervenantName && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>{intervenantName}</p>}
+        </div>
+        <div className="flex gap-2 pt-3 border-t border-slate-100">
+          <button onClick={() => setSelectedGroupe(g)}
+            className="flex-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-3 py-1.5 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors text-center">
+            👥 Apprenants
+          </button>
+          <button onClick={() => openEdit(g)}
+            className="text-xs font-medium text-slate-600 hover:text-slate-800 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            Modifier
+          </button>
+          <button onClick={() => handleDelete(g.id, g.nom)}
+            className="text-xs font-medium text-red-500 hover:text-red-600 px-3 py-1.5 border border-red-100 rounded-lg hover:bg-red-50 transition-colors">
+            Suppr.
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-5 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Groupes</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Groupes & Promotions</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {loading ? 'Chargement…' : `${groupes.length} groupe${groupes.length !== 1 ? 's' : ''}`}
+            {loading ? 'Chargement…' : `${activeGroupes.length} actif${activeGroupes.length !== 1 ? 's' : ''} · ${inactifGroupes.length} inactif${inactifGroupes.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-        >
-          <PlusIcon />
-          Créer un groupe
+        <button onClick={openAdd}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+          <PlusIcon /> Créer un groupe
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {loading ? (
-          <div className="col-span-3 p-12 text-center">
-            <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-slate-400 text-sm mt-3">Chargement…</p>
-          </div>
-        ) : groupes.length === 0 ? (
-          <EmptyState onAdd={openAdd} />
-        ) : groupes.map(g => {
-          const intervenantName = getIntervenantName(g.intervenantId);
-          return (
-            <div key={g.id} className={`bg-white rounded-xl border shadow-sm p-5 transition-shadow hover:shadow-md ${g.actif ? 'border-slate-200' : 'border-slate-100 opacity-60'}`}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0 mr-3">
-                  <p className="font-bold text-slate-800 text-base truncate">{g.nom}</p>
-                  {(g.filiereCode || g.filiere) && <p className="text-sm text-slate-500 mt-0.5 truncate">{FILIERE_LABELS[g.filiereCode] || g.filiere}</p>}
+      {/* Tabs */}
+      <div className="flex gap-1.5 border-b border-slate-200 pb-0">
+        {[
+          { id: 'groupes',  label: `Groupes actifs (${activeGroupes.length})` },
+          { id: 'inactifs', label: `Inactifs (${inactifGroupes.length})` },
+          { id: 'archives', label: 'Archives & Promotions 🎓' },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-colors border-b-2 -mb-px ${
+              activeTab === tab.id
+                ? 'border-indigo-600 text-indigo-600 bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Groupes actifs */}
+      {activeTab === 'groupes' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-3 p-12 text-center">
+              <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"/>
+            </div>
+          ) : activeGroupes.length === 0 ? <EmptyState onAdd={openAdd} />
+          : activeGroupes.map(renderGroupeCard)}
+        </div>
+      )}
+
+      {/* Tab: Groupes inactifs */}
+      {activeTab === 'inactifs' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {inactifGroupes.length === 0 ? (
+            <div className="col-span-3 text-center py-12 text-slate-400 text-sm">Aucun groupe inactif</div>
+          ) : inactifGroupes.map(renderGroupeCard)}
+          {archivedGroupes.length > 0 && (
+            <>
+              <div className="col-span-3 text-xs font-bold text-slate-400 uppercase tracking-wide mt-2">Archivés</div>
+              {archivedGroupes.map(renderGroupeCard)}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Archives & Promotions */}
+      {activeTab === 'archives' && (
+        <div className="space-y-5">
+          {archLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"/>
+            </div>
+          ) : archives.length === 0 ? (
+            <div className="text-center py-16 text-slate-400 text-sm">Aucune promotion archivée</div>
+          ) : archives.map(([label, students]) => (
+            <div key={label} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {/* Promotion header */}
+              <div className="px-6 py-4 flex items-center justify-between"
+                   style={{ background: 'linear-gradient(135deg,#1e3a6e,#005989)' }}>
+                <div>
+                  <p className="text-white font-black text-lg">Promotion {label}</p>
+                  <p className="text-blue-200 text-xs mt-0.5">
+                    {students.length} lauréat{students.length !== 1 ? 's' : ''} · Diplômés {label.split('-')[1] || label}
+                  </p>
                 </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${g.actif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                  {g.actif ? 'Actif' : 'Inactif'}
-                </span>
+                <div className="text-right">
+                  <p className="text-3xl">🎓</p>
+                </div>
               </div>
-
-              <div className="space-y-1 mb-4">
-                {g.niveau && (
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                    {g.niveau}
-                  </p>
-                )}
-                {g.annee && (
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                    Année {g.annee}
-                  </p>
-                )}
-                {intervenantName && (
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                    {intervenantName}
-                  </p>
-                )}
+              {/* Student list */}
+              <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
+                {students.sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map((s, i) => (
+                  <div key={s.id} className="px-5 py-2.5 flex items-center gap-3">
+                    <span className="text-xs text-slate-300 w-6 text-right shrink-0">{i+1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{s.nom} {s.prenom}</p>
+                      <p className="text-xs text-slate-400">{s.id} {s.filiereCode ? `· ${s.filiereCode}` : ''} {s.groupeId ? `· ${s.groupeId}` : ''}</p>
+                    </div>
+                    <span className="text-xs text-violet-600 font-semibold bg-violet-50 px-2 py-0.5 rounded-full shrink-0">Lauréat</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex gap-2 pt-3 border-t border-slate-100">
-                <button
-                  onClick={() => setSelectedGroupe(g)}
-                  className="flex-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-3 py-1.5 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors text-center"
-                >
-                  👥 Apprenants
-                </button>
-                <button
-                  onClick={() => openEdit(g)}
-                  className="text-xs font-medium text-slate-600 hover:text-slate-800 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Modifier
-                </button>
-                <button
-                  onClick={() => handleDelete(g.id, g.nom)}
-                  className="text-xs font-medium text-red-500 hover:text-red-600 px-3 py-1.5 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
-                >
-                  Suppr.
-                </button>
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <p className="text-xs text-slate-400">Données complètes disponibles dans la section Apprenants</p>
+                <span className="text-xs font-bold text-slate-600">{students.length} diplômés</span>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Groupe detail panel */}
       {selectedGroupe && (
-        <GroupeDetailPanel
-          groupe={selectedGroupe}
-          onClose={() => setSelectedGroupe(null)}
-          toast={toast}
-        />
+        <GroupeDetailPanel groupe={selectedGroupe} onClose={() => setSelectedGroupe(null)} toast={toast} />
       )}
 
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-scale-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h2 className="text-base font-bold text-slate-800">{editing ? 'Modifier le groupe' : 'Créer un groupe'}</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
@@ -453,8 +550,8 @@ export default function GroupesPage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nom du groupe *</label>
                 <input type="text" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-                  placeholder="Ex: DD-2025-G1, TS-INF-B…"
-                  className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required />
+                  placeholder="Ex: ts-a-tmli-1a-2026"
+                  className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -462,8 +559,7 @@ export default function GroupesPage() {
                   <select value={form.filiereCode} onChange={e => {
                       const code = e.target.value;
                       setForm(f => ({ ...f, filiereCode: code, niveau: FILIERE_NIVEAU[code] || f.niveau }));
-                    }}
-                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    }} className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">— Sélectionner —</option>
                     {FILIERE_CODES.map(code => <option key={code} value={code}>{code} — {FILIERE_LABELS[code]}</option>)}
                   </select>
@@ -479,7 +575,7 @@ export default function GroupesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Intervenant responsable</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Intervenant</label>
                   <select value={form.intervenantId} onChange={e => setForm(f => ({ ...f, intervenantId: e.target.value }))}
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">— Sélectionner —</option>
@@ -492,10 +588,16 @@ export default function GroupesPage() {
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="actif" checked={form.actif} onChange={e => setForm(f => ({ ...f, actif: e.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-300 accent-indigo-600" />
-                <label htmlFor="actif" className="text-sm text-slate-700 font-medium">Groupe actif</label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Statut</label>
+                <div className="flex gap-2">
+                  {['actif','inactif','archive'].map(s => (
+                    <button type="button" key={s} onClick={() => setForm(f=>({...f,statut:s}))}
+                      className={`flex-1 text-xs font-medium py-1.5 rounded-lg border transition-colors ${form.statut===s ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                      {s === 'actif' ? '✓ Actif' : s === 'inactif' ? '⏸ Inactif' : '📦 Archivé'}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)}
