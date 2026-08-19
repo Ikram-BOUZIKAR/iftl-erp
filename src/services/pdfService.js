@@ -56,11 +56,15 @@ function drawIftlHeader(doc, title, subtitle) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(...BRAND.white);
-  doc.text('Institut', 14, 16);
+  doc.text('Institut IFTL', 14, 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
-  doc.text('ERP Pédagogique', 14, 22);
+  doc.text('de la Formation en Transport et Logistique', 14, 22);
+  doc.setFontSize(6.5);
+  doc.setTextColor(...BRAND.yellow);
+  doc.text('ERP Pédagogique · made by IFTL', 14, 28);
+  doc.setTextColor(...BRAND.white);
 
   // Document title (right-aligned)
   doc.setFont('helvetica', 'bold');
@@ -92,7 +96,7 @@ function drawFooter(doc) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(...BRAND.white);
     doc.text(
-      'Document généré automatiquement — ERP Pédagogique',
+      'Document généré automatiquement — Institut IFTL · ERP Pédagogique made by IFTL',
       w / 2,
       h - 3.5,
       { align: 'center' }
