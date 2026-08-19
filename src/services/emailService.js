@@ -9,7 +9,7 @@
 
 import { doc, getDoc, setDoc, addDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 
-const SENDER = { name: 'Institut', email: 'ikrambouzi@gmail.com' };
+const SENDER = { name: 'IFTL', email: 'ikrambouzi@gmail.com' };
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
 
 // ─── Key management ────────────────────────────────────────────────────────────
@@ -123,8 +123,8 @@ function baseLayout(content) {
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
 <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
   <div style="background:linear-gradient(135deg,#002d47 0%,#005989 100%);padding:28px 32px;text-align:center">
-    <h1 style="color:#f5c845;margin:0;font-size:26px;font-weight:900;letter-spacing:2px">Institut</h1>
-    <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:13px;letter-spacing:1px">Institut de Formation Transport &amp; Logistique</p>
+    <h1 style="color:#f5c845;margin:0;font-size:26px;font-weight:900;letter-spacing:2px">IFTL</h1>
+    <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:13px;letter-spacing:1px">Institut de Formation en Transport &amp; Logistique</p>
   </div>
   <div style="padding:32px 36px;background:#f8fafc;color:#1e293b">
     ${content}
