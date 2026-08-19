@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { useSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
@@ -67,6 +69,25 @@ export default function EmargementPage() {
       await sessionsService.closeEmargement(id);
       refetch();
       toast.success('Émargement clôturé avec succès');
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    }
+  };
+
+  const handleDeleteSession = async (s) => {
+    const ok = await confirm({
+      title: 'Supprimer cette feuille ?',
+      message: `"${s.module}" et toutes ses données de présence seront supprimées définitivement.`,
+      danger: true,
+      confirmLabel: 'Supprimer',
+    });
+    if (!ok) return;
+    try {
+      const presSnap = await getDocs(query(collection(db, 'presences'), where('sessionId', '==', s.id)));
+      await Promise.all(presSnap.docs.map(d => deleteDoc(d.ref)));
+      await deleteDoc(doc(db, 'sessions', s.id));
+      refetch();
+      toast.success('Feuille supprimée');
     } catch (err) {
       toast.error('Erreur : ' + err.message);
     }
@@ -193,6 +214,10 @@ export default function EmargementPage() {
                             Clôturer
                           </button>
                         )}
+                        <button onClick={() => handleDeleteSession(s)}
+                          className="text-xs font-medium px-3 py-1.5 text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-lg transition-colors">
+                          Supprimer
+                        </button>
                       </div>
                     </td>
                   </tr>
