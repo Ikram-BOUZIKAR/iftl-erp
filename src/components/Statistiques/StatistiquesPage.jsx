@@ -14,11 +14,14 @@ const RED    = '#ef4444';
 const SLATE  = '#64748b';
 
 const FILIERES = {
-  OTM:  { label: 'OTM',  color: '#005989' },
-  OFLP: { label: 'OFLP', color: '#0077b6' },
-  AEL:  { label: 'AEL',  color: '#00b4d8' },
-  ECOM: { label: 'ECOM', color: '#6a7d10' },
-  ADEE: { label: 'ADEE', color: '#d75930' },
+  TMLI: { label: 'TMLI', color: '#005989' },
+  LIPF: { label: 'LIPF', color: '#0077b6' },
+  GOL:  { label: 'GOL',  color: '#00b4d8' },
+  ECMD: { label: 'ECMD', color: '#6a7d10' },
+  DMVT: { label: 'DMVT', color: '#d75930' },
+  LE:   { label: 'LE',   color: '#f59e0b' },
+  CTM:  { label: 'CTM',  color: '#10b981' },
+  CTP:  { label: 'CTP',  color: '#8b5cf6' },
   LIC:  { label: 'LIC',  color: '#7c3aed' },
 };
 

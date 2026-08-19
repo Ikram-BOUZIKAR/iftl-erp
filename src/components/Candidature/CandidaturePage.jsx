@@ -7,29 +7,21 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZxdpunUpav7IO7fXNTnIn
 // ── Données référentiels ───────────────────────────────────────────────────────
 const FILIERES_BY_CAT = {
   'Technicien Spécialisé (Bac+2)': [
-    'Organisateur des flux en logistique de production (OTM)',
-    'Organisateur du transport multimodal (OTM)',
-    'Opérateur Freight Logistique & Portuaire (OFLP)',
-    'Agent Exploitation Logistique (AEL)',
-    'E-Commerce & Distribution Digitale (ECOM)',
-    'Agent Déclarant en Douane & Échanges Extérieurs (ADEE)',
+    'Technicien Spécialisé en Management Logistique & Industriel (TMLI)',
+    'Technicien Spécialisé en Logistique Industrielle & Pilotage des Flux (LIPF)',
+    'Technicien Spécialisé en Gestion des Opérations Logistiques (GOL)',
+    'Technicien Spécialisé en E-Commerce & Marketing Digital (ECMD)',
+    'Technicien Spécialisé en Distribution, Merchandising & Vente par Internet (DMVT)',
   ],
   'Technicien (Bac+1)': [
-    'Exploitant en transport routier',
-    'Gestionnaire en entrepôt',
-    'Agent de maintenance des véhicules industriels',
+    'Technicien en Logistique & Exploitation (LE)',
   ],
   'Qualification': [
-    'Conducteur des véhicules de transport de marchandises',
-    'Conducteur des véhicules de transport de personnes',
-    'Opérateur Logistique',
-    'Cariste',
+    'Conducteur des véhicules de transport de marchandises (CTM)',
+    'Conducteur des véhicules de transport de personnes (CTP)',
   ],
-  'Formation Supérieure': [
-    'Manager Logistique & Achats Industrie (Mastère)',
-    'Achat & Supply Chain (Licence Pro)',
-    'Transitaire & Gestionnaire des Opérations Douanières (Licence Pro)',
-    'Logistique & Pilotage des Flux – LIC (Bachelor)',
+  'Formation Supérieure (CNAM)': [
+    'Licence Professionnelle – Logistique & Pilotage des Flux (LIC)',
   ],
   'Formation Continue / Qualifiante': [
     'Eco-conduite : initiation / perfectionnement',
@@ -51,7 +43,7 @@ const MENTIONS_BAC    = ['Très Bien', 'Bien', 'Assez Bien', 'Passable'];
 const TYPES_LYCEE     = ['Public', 'Privé', 'Mission étrangère'];
 const SOURCES         = ['Réseaux sociaux', 'Bouche à oreille', 'Site web Institut', 'Conseiller orientation', 'Ancien étudiant', 'Autre'];
 const SITUATIONS_PRO  = ['Étudiant(e)', 'Demandeur d\'emploi', 'Salarié(e)', 'Entrepreneur(e)', 'Autre'];
-const ANNEES_ENTREE   = ['2025-2026', '2026-2027'];
+const ANNEES_ENTREE   = ['2026-2027', '2027-2028'];
 const LIENS_URGENCE   = ['Parent', 'Tuteur', 'Conjoint(e)', 'Frère / Sœur', 'Ami(e)', 'Autre'];
 
 const DOCS = [

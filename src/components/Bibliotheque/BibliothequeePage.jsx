@@ -77,7 +77,7 @@ function UploadIcon() {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TYPES_RESSOURCE = ['Cours', 'TP', 'Examen', 'Livre', 'Vidéo', 'Article'];
-const FILIERES = ['OTM', 'OFLP', 'AEL', 'ECOM', 'ADEE', 'LIC', 'Tous'];
+const FILIERES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP', 'LIC', 'Tous'];
 
 const ACCEPTED_FILES = '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp';
 

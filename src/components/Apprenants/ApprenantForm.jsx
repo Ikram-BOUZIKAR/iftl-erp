@@ -2,14 +2,14 @@ import { useState } from 'react';
 
 const FILIERE_CODES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP'];
 const FILIERE_LABELS = {
-  TMLI: 'Transport Multimodal et Logistique Internationale',
-  LIPF: 'Logistique Industrielle et Pilotage des Flux',
-  GOL: "Gestionnaire des opérations logistiques et d'entrepôt",
-  ECMD: 'E-Commerce, Marketing Digital et Distribution',
-  DMVT: 'Diagnostic et Maintenance des Véhicules de Transport',
-  LE: "Logistique d'entreposage",
-  CTM: 'Conducteur(rice) en transport routier – Option Marchandises',
-  CTP: 'Conducteur(rice) en transport routier – Option Personnes',
+  TMLI: 'Management Logistique & Industriel',
+  LIPF: 'Logistique Industrielle & Pilotage des Flux',
+  GOL: 'Gestion des Opérations Logistiques',
+  ECMD: 'E-Commerce & Marketing Digital',
+  DMVT: 'Distribution, Merchandising & Vente par Internet',
+  LE: 'Logistique & Exploitation',
+  CTM: 'Conducteur – Transport de Marchandises',
+  CTP: 'Conducteur – Transport de Personnes',
 };
 const NIVEAUX = ['Technicien Spécialisé', 'Technicien', 'Qualification'];
 const MENTIONS_BAC = ['Passable', 'Assez Bien', 'Bien', 'Très Bien', 'Excellent'];
