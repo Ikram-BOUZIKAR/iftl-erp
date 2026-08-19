@@ -407,6 +407,34 @@ export async function sendPlanningEmail(db, { toEmail, toName, semaineDebut, sem
 }
 
 /**
+ * Sends an automatic risk-threshold alert email to a student (3 pts = warning, 5 pts = critical).
+ */
+export async function sendAlertAbsenceEmail(db, { toEmail, toName, score, threshold }) {
+  const isCritical = threshold >= 5;
+  const color = isCritical ? '#dc2626' : '#d97706';
+  const bgColor = isCritical ? '#fee2e2' : '#fef3c7';
+  const borderColor = isCritical ? '#ef4444' : '#f59e0b';
+  const textColor = isCritical ? '#991b1b' : '#92400e';
+  const niveau = isCritical ? 'CRITIQUE' : 'VIGILANCE';
+  const subject = isCritical
+    ? `🔴 Absences critiques — ${toName} — IFTL`
+    : `⚠️ Alerte absences — ${toName} — IFTL`;
+  const htmlContent = baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${toName}</strong>,</p>
+    <p style="line-height:1.7">Votre taux d'absences non justifiées a atteint le seuil <strong style="color:${color}">${niveau}</strong> :</p>
+    <div style="background:${bgColor};border-radius:10px;padding:18px 22px;margin:18px 0;border-left:5px solid ${borderColor}">
+      <p style="margin:0;font-size:24px;font-weight:900;color:${color}">${score} point${score > 1 ? 's' : ''} d'absence</p>
+      <p style="margin:6px 0 0;font-size:12px;color:${textColor}">ANJ = 1 pt · Retard = 0,5 pt · Seuil ${niveau.toLowerCase()} : ${threshold} pts</p>
+    </div>
+    <p style="line-height:1.7">Nous vous invitons à vous présenter à l'administration pour régulariser votre situation dès que possible.</p>
+    <p style="line-height:1.7">${isCritical ? '<strong>Toute nouvelle absence non justifiée pourra engager une procédure disciplinaire.</strong>' : 'Merci de veiller à régulariser vos absences avant le prochain contrôle.'}</p>
+    <p style="line-height:1.7;color:#64748b;font-size:13px">Contact : <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration IFTL</strong></p>
+  `);
+  return sendEmail(db, { to: toEmail, toName, subject, htmlContent });
+}
+
+/**
  * Sends an absence notification email to a student via Brevo.
  */
 export async function sendAbsenceEmail(db, { toEmail, toName, moduleNom, dateSeance, heureDebut, heureFin, groupeNom, messageCustom }) {

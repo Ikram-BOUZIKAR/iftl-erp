@@ -11,7 +11,8 @@ import { db } from '../../services/firebase';
 import { useStudents, useSessions, useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
-import { getAlertLevel } from '../../services/absenceService';
+import { getAlertLevel, computeAbsenceScore } from '../../services/absenceService';
+import { sendAlertAbsenceEmail } from '../../services/emailService';
 import AbsenceNotificationModal from '../Notifications/AbsenceNotificationModal';
 
 const MOIS_OPTIONS = [
@@ -311,6 +312,35 @@ export default function AbsencesPage() {
   };
 
   const [showNotify, setShowNotify] = useState(false);
+  const [sendingAlerts, setSendingAlerts] = useState(false);
+
+  const handleSendRiskAlerts = async () => {
+    setSendingAlerts(true);
+    try {
+      // Compute score per student from all enriched presences
+      const scoreMap = {};
+      for (const row of enriched) {
+        const sid = row.studentId;
+        if (!scoreMap[sid]) scoreMap[sid] = { score: 0, student: row.student };
+        scoreMap[sid].score += computeAbsenceScore(row.statut);
+      }
+      const targets = Object.values(scoreMap).filter(({ score }) => score >= 3);
+      if (targets.length === 0) { toast.info('Aucun apprenant au-dessus du seuil.'); return; }
+      let sent = 0, skipped = 0;
+      for (const { score, student } of targets) {
+        if (!student?.email) { skipped++; continue; }
+        const threshold = score >= 5 ? 5 : 3;
+        const name = `${student.prenom || ''} ${student.nom || ''}`.trim();
+        await sendAlertAbsenceEmail(db, { toEmail: student.email, toName: name, score, threshold });
+        sent++;
+      }
+      toast.success(`${sent} alerte${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} sans email` : ''}`);
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setSendingAlerts(false);
+    }
+  };
 
   // Build list of enriched absences for the notification modal
   const absencesForNotif = useMemo(() => filtered.map(row => ({
@@ -337,7 +367,15 @@ export default function AbsencesPage() {
           <h1 className="text-2xl font-bold text-slate-800">Gestion des absences</h1>
           <p className="text-slate-500 text-sm mt-0.5">Suivi des présences, retards et justifications</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleSendRiskAlerts}
+            disabled={sendingAlerts || enriched.length === 0}
+            title="Envoie automatiquement un email aux apprenants ≥ 3 pts d'absence"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-amber-400 text-amber-700 hover:bg-amber-50 text-sm font-medium rounded-xl transition-colors disabled:opacity-40"
+          >
+            {sendingAlerts ? '⏳ Envoi…' : '⚠️ Alerter apprenants à risque'}
+          </button>
           <button
             onClick={() => setShowNotify(true)}
             disabled={filtered.length === 0}

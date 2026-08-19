@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { intervenantsService } from '../../services/firestore';
 
 const TYPES = [
@@ -188,6 +190,8 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     notes:         initial?.notes      || '',
   });
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [conflicts, setConflicts] = useState(null);
   const [errors, setErrors] = useState({});
   const [showNewIntervenant, setShowNewIntervenant] = useState(false);
   const [newlyAdded, setNewlyAdded] = useState([]);
@@ -206,10 +210,37 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     return e;
   };
 
+  const checkConflicts = async () => {
+    if (!form.date) return null;
+    try {
+      const dateTs = Timestamp.fromDate(new Date(form.date));
+      const snap = await getDocs(query(collection(db, 'sessions'), where('date', '==', dateTs)));
+      const result = { salle: null, intervenant: null };
+      snap.forEach(d => {
+        if (initial?.id && d.id === initial.id) return;
+        const s = d.data();
+        if (s.statut === 'annulee') return;
+        const overlaps = s.heureDebut < form.heureFin && s.heureFin > form.heureDebut;
+        if (!overlaps) return;
+        if (form.salle?.trim() && s.salle?.trim() && form.salle.trim().toLowerCase() === s.salle.trim().toLowerCase()) {
+          result.salle = { module: s.module, groupe: s.groupeId, heure: `${s.heureDebut}–${s.heureFin}`, salle: s.salle };
+        }
+        if (form.intervenantId && s.intervenantId && form.intervenantId === s.intervenantId) {
+          result.intervenant = { module: s.module, groupe: s.groupeId, heure: `${s.heureDebut}–${s.heureFin}` };
+        }
+      });
+      return result.salle || result.intervenant ? result : null;
+    } catch { return null; }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setChecking(true);
+    const conflict = await checkConflicts();
+    setChecking(false);
+    if (conflict) { setConflicts(conflict); return; }
     setSaving(true);
     try {
       const data = { ...form };
@@ -227,6 +258,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
   const set = (key, val) => {
     setForm(f => ({ ...f, [key]: val }));
     setErrors(er => ({ ...er, [key]: undefined }));
+    setConflicts(null);
   };
 
   const inputCls = (key) =>
@@ -415,15 +447,38 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
               placeholder="Informations complémentaires…" />
           </div>
 
+          {/* Conflict banner */}
+          {conflicts && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-1.5">
+              <p className="text-sm font-bold text-amber-800 flex items-center gap-1.5">⚠️ Conflit détecté sur ce créneau</p>
+              {conflicts.salle && (
+                <p className="text-xs text-amber-700">
+                  <strong>Salle "{conflicts.salle.salle}"</strong> déjà réservée — {conflicts.salle.module} ({conflicts.salle.heure})
+                </p>
+              )}
+              {conflicts.intervenant && (
+                <p className="text-xs text-amber-700">
+                  <strong>Intervenant</strong> déjà affecté à une autre séance — {conflicts.intervenant.module} ({conflicts.intervenant.heure})
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setConflicts(null)}
+                  className="text-xs font-semibold text-amber-700 underline">Modifier les champs</button>
+                <button type="button" onClick={async () => { setConflicts(null); setSaving(true); try { const data={...form}; if(modules.length>0&&form.module){const mod=modules.find(m=>m.id===form.module);if(mod){data.module=`${mod.code} — ${mod.nom}`;data.moduleId=mod.id;}} await onSave(data); } finally { setSaving(false); } }}
+                  className="text-xs font-semibold text-red-600 underline">Créer quand même</button>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
             <button type="button" onClick={onClose}
               className="px-5 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
               Annuler
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || checking}
               className={`px-6 py-2 text-sm font-bold text-white rounded-xl transition-colors disabled:opacity-60 ${selectedType.color.replace('text-white', '').trim()} hover:opacity-90`}>
-              {saving ? 'Enregistrement…' : initial?.id ? 'Modifier' : 'Créer la séance'}
+              {checking ? 'Vérification…' : saving ? 'Enregistrement…' : initial?.id ? 'Modifier' : 'Créer la séance'}
             </button>
           </div>
         </form>
