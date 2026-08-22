@@ -39,6 +39,8 @@ import TransportPage from './components/Transport/TransportPage';
 import CollaboratifPage from './components/Collaboratif/CollaboratifPage';
 import EmailsPage from './components/Emails/EmailsPage';
 import FormationContinuePage from './components/FormationContinue/FormationContinuePage';
+import RepairGroupesPage from './components/Admin/RepairGroupesPage';
+import PassageNiveauPage from './components/Admin/PassageNiveauPage';
 import './App.css';
 
 function App() {
@@ -132,6 +134,9 @@ function App() {
                         <Route path="/statistiques"  element={<StatistiquesPage />} />
                         {/* Configuration */}
                         <Route path="/parametres"    element={<SettingsPage auth={auth} />} />
+                        {/* Outils admin */}
+                        <Route path="/admin/repair-groupes"  element={<RepairGroupesPage />} />
+                        <Route path="/admin/passage-niveau"  element={<PassageNiveauPage />} />
                         <Route path="*"              element={<Navigate to="/" replace />} />
                       </Routes>
                     </MainLayout>

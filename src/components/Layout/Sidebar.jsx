@@ -122,7 +122,9 @@ const SECTIONS = [
   {
     label: 'Configuration',
     items: [
-      { to: '/parametres', label: 'Paramètres', icon: 'cog' },
+      { to: '/parametres',             label: 'Paramètres',          icon: 'cog' },
+      { to: '/admin/passage-niveau',   label: 'Passage de niveau',   icon: 'trending' },
+      { to: '/admin/repair-groupes',   label: 'Réparer groupes',     icon: 'cog' },
     ],
   },
 ];
