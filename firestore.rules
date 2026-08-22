@@ -18,10 +18,12 @@ service cloud.firestore {
 
     // ── Utilisateurs ───────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Un utilisateur peut toujours lire son propre document (nécessaire au chargement du profil)
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
-      allow create: if isAuth();
-      allow update, delete: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      // Self-create only allowed with role='apprenant' to prevent privilege escalation
+      allow create: if isAdmin(request.auth.uid) ||
+        (request.auth.uid == userId && request.resource.data.role == 'apprenant');
+      allow update: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      allow delete: if isAdmin(request.auth.uid);
     }
 
     // ── Apprenants ─────────────────────────────────────────────────────────────
@@ -81,7 +83,8 @@ service cloud.firestore {
 
     // ── Paramètres ─────────────────────────────────────────────────────────────
     match /settings/{docId} {
-      allow read: if isAuth();
+      // Brevo API key stored here — restrict to admin/direction only
+      allow read: if hasRole(['admin', 'direction']);
       allow write: if hasRole(['admin', 'direction']);
     }
 
@@ -94,7 +97,8 @@ service cloud.firestore {
 
     match /logs_audit/{docId} {
       allow read: if hasRole(['admin']);
-      allow create: if isAuth();
+      // Restrict to staff roles to prevent audit log injection by apprenants/intervenants
+      allow create: if hasRole(['admin', 'scolarite', 'direction', 'intervenant']);
       allow delete: if hasRole(['admin']);
     }
 
@@ -125,13 +129,15 @@ service cloud.firestore {
     }
 
     match /notes/{docId} {
-      allow read: if isAuth();
+      // Apprenants cannot read other students' notes
+      allow read: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
       allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
       allow delete: if hasRole(['admin', 'direction']);
     }
 
     match /bulletins/{docId} {
-      allow read: if isAuth();
+      // Apprenants cannot read other students' bulletins
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
       allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
       allow delete: if hasRole(['admin']);
     }
@@ -145,13 +151,15 @@ service cloud.firestore {
 
     // ── Facturation & Paiements ────────────────────────────────────────────────
     match /factures/{docId} {
-      allow read: if isAuth();
+      // Financial data: apprenants/intervenants must not access all invoices
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
       allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
       allow delete: if hasRole(['admin', 'direction']);
     }
 
     match /paiements/{docId} {
-      allow read: if isAuth();
+      // Financial data: restrict to staff only
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
       allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
       allow delete: if hasRole(['admin']);
     }
@@ -234,8 +242,10 @@ service cloud.firestore {
     // ── Tâches & Suivi ────────────────────────────────────────────────────────
     match /taches/{docId} {
       allow read: if isAuth();
-      allow create, update: if isAuth();
-      allow delete: if isAuth();
+      allow create: if isAuth();
+      // Only the creator or an admin can modify/delete their own task
+      allow update: if isAuth() && (request.auth.uid == resource.data.createdBy || isAdmin(request.auth.uid));
+      allow delete: if isAuth() && (request.auth.uid == resource.data.createdBy || isAdmin(request.auth.uid));
     }
 
     // ── Véhicules ─────────────────────────────────────────────────────────────
