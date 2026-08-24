@@ -56,7 +56,9 @@ service cloud.firestore {
     // ── Sessions / Planning ────────────────────────────────────────────────────
     match /sessions/{docId} {
       allow read: if isAuth();
-      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      // Intervenants can create their own last-minute sessions for emargement
+      allow create: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
       allow delete: if hasRole(['admin', 'direction']);
     }
 

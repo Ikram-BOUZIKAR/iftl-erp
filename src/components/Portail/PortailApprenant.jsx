@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { HelpButton } from '../UI/HelpGuide';
 
 const BLUE = '#005989';
 const BG = '#f1f5f9';
@@ -835,6 +836,7 @@ export default function PortailApprenant({ auth }) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 max-w-28 truncate hidden sm:block">{displayName}</span>
+              <HelpButton role="apprenant" color={BLUE} />
               <button onClick={logout} className="p-1.5 rounded-lg hover:bg-slate-100">
                 <IcoLogout />
               </button>

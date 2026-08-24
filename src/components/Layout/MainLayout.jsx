@@ -3,6 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Sidebar from './Sidebar';
+import { HelpButton } from '../UI/HelpGuide';
 
 const BREADCRUMBS = {
   '/':             'Tableau de bord',
@@ -108,6 +109,9 @@ export default function MainLayout({ auth, children }) {
               <Ico path="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" size="w-3.5 h-3.5 text-slate-300" />
               {today}
             </div>
+
+            {/* Guide d'utilisation */}
+            <HelpButton role={userProfile?.role || 'admin'} color="#005989" />
 
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
