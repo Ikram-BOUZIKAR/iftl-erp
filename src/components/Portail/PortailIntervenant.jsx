@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, getDocs, query, where, onSnapshot, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import { presencesService, studentsService } from '../../services/firestore';
 import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -249,10 +250,34 @@ function NouvelleSeanceModal({ intervenant, groupes, onCreated, onClose }) {
     heureFin: '10:30',
     salle: '',
     type: 'cours',
+    contenuPedagogique: '',
+    syllabusURL: '',
+    ficheSeanceURL: '',
+    syllabusNom: '',
+    ficheSeanceNom: '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
+  const [uploadingFiche, setUploadingFiche] = useState(false);
+  const syllabusInputRef = useRef(null);
+  const ficheInputRef = useRef(null);
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const uploadFile = async (file, folder, setUploading, urlKey, nomKey) => {
+    setUploading(true);
+    try {
+      const path = `sessions/${folder}/${Date.now()}_${file.name}`;
+      const fileRef = storageRef(storage, path);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      setForm(f => ({ ...f, [urlKey]: url, [nomKey]: file.name }));
+    } catch (err) {
+      toast.error('Erreur upload : ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -275,6 +300,9 @@ function NouvelleSeanceModal({ intervenant, groupes, onCreated, onClose }) {
         emargementOuvert: true,
         createdBy: 'intervenant',
         createdAt: new Date(),
+        contenuPedagogique: form.contenuPedagogique.trim(),
+        ...(form.syllabusURL  && { syllabusURL: form.syllabusURL, syllabusNom: form.syllabusNom }),
+        ...(form.ficheSeanceURL && { ficheSeanceURL: form.ficheSeanceURL, ficheSeanceNom: form.ficheSeanceNom }),
       };
       const ref = await addDoc(collection(db, 'sessions'), payload);
       const session = { id: ref.id, ...payload, date: new Date(form.date) };
@@ -373,6 +401,79 @@ function NouvelleSeanceModal({ intervenant, groupes, onCreated, onClose }) {
             <input type="text" value={form.salle} onChange={e => set('salle', e.target.value)}
               placeholder="Ex : Salle A, Amphi 1…"
               className={inputCls} />
+          </div>
+
+          {/* Contenu pédagogique */}
+          <div>
+            <label className={labelCls}>Contenu pédagogique / Plan du cours</label>
+            <textarea
+              value={form.contenuPedagogique}
+              onChange={e => set('contenuPedagogique', e.target.value)}
+              rows={4}
+              className={`${inputCls} resize-y`}
+              placeholder={"Objectifs de la séance…\nPlan :\n  1. \n  2. "}
+            />
+          </div>
+
+          {/* Documents pédagogiques */}
+          <div className="space-y-2">
+            <label className={labelCls}>Documents pédagogiques</label>
+
+            {/* Syllabus */}
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-700">Syllabus</p>
+                {form.syllabusURL ? (
+                  <a href={form.syllabusURL} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-[#005989] underline truncate block">
+                    {form.syllabusNom || 'Voir'}
+                  </a>
+                ) : (
+                  <p className="text-xs text-slate-400">Aucun fichier</p>
+                )}
+              </div>
+              <input ref={syllabusInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadFile(file, 'syllabus', setUploadingSyllabus, 'syllabusURL', 'syllabusNom');
+                  e.target.value = '';
+                }} />
+              <button type="button" disabled={uploadingSyllabus} onClick={() => syllabusInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-[#005989] text-[#005989] rounded-lg hover:bg-[#005989]/5 transition-colors disabled:opacity-50 shrink-0">
+                {uploadingSyllabus
+                  ? <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>}
+                {uploadingSyllabus ? 'Envoi…' : form.syllabusURL ? 'Remplacer' : 'Uploader'}
+              </button>
+            </div>
+
+            {/* Fiche de séance */}
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-700">Fiche de séance</p>
+                {form.ficheSeanceURL ? (
+                  <a href={form.ficheSeanceURL} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-[#005989] underline truncate block">
+                    {form.ficheSeanceNom || 'Voir'}
+                  </a>
+                ) : (
+                  <p className="text-xs text-slate-400">Aucun fichier</p>
+                )}
+              </div>
+              <input ref={ficheInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadFile(file, 'fiches', setUploadingFiche, 'ficheSeanceURL', 'ficheSeanceNom');
+                  e.target.value = '';
+                }} />
+              <button type="button" disabled={uploadingFiche} onClick={() => ficheInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-[#005989] text-[#005989] rounded-lg hover:bg-[#005989]/5 transition-colors disabled:opacity-50 shrink-0">
+                {uploadingFiche
+                  ? <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>}
+                {uploadingFiche ? 'Envoi…' : form.ficheSeanceURL ? 'Remplacer' : 'Uploader'}
+              </button>
+            </div>
           </div>
         </form>
 
