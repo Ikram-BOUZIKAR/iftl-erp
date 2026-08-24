@@ -54,16 +54,16 @@ function drawIftlHeader(doc, title, subtitle) {
 
   // Institut name
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
+  doc.setFontSize(13);
   doc.setTextColor(...BRAND.white);
-  doc.text('Institut IFTL', 14, 16);
+  doc.text('IFTL', 14, 15);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.text('de la Formation en Transport et Logistique', 14, 22);
-  doc.setFontSize(6.5);
+  doc.setFontSize(7);
+  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
+  doc.setFontSize(6);
   doc.setTextColor(...BRAND.yellow);
-  doc.text('ERP Pédagogique · made by IFTL', 14, 28);
+  doc.text('ERP Pédagogique', 14, 28);
   doc.setTextColor(...BRAND.white);
 
   // Document title (right-aligned)
@@ -96,7 +96,7 @@ function drawFooter(doc) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(...BRAND.white);
     doc.text(
-      'Document généré automatiquement — Institut IFTL · ERP Pédagogique made by IFTL',
+      'Document généré automatiquement — IFTL · Institut de Formation dans les métiers Transport & Logistique',
       w / 2,
       h - 3.5,
       { align: 'center' }
@@ -649,13 +649,9 @@ export function generateFeuillEmargement({ session, students, presences, interve
 export function generateAbsenceReport({ students, absencesByStudent, academicYear }) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-  doc.setFontSize(15);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Rapport des absences', 148, 18, { align: 'center' });
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Année académique : ${academicYear || '—'}`, 148, 26, { align: 'center' });
-  doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm')}`, 148, 32, { align: 'center' });
+  const subtitle = `Année académique : ${academicYear || '—'} · Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm')}`;
+  drawIftlHeader(doc, 'RAPPORT DES ABSENCES', subtitle);
+  drawPageBorder(doc);
 
   const rows = students.map((s, i) => {
     const data = absencesByStudent[s.id] || {};
@@ -675,11 +671,11 @@ export function generateAbsenceReport({ students, absencesByStudent, academicYea
   });
 
   autoTable(doc, {
-    startY: 40,
+    startY: 52,
     head: [['#', 'Apprenant', 'Groupe', 'Score total', 'Alerte', 'Détail par module']],
     body: rows,
     styles: { fontSize: 9 },
-    headStyles: { fillColor: [30, 30, 30], textColor: 255 },
+    headStyles: { fillColor: BRAND.darkBlue, textColor: 255 },
     didParseCell(data) {
       if (data.section === 'body' && data.column.index === 4) {
         const val = data.cell.text[0];
@@ -690,5 +686,6 @@ export function generateAbsenceReport({ students, absencesByStudent, academicYea
     },
   });
 
+  drawFooter(doc);
   doc.save(`rapport_absences_${academicYear || 'export'}.pdf`);
 }

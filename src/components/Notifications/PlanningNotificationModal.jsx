@@ -58,19 +58,28 @@ function buildAndDownloadPDF(intervenant, sessions, modules, groupes, weekStart)
   const weekEnd = addDays(weekStart, 6);
   const doc = new jsPDF();
 
-  doc.setFontSize(16);
-  doc.setTextColor(0, 89, 137);
-  doc.text('IFTL Formation Professionnelle', 14, 20);
+  // Header band
+  doc.setFillColor(0, 89, 137);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setFillColor(245, 200, 69);
+  doc.rect(0, 32, 210, 2.5, 'F');
 
-  doc.setFontSize(12);
-  doc.setTextColor(50, 50, 50);
-  doc.text(`Planning de ${intervenant.prenom} ${intervenant.nom}`, 14, 30);
-
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  doc.text('IFTL', 14, 13);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 19);
   doc.setFontSize(9);
-  doc.setTextColor(110, 110, 110);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Planning de ${intervenant.prenom} ${intervenant.nom}`, 14, 26);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(245, 200, 69);
   doc.text(
     `Semaine du ${format(weekStart, 'dd MMMM', { locale: fr })} au ${format(weekEnd, 'dd MMMM yyyy', { locale: fr })}`,
-    14, 38
+    14, 31
   );
 
   const rows = sortSessions(sessions).map(s => [
@@ -83,7 +92,7 @@ function buildAndDownloadPDF(intervenant, sessions, modules, groupes, weekStart)
   ]);
 
   autoTable(doc, {
-    startY: 44,
+    startY: 38,
     head: [['Jour', 'Horaire', 'Module', 'Groupe', 'Type', 'Salle']],
     body: rows,
     headStyles: { fillColor: [0, 89, 137], textColor: 255, fontStyle: 'bold', fontSize: 8 },
