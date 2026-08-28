@@ -4,6 +4,8 @@ import { db } from '../../services/firebase';
 import { useIntervenants } from '../../hooks/useData';
 import { intervenantsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
+import { useAuth } from '../../hooks/useAuth';
+import { createCompteERP } from '../../services/accountService';
 
 const MODULES_SUGGESTIONS = [
   'Logistique', 'Transport & Douane', 'Commerce International', 'Gestion des Achats',
@@ -339,9 +341,38 @@ function KpiCard({ label, value, sub }) {
 function ListeTab({ intervenants, loading, refetch }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [compteStatus, setCompteStatus] = useState({});
+  const { userProfile } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const openAdd = () => { setEditing(null); setShowForm(true); };
   const openEdit = (i) => { setEditing(i); setShowForm(true); };
+
+  const handleCreateCompte = async (intervenant) => {
+    if (!intervenant.email) {
+      showError('Cet intervenant n\'a pas d\'adresse email.');
+      return;
+    }
+    setCompteStatus(s => ({ ...s, [intervenant.id]: 'loading' }));
+    try {
+      const result = await createCompteERP(
+        { email: intervenant.email, role: 'intervenant', nom: intervenant.nom, prenom: intervenant.prenom, linkedField: 'intervenantId', linkedId: intervenant.id },
+        userProfile?.role
+      );
+      if (result.alreadyExists) {
+        setCompteStatus(s => ({ ...s, [intervenant.id]: 'exists' }));
+        showSuccess(`Un compte existe déjà pour ${intervenant.email}`);
+      } else {
+        setCompteStatus(s => ({ ...s, [intervenant.id]: 'done' }));
+        showSuccess(`Compte créé — email de configuration envoyé à ${intervenant.email}`);
+        await updateDoc(doc(db, 'intervenants', intervenant.id), { firebaseUid: result.uid });
+        refetch();
+      }
+    } catch (err) {
+      setCompteStatus(s => ({ ...s, [intervenant.id]: 'error' }));
+      showError('Erreur : ' + err.message);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -410,12 +441,30 @@ function ListeTab({ intervenants, loading, refetch }) {
                     {i.tauxHoraire != null ? `${i.tauxHoraire} DH/h` : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => openEdit(i)}
-                      className="text-xs font-medium text-slate-600 hover:text-slate-800 transition-colors"
-                    >
-                      Modifier
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      {i.firebaseUid ? (
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Compte actif</span>
+                      ) : ['admin', 'direction', 'scolarite'].includes(userProfile?.role) ? (
+                        compteStatus[i.id] === 'loading' ? (
+                          <span className="text-xs text-slate-400">Création…</span>
+                        ) : compteStatus[i.id] === 'done' || compteStatus[i.id] === 'exists' ? (
+                          <span className="text-xs font-medium text-emerald-600">✓ Compte créé</span>
+                        ) : (
+                          <button
+                            onClick={() => handleCreateCompte(i)}
+                            className="text-xs font-medium text-violet-600 hover:text-violet-800 transition-colors"
+                          >
+                            Créer compte
+                          </button>
+                        )
+                      ) : null}
+                      <button
+                        onClick={() => openEdit(i)}
+                        className="text-xs font-medium text-slate-600 hover:text-slate-800 transition-colors"
+                      >
+                        Modifier
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

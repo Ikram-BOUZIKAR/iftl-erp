@@ -20,7 +20,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
       // Self-create only allowed with role='apprenant' to prevent privilege escalation
-      allow create: if isAdmin(request.auth.uid) ||
+      allow create: if hasRole(['admin', 'direction', 'scolarite']) ||
         (request.auth.uid == userId && request.resource.data.role == 'apprenant');
       allow update: if request.auth.uid == userId || isAdmin(request.auth.uid);
       allow delete: if isAdmin(request.auth.uid);
