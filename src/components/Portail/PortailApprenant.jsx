@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
 
 const BLUE = '#005989';
@@ -94,30 +96,58 @@ async function fetchByMultipleKeys(collName, keys) {
 function ProfilTab({ student, userProfile, userId }) {
   const [form, setForm] = useState({
     telephone: student?.telephone || userProfile?.telephone || '',
-    ville:     student?.ville || '',
-    adresse:   student?.adresse || '',
-    photo:     student?.photo || userProfile?.photo || '',
+    ville:     student?.ville     || '',
+    adresse:   student?.adresse   || '',
   });
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
-  const [error,  setError]  = useState('');
+  const [photoURL,    setPhotoURL]    = useState(student?.photo || userProfile?.photo || '');
+  const [uploading,   setUploading]   = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [saved,       setSaved]       = useState(false);
+  const [error,       setError]       = useState('');
+  const fileInputRef = useRef(null);
   const studentCode = userProfile?.studentCode || userProfile?.codeApprenant;
+
+  // Detect missing editable fields
+  const missingFields = [
+    !form.telephone && 'Téléphone',
+    !form.ville     && 'Ville',
+    !form.adresse   && 'Adresse',
+    !photoURL       && 'Photo de profil',
+  ].filter(Boolean);
+  const completionPct = Math.round(((4 - missingFields.length) / 4) * 100);
+
+  const handlePhotoUpload = async (file) => {
+    if (!file || !userId) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) { setError('Format non supporté (JPEG, PNG, WEBP uniquement)'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Photo trop volumineuse (max 5 Mo)'); return; }
+    setUploading(true); setError('');
+    try {
+      const path = `profiles/${userId}/photo`;
+      const fileRef = storageRef(storage, path);
+      await uploadBytes(fileRef, file, { contentType: file.type });
+      const url = await getDownloadURL(fileRef);
+      setPhotoURL(url);
+      // Save immediately to Firestore
+      await updateDoc(doc(db, 'users', userId), { photo: url, updatedAt: new Date() });
+      if (student?.id) await updateDoc(doc(db, 'students', student.id), { photo: url, updatedAt: new Date() });
+    } catch (err) { setError('Erreur upload : ' + err.message); }
+    finally { setUploading(false); }
+  };
 
   const handleSave = async () => {
     setSaving(true); setError('');
     try {
-      if (userId) await updateDoc(doc(db, 'users', userId), { telephone: form.telephone, photo: form.photo, updatedAt: new Date() });
-      if (studentCode) {
-        const ref = student?.id ? doc(db, 'students', student.id) : doc(db, 'students', studentCode);
-        await updateDoc(ref, { telephone: form.telephone, ville: form.ville, adresse: form.adresse, updatedAt: new Date() });
-      }
+      if (userId) await updateDoc(doc(db, 'users', userId), { telephone: form.telephone, updatedAt: new Date() });
+      const studentRef = student?.id ? doc(db, 'students', student.id) : studentCode ? doc(db, 'students', studentCode) : null;
+      if (studentRef) await updateDoc(studentRef, { telephone: form.telephone, ville: form.ville, adresse: form.adresse, updatedAt: new Date() });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
     } catch (err) { setError('Erreur : ' + err.message); }
     finally { setSaving(false); }
   };
 
   const fullName = `${student?.prenom || userProfile?.prenom || ''} ${student?.nom || userProfile?.nom || ''}`.trim();
-  const filiere = [student?.anneeFormation, student?.niveau].filter(Boolean).join(' ');
+  const initials = [userProfile?.prenom?.[0] || student?.prenom?.[0], userProfile?.nom?.[0] || student?.nom?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
   const InfoRow = ({ label, value }) => (
     <div className="flex flex-col sm:flex-row sm:items-center py-3 border-b border-slate-100 last:border-0 gap-0.5">
@@ -128,44 +158,114 @@ function ProfilTab({ student, userProfile, userId }) {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100" style={{ background: `${BLUE}07` }}>
-          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Dossier étudiant</p>
+
+      {/* Completion banner */}
+      {missingFields.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p className="text-sm font-bold text-amber-800">Dossier incomplet — {missingFields.length} information{missingFields.length > 1 ? 's' : ''} manquante{missingFields.length > 1 ? 's' : ''}</p>
+              <p className="text-xs text-amber-600 mt-0.5">Complétez votre profil pour un dossier à jour : {missingFields.join(', ')}</p>
+            </div>
+            <span className="text-sm font-black text-amber-800 shrink-0">{completionPct}%</span>
+          </div>
+          <div className="w-full h-2 bg-amber-200 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${completionPct}%`, background: '#f59e0b' }} />
+          </div>
         </div>
-        <div className="px-5">
-          <InfoRow label="Nom complet"    value={fullName} />
-          <InfoRow label="Code apprenant" value={studentCode} />
-          <InfoRow label="Email"          value={userProfile?.email} />
-          <InfoRow label="Filière"        value={filiere || '—'} />
-          <InfoRow label="Groupe"         value={student?.groupeId} />
-          <InfoRow label="CIN"            value={student?.cin} />
-          <InfoRow label="Date naissance" value={student?.dateNaissance} />
+      )}
+      {missingFields.length === 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <p className="text-sm font-semibold text-emerald-800">Dossier complet — merci !</p>
+        </div>
+      )}
+
+      {/* Photo + nom card */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-5 flex items-center gap-5">
+          {/* Avatar with upload overlay */}
+          <div className="relative shrink-0">
+            <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-white font-black text-xl"
+                 style={{ background: BLUE }}>
+              {photoURL
+                ? <img src={photoURL} alt="photo" className="w-full h-full object-cover" />
+                : initials}
+            </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 disabled:opacity-60"
+              style={{ background: BLUE }}
+              title="Changer la photo"
+            >
+              {uploading
+                ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              }
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); e.target.value = ''; }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-lg font-black text-slate-800 leading-tight">{fullName || '—'}</p>
+            <p className="text-sm text-slate-500 mt-0.5">{studentCode || userProfile?.email}</p>
+            {(student?.anneeFormation || student?.niveau) && (
+              <p className="text-xs text-slate-400 mt-1">{[student.anneeFormation, student.niveau].filter(Boolean).join(' · ')}</p>
+            )}
+            <p className="text-xs text-slate-400 mt-2">
+              {uploading ? 'Envoi en cours…' : 'Cliquez sur l\'icône pour changer la photo'}
+            </p>
+          </div>
         </div>
       </div>
 
+      {/* Academic info (read-only) */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100" style={{ background: `${BLUE}07` }}>
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Dossier académique</p>
+        </div>
+        <div className="px-5">
+          <InfoRow label="Email institutionnel" value={userProfile?.email} />
+          <InfoRow label="Code apprenant"       value={studentCode} />
+          <InfoRow label="CIN"                  value={student?.cin} />
+          <InfoRow label="Date de naissance"    value={student?.dateNaissance} />
+          <InfoRow label="Groupe"               value={student?.groupeId} />
+        </div>
+      </div>
+
+      {/* Editable fields */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-100">
-          <p className="text-sm font-semibold text-slate-800">Informations modifiables</p>
-          <p className="text-xs text-slate-400 mt-0.5">Mettez à jour vos coordonnées personnelles</p>
+          <p className="text-sm font-semibold text-slate-800">Coordonnées personnelles</p>
+          <p className="text-xs text-slate-400 mt-0.5">Ces informations sont modifiables à tout moment</p>
         </div>
         <div className="p-5 space-y-4">
           {[
-            { label: 'Téléphone', key: 'telephone', type: 'tel', ph: '+212 6XX XXX XXX' },
-            { label: 'Ville',     key: 'ville',     type: 'text', ph: 'Votre ville' },
+            { label: 'Téléphone', key: 'telephone', type: 'tel',  ph: '+212 6XX XXX XXX' },
+            { label: 'Ville',     key: 'ville',     type: 'text', ph: 'Votre ville de résidence' },
             { label: 'Adresse',   key: 'adresse',   type: 'text', ph: 'Votre adresse complète' },
-            { label: 'Photo (URL)', key: 'photo',   type: 'url', ph: 'https://…' },
-          ].map(({ label, key, type, ph }) => (
-            <div key={key}>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{label}</label>
-              <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                placeholder={ph}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 transition-all"
-                style={{ '--tw-ring-color': BLUE }}
-                onFocus={e => { e.target.style.borderColor = BLUE; e.target.style.boxShadow = `0 0 0 3px ${BLUE}18`; }}
-                onBlur={e => { e.target.style.borderColor = ''; e.target.style.boxShadow = ''; }}
-              />
-            </div>
-          ))}
+          ].map(({ label, key, type, ph }) => {
+            const isEmpty = !form[key];
+            return (
+              <div key={key}>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                  {label}
+                  {isEmpty && <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">Manquant</span>}
+                </label>
+                <input type={type} value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={ph}
+                  className="w-full px-3.5 py-2.5 border rounded-xl text-sm text-slate-800 focus:outline-none transition-all"
+                  style={{ borderColor: isEmpty ? '#fcd34d' : '#e2e8f0' }}
+                  onFocus={e => { e.target.style.borderColor = BLUE; e.target.style.boxShadow = `0 0 0 3px ${BLUE}18`; }}
+                  onBlur={e => { e.target.style.borderColor = !form[key] ? '#fcd34d' : '#e2e8f0'; e.target.style.boxShadow = ''; }}
+                />
+              </div>
+            );
+          })}
           {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">{error}</p>}
           <button onClick={handleSave} disabled={saving}
             className="w-full py-3 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-60"
@@ -693,18 +793,32 @@ export default function PortailApprenant({ auth }) {
   const studentCode = userProfile?.studentCode || userProfile?.codeApprenant;
 
   useEffect(() => {
-    if (!studentCode) { setLoadingStudent(false); return; }
+    if (!user?.uid && !studentCode) { setLoadingStudent(false); return; }
     (async () => {
       try {
-        const directSnap = await getDoc(doc(db, 'students', studentCode));
-        if (directSnap.exists()) { setStudent({ id: directSnap.id, ...directSnap.data() }); return; }
-        const q = query(collection(db, 'students'), where('code', '==', studentCode));
-        const snap = await getDocs(q);
-        if (!snap.empty) { const d = snap.docs[0]; setStudent({ id: d.id, ...d.data() }); }
+        // Try by studentId stored in users doc (fastest and most reliable)
+        const sid = userProfile?.studentId;
+        if (sid) {
+          const directSnap = await getDoc(doc(db, 'students', sid));
+          if (directSnap.exists()) { setStudent({ id: directSnap.id, ...directSnap.data() }); return; }
+        }
+        // Try direct doc ID lookup (old format where docId == code)
+        if (studentCode) {
+          const directSnap = await getDoc(doc(db, 'students', studentCode));
+          if (directSnap.exists()) { setStudent({ id: directSnap.id, ...directSnap.data() }); return; }
+          // Try by codeApprenant field
+          const q1 = query(collection(db, 'students'), where('codeApprenant', '==', studentCode));
+          const snap1 = await getDocs(q1);
+          if (!snap1.empty) { const d = snap1.docs[0]; setStudent({ id: d.id, ...d.data() }); return; }
+          // Legacy: try by 'code' field
+          const q2 = query(collection(db, 'students'), where('code', '==', studentCode));
+          const snap2 = await getDocs(q2);
+          if (!snap2.empty) { const d = snap2.docs[0]; setStudent({ id: d.id, ...d.data() }); }
+        }
       } catch (err) { console.error(err); }
       finally { setLoadingStudent(false); }
     })();
-  }, [studentCode]);
+  }, [user?.uid, studentCode, userProfile?.studentId]);
 
   const prenom      = userProfile?.prenom || student?.prenom || '';
   const nom         = userProfile?.nom    || student?.nom    || '';

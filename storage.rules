@@ -31,6 +31,15 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // ── Photos de profil apprenants / intervenants ─────────────────────────
+    match /profiles/{uid}/{fileName} {
+      allow read:   if isAuth();
+      allow create, update: if request.auth.uid == uid
+                       && request.resource.size < 5 * 1024 * 1024
+                       && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth.uid == uid || isAdmin();
+    }
+
     // ── Ressources pédagogiques générales ──────────────────────────────────
     match /ressources/{fileName} {
       allow read:   if isAuth();
