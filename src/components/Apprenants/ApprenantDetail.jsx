@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { studentsService } from '../../services/firestore';
 import { usePresencesByStudent, useSessions, useGroupes } from '../../hooks/useData';
 import { computeStudentAbsencesByModule } from '../../services/absenceService';
-import { db } from '../../services/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { db, auth } from '../../services/firebase';
+import { collection, query, where, getDocs, orderBy, setDoc, doc, getDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 const STATUT_LABELS = {
   present: 'Présent',
@@ -317,12 +318,67 @@ function BulletinCard({ item }) {
   );
 }
 
+async function createCompteApprenant(student, emailIftl) {
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) throw new Error('Clé API Firebase manquante');
+  if (!emailIftl) throw new Error('Email IFTL non générable (prénom/nom manquant)');
+
+  // Check if Firestore users doc already linked
+  const existingSnap = await getDocs(query(collection(db, 'users'), where('studentId', '==', student.id)));
+  if (!existingSnap.empty) {
+    return { alreadyExists: true, email: emailIftl };
+  }
+
+  // Generate random temp password (student will reset via email link)
+  const tempPassword = crypto.randomUUID().replace(/-/g, '') + 'Aa1!';
+
+  // Create Firebase Auth user via REST API (doesn't affect admin session)
+  const signupRes = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailIftl, password: tempPassword, returnSecureToken: true }),
+    }
+  );
+  const signupData = await signupRes.json();
+  if (!signupRes.ok) {
+    if (signupData.error?.message === 'EMAIL_EXISTS') {
+      // Account exists in Auth — find uid via a workaround: try to link via users doc
+      return { alreadyExists: true, email: emailIftl, authOnly: true };
+    }
+    throw new Error(signupData.error?.message || 'Échec création compte Firebase');
+  }
+
+  const uid = signupData.localId;
+
+  // Create users/{uid} Firestore doc
+  await setDoc(doc(db, 'users', uid), {
+    role: 'apprenant',
+    email: emailIftl,
+    nom: student.nom || '',
+    prenom: student.prenom || '',
+    studentId: student.id,
+    createdAt: new Date(),
+  });
+
+  // Update student doc with firebaseUid reference
+  await studentsService.update(student.id, { firebaseUid: uid, emailIftl });
+
+  // Send password reset email (student sets their own password)
+  await sendPasswordResetEmail(auth, emailIftl);
+
+  return { uid, email: emailIftl };
+}
+
 export default function ApprenantDetail() {
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dossier');
   const [copied, setCopied] = useState(false);
+  const [compteStatus, setCompteStatus] = useState(null); // null | 'loading' | 'done' | 'exists' | 'error'
+  const [compteError, setCompteError] = useState('');
 
   // Evaluations — eager
   const [notesData, setNotesData] = useState([]);
@@ -493,6 +549,24 @@ export default function ApprenantDetail() {
     });
   }
 
+  async function handleCreateCompte() {
+    setCompteStatus('loading');
+    setCompteError('');
+    try {
+      const result = await createCompteApprenant(student, emailIftl);
+      if (result.alreadyExists) {
+        setCompteStatus('exists');
+      } else {
+        setCompteStatus('done');
+        // Refresh student to show firebaseUid
+        studentsService.getById(id).then(setStudent);
+      }
+    } catch (err) {
+      setCompteStatus('error');
+      setCompteError(err.message);
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-5xl">
       {/* Breadcrumb */}
@@ -635,6 +709,57 @@ export default function ApprenantDetail() {
                     )}
                   </div>
                   <InfoField label="Code apprenant" value={student.code} />
+                  <div>
+                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">
+                      Accès ERP
+                    </p>
+                    {student.firebaseUid ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Compte actif
+                      </span>
+                    ) : (
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleCreateCompte}
+                          disabled={!emailIftl || compteStatus === 'loading' || compteStatus === 'done'}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#005989] text-white px-3 py-1.5 rounded-lg hover:bg-[#004a73] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {compteStatus === 'loading' ? (
+                            <>
+                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                              </svg>
+                              Création…
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                              </svg>
+                              Créer le compte ERP
+                            </>
+                          )}
+                        </button>
+                        {compteStatus === 'done' && (
+                          <p className="text-xs text-emerald-600 font-medium">
+                            Compte créé — email envoyé à {emailIftl}
+                          </p>
+                        )}
+                        {compteStatus === 'exists' && (
+                          <p className="text-xs text-amber-600 font-medium">
+                            Un compte existe déjà pour cet email
+                          </p>
+                        )}
+                        {compteStatus === 'error' && (
+                          <p className="text-xs text-red-500">{compteError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
