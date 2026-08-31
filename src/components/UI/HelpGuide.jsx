@@ -375,7 +375,9 @@ async function downloadGuidePDF(guide) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
-    doc.text(`${section.icon}  ${section.title}`, margin + 3, y + 6);
+    // Strip emoji (jsPDF doesn't support Unicode emoji — use title only)
+    const titleText = section.title.replace(/[\u{1F300}-\u{1FFFF}]/gu, '').trim();
+    doc.text(titleText, margin + 3, y + 6);
     y += 13;
 
     // Description
