@@ -212,6 +212,18 @@ service cloud.firestore {
       allow delete: if hasRole(['admin', 'direction']);
     }
 
+    // ── Demandes abonnement transport (soumises par les apprenants) ───────────
+    match /transport_demandes/{docId} {
+      allow read: if hasRole(['admin', 'direction', 'scolarite'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentId == resource.data.studentId);
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAll(['studentId', 'pointRassemblement', 'statut'])
+                    && request.resource.data.statut == 'en_attente';
+      allow update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
     // ── Formation continue ─────────────────────────────────────────────────────
     match /sessions_fc/{docId} {
       allow read: if isAuth();

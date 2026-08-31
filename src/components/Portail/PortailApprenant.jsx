@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
@@ -16,6 +16,14 @@ function IcoClock()    { return <svg className="w-5 h-5" fill="none" stroke="cur
 function IcoBook()     { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>; }
 function IcoBell()     { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>; }
 function IcoLogout()   { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>; }
+function IcoBus()      { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 6h8M6 10h12M6 14h12M8 18h8M4 6a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM8 18v2m8-2v2"/></svg>; }
+
+const POINTS_RASSEMBLEMENT = [
+  'Zaouia',
+  'Aéroport Med 5 - Terminal 1',
+  'Station Afriquia - AL Madina Deroua',
+  'Station Total - Sapino',
+];
 
 const TABS = [
   { id: 'profil',        label: 'Mon Profil',     short: 'Profil',     Icon: IcoUser  },
@@ -24,6 +32,7 @@ const TABS = [
   { id: 'absences',      label: 'Mes Absences',   short: 'Absences',   Icon: IcoClock },
   { id: 'ressources',    label: 'Ressources',     short: 'Ressources', Icon: IcoBook  },
   { id: 'notifications', label: 'Annonces',       short: 'Annonces',   Icon: IcoBell  },
+  { id: 'transport',     label: 'Transport',      short: 'Transport',  Icon: IcoBus   },
 ];
 
 const TYPE_COLORS = {
@@ -826,6 +835,210 @@ function SideNavLink({ tab, active, onClick }) {
   );
 }
 
+// ── Transport ─────────────────────────────────────────────────────────────────
+function TransportTab({ studentId, studentNom, studentPrenom, studentCode }) {
+  const [abonnement, setAbonnement] = useState(null);
+  const [demande,    setDemande]    = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [point,      setPoint]      = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted,  setSubmitted]  = useState(false);
+  const [error,      setError]      = useState('');
+
+  useEffect(() => {
+    if (!studentId) { setLoading(false); return; }
+    (async () => {
+      try {
+        // Check confirmed subscription
+        const qAbo = query(collection(db, 'transport_abonnements'), where('studentId', '==', studentId));
+        const snapAbo = await getDocs(qAbo);
+        if (!snapAbo.empty) { setAbonnement({ id: snapAbo.docs[0].id, ...snapAbo.docs[0].data() }); setLoading(false); return; }
+        // Check pending request
+        const qDem = query(collection(db, 'transport_demandes'), where('studentId', '==', studentId));
+        const snapDem = await getDocs(qDem);
+        if (!snapDem.empty) setDemande({ id: snapDem.docs[0].id, ...snapDem.docs[0].data() });
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    })();
+  }, [studentId]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!point) { setError('Veuillez sélectionner un point de rassemblement.'); return; }
+    setSubmitting(true); setError('');
+    try {
+      const newDemande = {
+        studentId,
+        studentNom:    studentNom || '',
+        studentPrenom: studentPrenom || '',
+        studentCode:   studentCode || '',
+        pointRassemblement: point,
+        statut:        'en_attente',
+        dateDemande:   serverTimestamp(),
+      };
+      const ref = await addDoc(collection(db, 'transport_demandes'), newDemande);
+      setDemande({ id: ref.id, ...newDemande, statut: 'en_attente' });
+      setSubmitted(true);
+    } catch (err) { setError('Erreur lors de la soumission : ' + err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  if (loading) return <Spinner />;
+
+  // ── Active subscription ──
+  if (abonnement && abonnement.statut === 'actif') {
+    return (
+      <div className="space-y-4 pt-2">
+        <div className="rounded-2xl overflow-hidden border border-green-100"
+             style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' }}>
+          <div className="px-6 py-4 flex items-center gap-3" style={{ background: '#16a34a' }}>
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-xl">🚌</div>
+            <div>
+              <p className="text-white font-bold text-base">Abonnement Transport actif</p>
+              <p className="text-green-100 text-xs">Navette IFTL — {new Date(abonnement.dateDebut?.toDate?.() || abonnement.dateDebut).toLocaleDateString('fr-MA', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            </div>
+            <span className="ml-auto bg-white text-green-700 text-xs font-bold px-3 py-1 rounded-full">Confirmé</span>
+          </div>
+          <div className="px-6 py-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-0.5">Point de rassemblement</p>
+                <p className="text-slate-800 font-semibold text-sm">{abonnement.pointRassemblement}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 bg-white/60 rounded-lg px-4 py-3">
+              Pour modifier votre point de rassemblement ou suspendre votre abonnement, contactez la scolarité.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Suspended subscription ──
+  if (abonnement && abonnement.statut === 'suspendu') {
+    return (
+      <div className="rounded-2xl border border-orange-200 overflow-hidden">
+        <div className="px-6 py-4 flex items-center gap-3" style={{ background: '#ea580c' }}>
+          <span className="text-2xl">⏸️</span>
+          <div>
+            <p className="text-white font-bold">Abonnement suspendu</p>
+            <p className="text-orange-100 text-xs">Navette IFTL — {abonnement.pointRassemblement}</p>
+          </div>
+        </div>
+        <div className="px-6 py-5 bg-orange-50">
+          <p className="text-sm text-slate-600">Votre abonnement transport est temporairement suspendu. Contactez la scolarité pour le réactiver.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Pending request ──
+  if (demande) {
+    return (
+      <div className="space-y-4 pt-2">
+        <div className="rounded-2xl border border-blue-100 overflow-hidden">
+          <div className="px-6 py-4 flex items-center gap-3" style={{ background: BLUE }}>
+            <span className="text-2xl">⏳</span>
+            <div>
+              <p className="text-white font-bold">Demande en cours de traitement</p>
+              <p className="text-blue-200 text-xs">Votre demande a été transmise à la scolarité</p>
+            </div>
+          </div>
+          <div className="px-6 py-5 bg-blue-50 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+              </svg>
+              <p className="text-sm text-slate-700">Point demandé : <span className="font-semibold">{demande.pointRassemblement}</span></p>
+            </div>
+            <p className="text-xs text-slate-500 border-t border-blue-100 pt-3">
+              La scolarité confirmera votre abonnement prochainement. Vous recevrez une notification dès la confirmation.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── No subscription — request form ──
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+        <div className="px-6 py-4 flex items-center gap-3 border-b border-slate-100" style={{ background: '#f8fafc' }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl" style={{ background: '#e0f2fe' }}>🚌</div>
+          <div>
+            <p className="font-bold text-slate-800">Navette IFTL</p>
+            <p className="text-xs text-slate-400">Souscrire à l'abonnement transport</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+          <p className="text-sm text-slate-600">
+            Sélectionnez votre point de rassemblement. La scolarité confirmera votre abonnement et vous recevrez une notification.
+          </p>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Point de rassemblement
+            </label>
+            <select
+              value={point}
+              onChange={e => setPoint(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-xl border text-sm text-slate-700 bg-white focus:outline-none transition-all"
+              style={{
+                borderColor: point ? BLUE : '#e2e8f0',
+                boxShadow: point ? `0 0 0 3px ${BLUE}18` : 'none',
+              }}
+            >
+              <option value="">— Choisir un point de rassemblement —</option>
+              {POINTS_RASSEMBLEMENT.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 px-4 py-2 rounded-lg">{error}</p>
+          )}
+
+          {submitted ? (
+            <div className="flex items-center gap-2 text-green-700 bg-green-50 px-4 py-3 rounded-xl">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+              </svg>
+              <span className="text-sm font-medium">Demande envoyée avec succès !</span>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting || !point}
+              className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all"
+              style={{
+                background: point ? BLUE : '#cbd5e1',
+                cursor: point ? 'pointer' : 'not-allowed',
+                opacity: submitting ? 0.7 : 1,
+              }}
+            >
+              {submitting ? 'Envoi en cours…' : 'Soumettre ma demande'}
+            </button>
+          )}
+
+          <p className="text-xs text-center text-slate-400">
+            Votre demande sera traitée par l'équipe de scolarité dans les 48 h ouvrables.
+          </p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function PortailApprenant({ auth }) {
   const { user, userProfile, logout } = auth;
@@ -1041,6 +1254,7 @@ export default function PortailApprenant({ auth }) {
                 {activeTab === 'absences'      && <AbsencesTab studentId={studentId} studentCode={studentCode} />}
                 {activeTab === 'ressources'    && <RessourcesTab />}
                 {activeTab === 'notifications' && <NotificationsTab groupeId={groupeId} />}
+                {activeTab === 'transport'     && <TransportTab studentId={studentId} studentNom={nom} studentPrenom={prenom} studentCode={studentCode} />}
               </>
             )}
           </div>
