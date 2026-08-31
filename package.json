@@ -13,6 +13,10 @@
     "firebase:deploy": "firebase deploy --project erp-pedago-iftl"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "axios": "^1.13.6",
     "date-fns": "^4.2.1",
     "firebase": "^12.11.0",

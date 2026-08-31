@@ -31,3 +31,12 @@ firebase-debug.log*
 *.sln
 *.sw?
 .claude/
+
+# Capacitor — build artifacts (garde la config et les sources Android/iOS)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+ios/App/Pods/
+ios/App/App.xcworkspace/
+
