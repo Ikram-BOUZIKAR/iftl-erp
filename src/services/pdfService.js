@@ -61,9 +61,6 @@ function drawIftlHeader(doc, title, subtitle) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
-  doc.setFontSize(6);
-  doc.setTextColor(...BRAND.yellow);
-  doc.text('ERP Pédagogique', 14, 28);
   doc.setTextColor(...BRAND.white);
 
   // Document title (right-aligned)
@@ -194,7 +191,7 @@ export function generateRecu(facture, etudiant) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BRAND.grey);
   doc.text(`Date d'émission : ${today}`, 14, y + 2);
-  doc.text(`Référence facture : ${recuNum}`, doc.internal.pageSize.getWidth() - 14, y + 2, { align: 'right' });
+  doc.text(`Référence reçu : ${recuNum}`, doc.internal.pageSize.getWidth() - 14, y + 2, { align: 'right' });
   y += 9;
 
   // ── Student info ──
@@ -246,59 +243,57 @@ export function generateRecu(facture, etudiant) {
 
   y = doc.lastAutoTable.finalY + 8;
 
-  // ── Summary box ──
   const w = doc.internal.pageSize.getWidth();
-  const summaryX = w / 2;
-  const summaryW = w / 2 - 14;
-
-  doc.setFillColor(...BRAND.lightGrey);
-  doc.setDrawColor(...BRAND.blue);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(summaryX, y, summaryW, 28, 2, 2, 'FD');
-
   const fmt = (n) => new Intl.NumberFormat('fr-MA').format(n) + ' DH';
 
+  // ── Statut badge (left) ──
+  const statutLabel = resteDu <= 0 ? 'SOLDÉE' : totalPaye > 0 ? 'PARTIELLEMENT PAYÉE' : 'IMPAYÉE';
+  const statutColor = resteDu <= 0 ? [0, 140, 70] : totalPaye > 0 ? [180, 120, 0] : [180, 0, 0];
+  const badgeW = 68;
+  doc.setFillColor(...statutColor);
+  doc.roundedRect(14, y, badgeW, 10, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.setTextColor(...BRAND.darkBlue);
-
-  const col1 = summaryX + 6;
-  const col2 = summaryX + summaryW - 6;
-
-  doc.text('Montant total :', col1, y + 8);
-  doc.text(fmt(facture.montantTotal || 0), col2, y + 8, { align: 'right' });
-
-  doc.text('Total payé :', col1, y + 16);
-  doc.setTextColor(0, 120, 60);
-  doc.text(fmt(totalPaye), col2, y + 16, { align: 'right' });
-
-  doc.setTextColor(...BRAND.darkBlue);
-  doc.text('Reste dû :', col1, y + 24);
-  doc.setTextColor(resteDu > 0 ? 180 : 0, resteDu > 0 ? 0 : 120, resteDu > 0 ? 0 : 60);
-  doc.text(fmt(Math.max(0, resteDu)), col2, y + 24, { align: 'right' });
-
-  // ── Statut badge ──
-  const statutLabel = resteDu <= 0 ? 'SOLDÉE' : totalPaye > 0 ? 'PARTIELLEMENT PAYÉE' : 'IMPAYÉE';
-  const statutColor = resteDu <= 0 ? [0, 120, 60] : totalPaye > 0 ? [180, 120, 0] : [180, 0, 0];
-
-  doc.setFillColor(...statutColor);
-  doc.roundedRect(14, y + 4, 60, 12, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
   doc.setTextColor(255, 255, 255);
-  doc.text(statutLabel, 14 + 30, y + 11.5, { align: 'center' });
+  doc.text(statutLabel, 14 + badgeW / 2, y + 6.8, { align: 'center' });
+
+  // ── Summary table (right) ──
+  const sumX = w / 2 + 4;
+  const sumW = w / 2 - 18;
+  const lineH = 8;
+  const sumH = 3 * lineH + 8;
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(sumX, y, sumW, sumH, 2, 2, 'FD');
+
+  const sumRows = [
+    { label: 'Montant total', value: fmt(facture.montantTotal || 0), color: BRAND.darkBlue },
+    { label: 'Total versé', value: fmt(totalPaye), color: [0, 130, 65] },
+    { label: 'Reste dû', value: fmt(Math.max(0, resteDu)), color: resteDu > 0 ? [180, 0, 0] : [0, 130, 65] },
+  ];
+  sumRows.forEach((r, i) => {
+    const ry = y + 4 + lineH * i + lineH * 0.75;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...BRAND.darkBlue);
+    doc.text(r.label, sumX + 5, ry);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...r.color);
+    doc.text(r.value, sumX + sumW - 5, ry, { align: 'right' });
+  });
 
   // ── Signature zone ──
-  y += 36;
+  y += sumH + 10;
   doc.setDrawColor(...BRAND.blue);
   doc.setLineWidth(0.3);
   doc.setLineDashPattern([2, 2], 0);
-  doc.line(14, y + 18, 80, y + 18);
+  doc.line(14, y + 14, 80, y + 14);
   doc.setLineDashPattern([], 0);
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.grey);
-  doc.text('Cachet et signature', 14, y + 23);
+  doc.text('Cachet et signature', 14, y + 19);
 
   drawFooter(doc);
 
