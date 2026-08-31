@@ -111,32 +111,48 @@ function drawFooter(doc) {
 function infoBox(doc, fields, startY, leftMargin = 14, rightMargin = 14) {
   const w = doc.internal.pageSize.getWidth();
   const colW = (w - leftMargin - rightMargin) / 2;
-  const lineH = 6.5;
+  const lineH = 7;
   const pad = 4;
-  const boxH = Math.ceil(fields.length / 2) * lineH + pad * 2;
+  const labelW = 26; // fixed width reserved for label text
+  const valueMaxW = colW - labelW - pad - 3; // max width before next column
+
+  const leftFields  = fields.filter((_, i) => i % 2 === 0);
+  const rightFields = fields.filter((_, i) => i % 2 === 1);
+  const rowCount = Math.max(leftFields.length, rightFields.length);
+  const boxH = rowCount * lineH + pad * 2;
 
   doc.setFillColor(...BRAND.lightBlue);
   doc.setDrawColor(...BRAND.blue);
   doc.setLineWidth(0.3);
   doc.roundedRect(leftMargin, startY, w - leftMargin - rightMargin, boxH, 2, 2, 'FD');
 
-  const leftFields = fields.filter((_, i) => i % 2 === 0);
-  const rightFields = fields.filter((_, i) => i % 2 === 1);
+  // Vertical divider between columns
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.2);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.line(leftMargin + colW, startY + pad, leftMargin + colW, startY + boxH - pad);
+  doc.setLineDashPattern([], 0);
 
   const renderCol = (list, x) => {
     list.forEach((f, i) => {
-      const y = startY + pad + lineH * i + lineH * 0.7;
+      const y = startY + pad + lineH * i + lineH * 0.72;
+      // Label
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(...BRAND.darkBlue);
       doc.text(`${f.label} :`, x, y);
+      // Value — truncate to maxWidth to prevent overflow
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
       doc.setTextColor(...BRAND.black);
-      doc.text(String(f.value ?? '—'), x + 38, y);
+      const str = String(f.value ?? '—');
+      const parts = doc.splitTextToSize(str, valueMaxW);
+      const display = parts.length > 1 ? parts[0].trimEnd() + '…' : parts[0];
+      doc.text(display, x + labelW, y);
     });
   };
 
-  renderCol(leftFields, leftMargin + pad);
+  renderCol(leftFields,  leftMargin + pad);
   renderCol(rightFields, leftMargin + colW + pad);
 
   return startY + boxH + 6;
