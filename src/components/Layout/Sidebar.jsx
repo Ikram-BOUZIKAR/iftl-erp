@@ -202,13 +202,13 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
       <div className={`flex items-center shrink-0 h-14 border-b border-white/10 ${open ? 'px-4 gap-3' : 'justify-center'}`}>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-md"
           style={{ background: '#f5c845' }}>
-          <span className="font-black text-[11px]" style={{ color: '#003d63' }}>IF</span>
+          <span className="font-black text-[10px]" style={{ color: '#003d63' }}>IFTL</span>
         </div>
         {open && (
           <div className="min-w-0">
-            <p className="text-white font-black text-sm tracking-wider leading-tight">Institut</p>
+            <p className="text-white font-black text-sm tracking-wider leading-tight">IFTL</p>
             <p className="text-[10px] leading-tight font-medium" style={{ color: 'rgba(245,200,69,0.8)' }}>
-              ERP Pédagogique
+              Institut de Formation
             </p>
           </div>
         )}
