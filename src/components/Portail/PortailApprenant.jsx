@@ -392,13 +392,17 @@ function ResultatsTab({ studentId, studentCode }) {
 
         if (studentNotes.length === 0) { setIsEmpty(true); return; }
 
-        // 2. Fetch evaluations referenced by the notes
+        // 2. Fetch evaluations referenced by the notes — keep only new-system evals
         const evalIds = [...new Set(studentNotes.map(n => n.evaluationId).filter(Boolean))];
         const evalMap = {};
         await Promise.all(evalIds.map(async eid => {
           try {
             const s = await getDoc(doc(db, 'evaluations', eid));
-            if (s.exists()) evalMap[eid] = { id: s.id, ...s.data() };
+            if (s.exists()) {
+              const ev = { id: s.id, ...s.data() };
+              // Only include evaluations from the new intervenant entry system
+              if (ev.source === 'intervenant') evalMap[eid] = ev;
+            }
           } catch { /* ignore */ }
         }));
 
@@ -474,6 +478,7 @@ function ResultatsTab({ studentId, studentCode }) {
             return { label: semLabel, modules: moduleList, moyenneGenerale, mention: getMention(moyenneGenerale), hasPending };
           });
 
+        if (result.length === 0) setIsEmpty(true);
         setSemestres(result);
       } catch (err) { console.error('ResultatsTab error:', err); }
       finally { setLoading(false); }
@@ -501,7 +506,7 @@ function ResultatsTab({ studentId, studentCode }) {
 
   if (loading || pvLoading) return <Spinner />;
   if ((isEmpty || semestres.length === 0) && pvGroupes.length === 0)
-    return <EmptyState message="Aucun résultat disponible pour le moment." />;
+    return <EmptyState message="Vos résultats seront disponibles dès que vos intervenants auront saisi les notes." />;
 
   return (
     <div className="space-y-5">

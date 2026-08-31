@@ -125,6 +125,7 @@ const SECTIONS = [
       { to: '/parametres',             label: 'Paramètres',          icon: 'cog' },
       { to: '/admin/passage-niveau',   label: 'Passage de niveau',   icon: 'trending' },
       { to: '/admin/repair-groupes',   label: 'Réparer groupes',     icon: 'cog' },
+      { to: '/admin/deduplication',    label: 'Dédoublonnage',       icon: 'users' },
     ],
   },
 ];
