@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { collection, getDocs, query, where, onSnapshot, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot, addDoc, Timestamp, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import NotesIntervenantPage from '../Notes/NotesIntervenantPage';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { presencesService, studentsService } from '../../services/firestore';
@@ -18,11 +19,13 @@ function IcoLogout() { return <svg className="w-5 h-5" fill="none" stroke="curre
 function IcoMenu()   { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>; }
 function IcoClose()  { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>; }
 function IcoStats()  { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>; }
+function IcoNotes()  { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>; }
 function IcoPlus()   { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>; }
 
 const TABS = [
   { id: 'planning',      label: 'Mon Planning',   short: 'Planning',  Icon: IcoCal   },
   { id: 'emargement',   label: 'Émargement',      short: 'Émarger',   Icon: IcoPen   },
+  { id: 'notes',         label: 'Saisie des notes', short: 'Notes',   Icon: IcoNotes },
   { id: 'statistiques', label: 'Statistiques',    short: 'Stats',     Icon: IcoStats },
   { id: 'profil',       label: 'Mon Profil',      short: 'Profil',    Icon: IcoUser  },
 ];
@@ -911,6 +914,71 @@ export default function PortailIntervenant({ auth }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // ── Note-deadline reminders ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!intervenant?.id) return;
+
+    async function checkNoteReminders() {
+      const DEADLINES = { S1: new Date('2027-01-30'), S2: new Date('2027-05-30') };
+      const now = new Date();
+
+      for (const [sem, deadline] of Object.entries(DEADLINES)) {
+        const daysLeft = Math.ceil((deadline - now) / 86_400_000);
+        // Only notify within 60 days of deadline (or overdue)
+        if (daysLeft > 60) continue;
+
+        // Get unique (module, groupe) pairs for this intervenant
+        const pairs = new Map();
+        sessions.forEach(s => {
+          const key = `${s.moduleId || s.module}__${s.groupeId}`;
+          if (!pairs.has(key)) pairs.set(key, { moduleId: s.moduleId, moduleNom: s.module, groupeId: s.groupeId });
+        });
+
+        for (const { moduleId, moduleNom, groupeId } of pairs.values()) {
+          // Check if an EFM evaluation exists for this (module, groupe, sem)
+          try {
+            const evSnap = await getDocs(
+              query(collection(db, 'evaluations'),
+                where('groupeId', '==', groupeId),
+                where('type', '==', 'EFM'),
+                where('sessionAcademique', '==', sem),
+                where('source', '==', 'intervenant'),
+              )
+            );
+            const hasEFM = evSnap.docs.some(d =>
+              d.data().moduleId === moduleId || d.data().moduleNom === moduleNom
+            );
+            if (hasEFM) continue; // notes already entered
+
+            // Check if we already sent a notification this week
+            const todayStr = now.toISOString().slice(0, 10);
+            const notifId  = `note_reminder_${intervenant.id}_${sem}_${groupeId}_${moduleId || moduleNom}_${todayStr.slice(0, 7)}`;
+            const notifRef = doc(db, 'notifications', notifId);
+
+            const modLabel = moduleNom || moduleId || 'module';
+            const msg = daysLeft < 0
+              ? `⚠️ Délai dépassé — Notes EFM ${sem} (${modLabel}) non saisies`
+              : `📋 Rappel : Saisir les notes EFM ${sem} pour ${modLabel} avant le ${deadline.toLocaleDateString('fr-FR')} (J-${daysLeft})`;
+
+            await setDoc(notifRef, {
+              userId:      intervenant.id,
+              type:        'note_reminder',
+              message:     msg,
+              semestre:    sem,
+              moduleId:    moduleId || '',
+              moduleNom:   moduleNom || '',
+              groupeId,
+              read:        false,
+              createdAt:   serverTimestamp(),
+            }, { merge: true });
+          } catch { /* ignore permission errors */ }
+        }
+      }
+    }
+
+    checkNoteReminders();
+  }, [intervenant?.id, sessions]);
+
   const openCount = sessions.filter(s => s.statut === 'en_cours').length;
   const initials  = (intervenant?.prenom?.[0] || '?').toUpperCase();
 
@@ -921,10 +989,11 @@ export default function PortailIntervenant({ auth }) {
   };
 
   const tabTitles = {
-    planning: 'Mon Planning',
-    emargement: 'Feuilles de présence',
+    planning:     'Mon Planning',
+    emargement:   'Feuilles de présence',
+    notes:        'Saisie des notes',
     statistiques: 'Mes Statistiques',
-    profil: 'Mon Profil',
+    profil:       'Mon Profil',
   };
 
   if (loading) {
@@ -1091,6 +1160,13 @@ export default function PortailIntervenant({ auth }) {
             )}
             {activeTab === 'emargement' && (
               <EmargementTab sessions={sessions} onOpenEmargement={setSelectedSession} onNouvelleSeance={() => setShowNouvelleSeance(true)} />
+            )}
+            {activeTab === 'notes' && (
+              <NotesIntervenantPage
+                intervenantId={intervenant?.id}
+                sessions={sessions}
+                groupes={groupes}
+              />
             )}
             {activeTab === 'statistiques' && (
               <StatistiquesTab sessions={sessions} intervenant={intervenant} />

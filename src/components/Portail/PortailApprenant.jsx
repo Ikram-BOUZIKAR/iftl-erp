@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
@@ -429,20 +430,40 @@ function ResultatsTab({ studentId, studentCode }) {
             const moduleList = Object.entries(moduleMap).map(([mid, items]) => {
               const mod      = modMap[mid];
               const modCoeff = parseFloat(mod?.coeff) || 1;
-              let evWeightedSum = 0, evCoeffSum = 0, pending = 0;
-              for (const { note, ev } of items) {
-                const bareme  = parseFloat(ev.bareme)      || 20;
-                const evCoeff = parseFloat(ev.coefficient) || 1;
-                if (note.absent) {
-                  evWeightedSum += 0; evCoeffSum += evCoeff; // absent = 0
-                } else if (note.note != null) {
-                  evWeightedSum += (parseFloat(note.note) / bareme) * 20 * evCoeff;
-                  evCoeffSum += evCoeff;
-                } else {
-                  pending++; // note not yet entered
+              let moyenne = null, pending = 0;
+
+              // Detect new-system evaluations (CC/EFM/PARTICIPATION/TD/SOUTENANCE/RATTRAPAGE)
+              const isNewSystem = items.some(({ ev }) => NEW_TYPE_SET.has(ev?.type));
+
+              if (isNewSystem) {
+                // New formula: EFM 60% + mean(others) 40%
+                const notesParType = {};
+                for (const { note, ev } of items) {
+                  if (!ev || !NEW_TYPE_SET.has(ev.type)) continue;
+                  if (note.note == null && !note.absent) { pending++; continue; }
+                  if (!notesParType[ev.type]) notesParType[ev.type] = [];
+                  notesParType[ev.type].push(note.absent ? 0 : Number(note.note));
                 }
+                const res = calculerNouvelleFormule(notesParType);
+                moyenne = res.moyenne;
+              } else {
+                // Legacy formula: coefficient-weighted average normalised to /20
+                let evWeightedSum = 0, evCoeffSum = 0;
+                for (const { note, ev } of items) {
+                  const bareme  = parseFloat(ev?.bareme)      || 20;
+                  const evCoeff = parseFloat(ev?.coefficient) || 1;
+                  if (note.absent) {
+                    evWeightedSum += 0; evCoeffSum += evCoeff;
+                  } else if (note.note != null) {
+                    evWeightedSum += (parseFloat(note.note) / bareme) * 20 * evCoeff;
+                    evCoeffSum += evCoeff;
+                  } else {
+                    pending++;
+                  }
+                }
+                moyenne = evCoeffSum > 0 ? evWeightedSum / evCoeffSum : null;
               }
-              const moyenne = evCoeffSum > 0 ? evWeightedSum / evCoeffSum : null;
+
               if (moyenne !== null) { genWeightedSum += moyenne * modCoeff; genCoeffSum += modCoeff; }
               return { id: mid, nom: mod?.nom || mod?.code || mid, coeff: modCoeff, moyenne, pending, evalCount: items.length };
             });
