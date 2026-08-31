@@ -368,7 +368,11 @@ function UtilisateursTab({ userRole }) {
       const snapshot = await getDocs(collection(db, 'users'));
       const list = [];
       snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
-      list.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      list.sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0);
+        const tb = b.createdAt?.toMillis?.() ?? (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0);
+        return ta - tb;
+      });
       setUsers(list);
     } catch (err) {
       toast.error('Impossible de charger les utilisateurs : ' + err.message);

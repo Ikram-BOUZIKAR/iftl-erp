@@ -370,6 +370,8 @@ function ResultatsTab({ studentId, studentCode }) {
   const [semestres, setSemestres] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [isEmpty,   setIsEmpty]   = useState(false);
+  const [pvGroupes, setPvGroupes] = useState([]);
+  const [pvLoading, setPvLoading] = useState(true);
 
   useEffect(() => {
     if (!studentId && !studentCode) { setLoading(false); setIsEmpty(true); return; }
@@ -478,8 +480,27 @@ function ResultatsTab({ studentId, studentCode }) {
     })();
   }, [studentId, studentCode]);
 
-  if (loading) return <Spinner />;
-  if (isEmpty || semestres.length === 0)
+  // Load historique PV
+  useEffect(() => {
+    if (!studentCode) { setPvLoading(false); return; }
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'historique_notes'), where('studentCode', '==', studentCode)));
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const grouped = {};
+        for (const item of items) {
+          const key = `${item.anneeAcademique}||${item.groupeLabel}`;
+          if (!grouped[key]) grouped[key] = { annee: item.anneeAcademique, groupe: item.groupeLabel, filiere: item.filiere, modules: [] };
+          grouped[key].modules.push(item);
+        }
+        setPvGroupes(Object.values(grouped).sort((a, b) => b.annee.localeCompare(a.annee)));
+      } catch { /* permission or no data */ }
+      finally { setPvLoading(false); }
+    })();
+  }, [studentCode]);
+
+  if (loading || pvLoading) return <Spinner />;
+  if ((isEmpty || semestres.length === 0) && pvGroupes.length === 0)
     return <EmptyState message="Aucun résultat disponible pour le moment." />;
 
   return (
@@ -531,6 +552,79 @@ function ResultatsTab({ studentId, studentCode }) {
           </div>
         </div>
       ))}
+
+      {/* Historique des notes — PV importés */}
+      {pvGroupes.length > 0 && (
+        <div className="space-y-4">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
+            Historique des notes (PV importés)
+          </p>
+          {pvGroupes.map(grp => {
+            const hasCTL = grp.modules.some(m => m.ctl !== null && m.ctl !== undefined);
+            const validMods = grp.modules.filter(m => m.moy !== null && m.moy !== undefined);
+            const totalCoeff = validMods.reduce((s, m) => s + (Number(m.coeff) || 1), 0);
+            const moyGen = totalCoeff > 0
+              ? validMods.reduce((s, m) => s + (Number(m.moy) * (Number(m.coeff) || 1)), 0) / totalCoeff
+              : null;
+            return (
+              <div key={`${grp.annee}-${grp.groupe}`}
+                   className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3"
+                     style={{ background: 'linear-gradient(135deg,#334155,#475569)' }}>
+                  <div>
+                    <p className="text-white font-bold text-sm">{grp.filiere} — {grp.groupe}</p>
+                    <p className="text-white/60 text-xs">{grp.annee}</p>
+                  </div>
+                  {moyGen !== null && (
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-white leading-none">
+                        {moyGen.toFixed(2)}
+                        <span className="text-xs font-normal text-white/60 ml-1">/20</span>
+                      </p>
+                      <p className="text-white/60 text-xs">Moy. générale</p>
+                    </div>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500">
+                        <th className="px-4 py-2 text-left font-medium">Module</th>
+                        <th className="px-3 py-2 text-center font-medium w-12">Coef.</th>
+                        {hasCTL && <th className="px-3 py-2 text-center font-medium w-14">CTL</th>}
+                        {hasCTL && <th className="px-3 py-2 text-center font-medium w-14">EFM</th>}
+                        <th className="px-3 py-2 text-center font-medium w-16">Moy.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {grp.modules.map((m, i) => (
+                        <tr key={i} className="hover:bg-slate-50/60">
+                          <td className="px-4 py-2.5 text-slate-700 font-medium">{m.moduleNom}</td>
+                          <td className="px-3 py-2.5 text-center text-slate-400">{m.coeff}</td>
+                          {hasCTL && (
+                            <td className="px-3 py-2.5 text-center tabular-nums text-slate-600">
+                              {m.ctl !== null ? Number(m.ctl).toFixed(2) : '—'}
+                            </td>
+                          )}
+                          {hasCTL && (
+                            <td className="px-3 py-2.5 text-center tabular-nums text-slate-600">
+                              {m.efm !== null ? Number(m.efm).toFixed(2) : '—'}
+                            </td>
+                          )}
+                          <td className="px-3 py-2.5 text-center tabular-nums font-bold"
+                              style={{ color: m.moy !== null ? moyColor(Number(m.moy)) : '#cbd5e1' }}>
+                            {m.moy !== null ? Number(m.moy).toFixed(2) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

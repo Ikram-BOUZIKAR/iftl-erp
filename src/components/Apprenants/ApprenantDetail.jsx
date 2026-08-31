@@ -389,6 +389,11 @@ export default function ApprenantDetail() {
   const [bulletinsLoading, setBulletinsLoading] = useState(false);
   const [bulletinsFetched, setBulletinsFetched] = useState(false);
 
+  // Historique PV — lazy
+  const [pvNotes, setPvNotes] = useState([]);
+  const [pvLoading, setPvLoading] = useState(false);
+  const [pvFetched, setPvFetched] = useState(false);
+
   // Annonces — lazy
   const [annonces, setAnnonces] = useState([]);
   const [annoncesLoading, setAnnoncesLoading] = useState(false);
@@ -490,6 +495,29 @@ export default function ApprenantDetail() {
       })
       .catch(() => setBulletinsLoading(false));
   }, [activeTab, bulletinsFetched, student, id]);
+
+  // Load historique PV (lazy — only when résultats tab first opened)
+  useEffect(() => {
+    if (activeTab !== 'resultats' || pvFetched || !student) return;
+    setPvFetched(true);
+    setPvLoading(true);
+    const studentCode = student.code || student.studentCode || student.codeApprenant || '';
+    if (!studentCode) { setPvLoading(false); return; }
+    getDocs(query(collection(db, 'historique_notes'), where('studentCode', '==', studentCode)))
+      .then(snap => {
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Group by année + filière + groupe
+        const grouped = {};
+        for (const item of items) {
+          const key = `${item.anneeAcademique}||${item.groupeLabel}`;
+          if (!grouped[key]) grouped[key] = { annee: item.anneeAcademique, groupe: item.groupeLabel, filiere: item.filiere, modules: [] };
+          grouped[key].modules.push({ moduleNom: item.moduleNom, coeff: item.coeff, note: item.note, ctl: item.ctl, efm: item.efm, moy: item.moy });
+        }
+        setPvNotes(Object.values(grouped).sort((a, b) => b.annee.localeCompare(a.annee)));
+        setPvLoading(false);
+      })
+      .catch(() => setPvLoading(false));
+  }, [activeTab, pvFetched, student]);
 
   // Load annonces (lazy — only when annonces tab first opened)
   useEffect(() => {
@@ -825,9 +853,78 @@ export default function ApprenantDetail() {
           {/* === TAB: RÉSULTATS === */}
           {activeTab === 'resultats' && (
             <div className="space-y-6">
-              {/* A — Relevé de notes (PV / bulletins) */}
+
+              {/* A — Historique PV importé */}
               <div>
-                <h2 className="font-bold text-slate-800 mb-4">Relevé de notes (PV)</h2>
+                <h2 className="font-bold text-slate-800 mb-4">Historique des notes (PV 2025-2026)</h2>
+                {pvLoading ? (
+                  <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
+                    <div className="w-4 h-4 border-2 border-[#005989] border-t-transparent rounded-full animate-spin"></div>
+                    Chargement…
+                  </div>
+                ) : pvNotes.length === 0 ? (
+                  <div className="bg-slate-50 rounded-xl p-6 text-center">
+                    <p className="text-slate-400 text-sm">Aucun PV disponible pour cet apprenant.</p>
+                  </div>
+                ) : (
+                  pvNotes.map(g => {
+                    const validMods = g.modules.filter(m => m.note !== null && m.note !== 0);
+                    const totalCoeff = validMods.reduce((s, m) => s + (m.coeff || 1), 0);
+                    const moyGen = totalCoeff > 0
+                      ? validMods.reduce((s, m) => s + (m.moy ?? m.note ?? 0) * (m.coeff || 1), 0) / totalCoeff
+                      : null;
+                    return (
+                      <div key={g.groupe} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-3">
+                        <div className="px-5 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg,#005989,#0077b6)' }}>
+                          <div>
+                            <p className="text-white font-bold text-sm">{g.groupe}</p>
+                            <p className="text-white/60 text-xs">{g.annee}</p>
+                          </div>
+                          {moyGen !== null && (
+                            <div className="text-right">
+                              <p className="text-2xl font-black text-white leading-none tabular-nums">{moyGen.toFixed(2)}<span className="text-xs font-normal text-white/60 ml-1">/20</span></p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-500 font-semibold">
+                                <th className="text-left px-4 py-2">Module</th>
+                                <th className="text-center px-3 py-2 w-12">Coef</th>
+                                {g.modules.some(m => m.ctl !== null) && <th className="text-center px-3 py-2 w-14">CTL 40%</th>}
+                                {g.modules.some(m => m.efm !== null) && <th className="text-center px-3 py-2 w-14">EFM 60%</th>}
+                                <th className="text-center px-3 py-2 w-16">Moy /20</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {g.modules.map((m, i) => {
+                                const moy = m.moy ?? m.note;
+                                const color = moy >= 10 ? '#16a34a' : '#dc2626';
+                                return (
+                                  <tr key={i} className="hover:bg-slate-50">
+                                    <td className="px-4 py-2 text-slate-700">{m.moduleNom}</td>
+                                    <td className="px-3 py-2 text-center text-slate-400">{m.coeff}</td>
+                                    {g.modules.some(mod => mod.ctl !== null) && <td className="px-3 py-2 text-center text-slate-500">{m.ctl !== null ? m.ctl.toFixed(2) : '—'}</td>}
+                                    {g.modules.some(mod => mod.efm !== null) && <td className="px-3 py-2 text-center text-slate-500">{m.efm !== null ? m.efm.toFixed(2) : '—'}</td>}
+                                    <td className="px-3 py-2 text-center font-bold tabular-nums" style={{ color: moy !== null && moy !== 0 ? color : '#94a3b8' }}>
+                                      {moy !== null && moy !== 0 ? moy.toFixed(2) : '—'}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* B — Bulletins générés */}
+              <div>
+                <h2 className="font-bold text-slate-800 mb-4">Bulletins générés</h2>
                 {bulletinsLoading ? (
                   <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
                     <div className="w-4 h-4 border-2 border-[#005989] border-t-transparent rounded-full animate-spin"></div>
@@ -846,7 +943,7 @@ export default function ApprenantDetail() {
                 )}
               </div>
 
-              {/* B — Évaluations */}
+              {/* C — Évaluations saisies */}
               <NotesSection notesData={notesData} loading={notesLoading} />
             </div>
           )}
