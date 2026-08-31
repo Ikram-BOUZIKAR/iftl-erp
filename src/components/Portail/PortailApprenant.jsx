@@ -346,117 +346,161 @@ function moyColor(n) {
   return isNaN(v) ? '#94a3b8' : v >= 10 ? '#16a34a' : '#dc2626';
 }
 
-function DecisionBadge({ decision }) {
-  if (!decision) return null;
-  const lo = decision.toLowerCase();
-  const style = lo.includes('admis') || lo.includes('valid') || lo.includes('passage')
-    ? { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' }
-    : lo.includes('rattrapage') || lo.includes('ajourné')
-    ? { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' }
-    : { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' };
-  return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full border"
-          style={{ background: style.bg, color: style.text, borderColor: style.border }}>
-      {decision}
-    </span>
-  );
+function getMention(avg) {
+  if (avg == null) return null;
+  const v = parseFloat(avg);
+  if (v >= 16) return 'Très bien';
+  if (v >= 14) return 'Bien';
+  if (v >= 12) return 'Assez bien';
+  if (v >= 10) return 'Passable';
+  return 'Insuffisant';
 }
 
 function ResultatsTab({ studentId, studentCode }) {
-  const [bulletins, setBulletins] = useState([]);
-  const [notes,     setNotes]     = useState([]);
+  const [semestres, setSemestres] = useState([]);
   const [loading,   setLoading]   = useState(true);
+  const [isEmpty,   setIsEmpty]   = useState(false);
 
   useEffect(() => {
+    if (!studentId && !studentCode) { setLoading(false); setIsEmpty(true); return; }
     (async () => {
       try {
-        const keys = [
-          { field: 'studentId',    value: studentId   },
-          { field: 'studentCode',  value: studentCode },
-          { field: 'codeApprenant',value: studentCode },
-        ];
-        const [bulls, rawNotes] = await Promise.all([
-          fetchByMultipleKeys('bulletins', keys),
-          fetchByMultipleKeys('notes',     keys),
-        ]);
-        setBulletins(bulls); setNotes(rawNotes);
-      } catch (err) { console.error(err); }
+        // 1. Fetch notes for this student (try both Firestore doc id and legacy code)
+        const seen = new Set();
+        const studentNotes = [];
+        for (const value of [studentId, studentCode]) {
+          if (!value) continue;
+          try {
+            const snap = await getDocs(query(collection(db, 'notes'), where('studentId', '==', value)));
+            snap.forEach(d => {
+              if (!seen.has(d.id)) { seen.add(d.id); studentNotes.push({ id: d.id, ...d.data() }); }
+            });
+          } catch { /* permission denied or no results */ }
+        }
+
+        if (studentNotes.length === 0) { setIsEmpty(true); return; }
+
+        // 2. Fetch evaluations referenced by the notes
+        const evalIds = [...new Set(studentNotes.map(n => n.evaluationId).filter(Boolean))];
+        const evalMap = {};
+        await Promise.all(evalIds.map(async eid => {
+          try {
+            const s = await getDoc(doc(db, 'evaluations', eid));
+            if (s.exists()) evalMap[eid] = { id: s.id, ...s.data() };
+          } catch { /* ignore */ }
+        }));
+
+        // 3. Fetch modules referenced by evaluations
+        const modIds = [...new Set(Object.values(evalMap).map(e => e.moduleId).filter(Boolean))];
+        const modMap = {};
+        await Promise.all(modIds.map(async mid => {
+          try {
+            const s = await getDoc(doc(db, 'modules', mid));
+            if (s.exists()) modMap[mid] = { id: s.id, ...s.data() };
+          } catch { /* ignore */ }
+        }));
+
+        // 4. Group by semestre → module
+        const bySem = {};
+        for (const note of studentNotes) {
+          const ev = evalMap[note.evaluationId];
+          if (!ev) continue;
+          const sem = ev.sessionAcademique || 'S1';
+          const mid = ev.moduleId || '_unknown';
+          if (!bySem[sem]) bySem[sem] = {};
+          if (!bySem[sem][mid]) bySem[sem][mid] = [];
+          bySem[sem][mid].push({ note, ev });
+        }
+
+        // 5. Compute weighted averages per module, then general average
+        const result = Object.entries(bySem)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([semLabel, moduleMap]) => {
+            let genWeightedSum = 0, genCoeffSum = 0;
+            const moduleList = Object.entries(moduleMap).map(([mid, items]) => {
+              const mod      = modMap[mid];
+              const modCoeff = parseFloat(mod?.coeff) || 1;
+              let evWeightedSum = 0, evCoeffSum = 0, pending = 0;
+              for (const { note, ev } of items) {
+                const bareme  = parseFloat(ev.bareme)      || 20;
+                const evCoeff = parseFloat(ev.coefficient) || 1;
+                if (note.absent) {
+                  evWeightedSum += 0; evCoeffSum += evCoeff; // absent = 0
+                } else if (note.note != null) {
+                  evWeightedSum += (parseFloat(note.note) / bareme) * 20 * evCoeff;
+                  evCoeffSum += evCoeff;
+                } else {
+                  pending++; // note not yet entered
+                }
+              }
+              const moyenne = evCoeffSum > 0 ? evWeightedSum / evCoeffSum : null;
+              if (moyenne !== null) { genWeightedSum += moyenne * modCoeff; genCoeffSum += modCoeff; }
+              return { id: mid, nom: mod?.nom || mod?.code || mid, coeff: modCoeff, moyenne, pending, evalCount: items.length };
+            });
+            const moyenneGenerale = genCoeffSum > 0 ? genWeightedSum / genCoeffSum : null;
+            const hasPending = moduleList.some(m => m.pending > 0);
+            return { label: semLabel, modules: moduleList, moyenneGenerale, mention: getMention(moyenneGenerale), hasPending };
+          });
+
+        setSemestres(result);
+      } catch (err) { console.error('ResultatsTab error:', err); }
       finally { setLoading(false); }
     })();
   }, [studentId, studentCode]);
 
   if (loading) return <Spinner />;
-  if (bulletins.length === 0 && notes.length === 0)
+  if (isEmpty || semestres.length === 0)
     return <EmptyState message="Aucun résultat disponible pour le moment." />;
 
   return (
     <div className="space-y-5">
-      {bulletins.map(bull => {
-        const modules  = Array.isArray(bull.modules) ? bull.modules : [];
-        const moy      = bull.moyenneGenerale ?? bull.moyenne;
-        const mention  = bull.mention || bull.mentionGenerale;
-        const decision = bull.decisionLabel || bull.decision;
-        return (
-          <div key={bull.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100"
-                 style={{ background: 'linear-gradient(135deg,#005989,#0077b6)' }}>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-white font-bold text-sm">Relevé de notes {bull.anneeFormation || ''}</p>
-                  {bull.filiere && <p className="text-white/70 text-xs mt-0.5">{bull.filiere}</p>}
-                </div>
-                {moy !== undefined && (
-                  <p className="text-2xl font-black text-white">
-                    {parseFloat(moy).toFixed(2)}<span className="text-xs font-normal text-white/70 ml-1">/20</span>
-                  </p>
+      {semestres.map(sem => (
+        <div key={sem.label} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          {/* Semestre header */}
+          <div className="px-5 py-4 border-b border-slate-100"
+               style={{ background: 'linear-gradient(135deg,#005989,#0077b6)' }}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-white font-bold text-sm">Semestre {sem.label}</p>
+                {sem.hasPending && (
+                  <p className="text-white/60 text-xs mt-0.5">Semestre en cours — notes partielles</p>
                 )}
               </div>
-              {mention && <p className="text-white/80 text-xs mt-1">{mention}</p>}
-              {decision && <div className="mt-3"><DecisionBadge decision={decision} /></div>}
-            </div>
-            {modules.length > 0 && (
-              <div className="divide-y divide-slate-50">
-                {modules.map((m, i) => {
-                  const note = m.note ?? m.moyenne ?? m.moyenneModule;
-                  const coef = m.coefficient ?? m.coef ?? 1;
-                  return (
-                    <div key={i} className="px-5 py-3 flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-700 font-medium truncate">{m.nom || m.module || `Module ${i+1}`}</p>
-                        {coef > 1 && <p className="text-xs text-slate-400">Coef. {coef}</p>}
-                      </div>
-                      <span className="text-base font-black shrink-0" style={{ color: note !== undefined ? moyColor(note) : '#cbd5e1' }}>
-                        {note !== undefined ? parseFloat(note).toFixed(2) : '—'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-      {bulletins.length === 0 && notes.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <div className="px-5 py-3.5 border-b border-slate-100">
-            <p className="text-sm font-semibold text-slate-700">Notes en cours de semestre</p>
-            <p className="text-xs text-slate-400 mt-0.5">Le bulletin définitif sera disponible en fin de semestre.</p>
-          </div>
-          <div className="divide-y divide-slate-50">
-            {notes.map(n => {
-              const note = n.note ?? n.moyenne;
-              return (
-                <div key={n.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                  <p className="text-sm text-slate-700 truncate flex-1">{n.module || n.evaluationId || 'Évaluation'}</p>
-                  <span className="text-base font-black shrink-0" style={{ color: note !== undefined ? moyColor(note) : '#cbd5e1' }}>
-                    {note !== undefined ? parseFloat(note).toFixed(2) : '—'}
-                  </span>
+              {sem.moyenneGenerale !== null && (
+                <div className="text-right">
+                  <p className="text-2xl font-black text-white leading-none">
+                    {sem.moyenneGenerale.toFixed(2)}
+                    <span className="text-xs font-normal text-white/60 ml-1">/20</span>
+                  </p>
+                  {sem.mention && <p className="text-white/70 text-xs mt-0.5">{sem.mention}</p>}
                 </div>
-              );
-            })}
+              )}
+            </div>
+          </div>
+          {/* Module rows */}
+          <div className="divide-y divide-slate-50">
+            {sem.modules.map(m => (
+              <div key={m.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-700 font-medium truncate">{m.nom}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Coef. {m.coeff}
+                    {m.pending > 0 && (
+                      <span className="ml-2 font-medium text-amber-500">
+                        · {m.pending} éval. en attente
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <span className="text-base font-black shrink-0 tabular-nums"
+                      style={{ color: m.moyenne !== null ? moyColor(m.moyenne) : '#cbd5e1' }}>
+                  {m.moyenne !== null ? m.moyenne.toFixed(2) : '—'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

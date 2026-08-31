@@ -131,15 +131,19 @@ service cloud.firestore {
     }
 
     match /notes/{docId} {
-      // Apprenants cannot read other students' notes
-      allow read: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      // Staff can read all notes; apprenants can only read their own (matched via studentId in their users doc)
+      allow read: if hasRole(['admin', 'direction', 'scolarite', 'intervenant'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentId == resource.data.studentId);
       allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
       allow delete: if hasRole(['admin', 'direction']);
     }
 
     match /bulletins/{docId} {
-      // Apprenants cannot read other students' bulletins
-      allow read: if hasRole(['admin', 'direction', 'scolarite']);
+      // Staff can read all bulletins; apprenants can only read their own
+      allow read: if hasRole(['admin', 'direction', 'scolarite'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentId == resource.data.studentId);
       allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
       allow delete: if hasRole(['admin']);
     }
