@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 function IcoClose() { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>; }
 function IcoChevron({ open }) { return <svg className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>; }
+function IcoDownload() { return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>; }
 
 // ── Guide content per role ────────────────────────────────────────────────────
 
@@ -45,6 +46,19 @@ const GUIDE_CONTENT = {
       },
       {
         icon: '📊',
+        title: 'Saisie des notes',
+        description: 'Saisissez les notes de vos apprenants par module et par type d\'évaluation.',
+        steps: [
+          { label: 'Accès', detail: 'Onglet "Saisie des notes" dans votre portail. Sélectionnez le groupe, le module et le semestre.' },
+          { label: 'Types d\'évaluation', detail: 'Contrôle Continu (CC), Examen Final de Module (EFM), Participation, Travaux Dirigés (TD), Soutenance, Rattrapage.' },
+          { label: 'Calcul automatique', detail: 'Formule : EFM × 60% + moyenne(CC + Participation + TD + Soutenance) × 40%.' },
+          { label: 'Rattrapage', detail: 'La note de rattrapage remplace l\'EFM si elle est supérieure, plafonnée à 12/20.' },
+          { label: 'Import CSV', detail: 'Importez un fichier CSV avec colonnes code, nom, prenom, note pour saisir rapidement toute une classe.' },
+          { label: 'Délais', detail: 'Complétez les notes de Semestre 1 avant le 30 janvier et Semestre 2 avant le 30 mai. Des rappels sont envoyés automatiquement.' },
+        ]
+      },
+      {
+        icon: '📈',
         title: 'Mes Statistiques',
         description: 'Suivez vos heures enseignées et votre activité mensuelle.',
         steps: [
@@ -73,11 +87,12 @@ const GUIDE_CONTENT = {
       },
       {
         icon: '📝',
-        title: 'Mes Notes',
-        description: 'Consultez vos résultats par module et par évaluation.',
+        title: 'Mes Résultats',
+        description: 'Consultez vos notes saisies par les intervenants et l\'historique des PV.',
         steps: [
-          { label: 'Résultats détaillés', detail: 'Notes par évaluation, coefficient, barème et note sur 20 pour chaque module.' },
-          { label: 'Moyenne générale', detail: 'Votre moyenne générale avec l\'appréciation (Très bien, Bien, Assez bien…).' },
+          { label: 'Notes par semestre', detail: 'Notes saisies par vos intervenants, organisées par semestre avec la moyenne générale calculée automatiquement.' },
+          { label: 'Formule de calcul', detail: 'EFM × 60% + moyenne(CC + Participation + TD + Soutenance) × 40%. Le rattrapage remplace l\'EFM si supérieur (plafonné à 12/20).' },
+          { label: 'Historique PV', detail: 'Les résultats des années précédentes issus des PV officiels s\'affichent en bas de page avec le détail CTL/EFM/Moyenne.' },
           { label: 'Bulletins', detail: 'Téléchargez votre bulletin PDF officiel depuis l\'onglet Résultats.' },
         ]
       },
@@ -89,6 +104,16 @@ const GUIDE_CONTENT = {
           { label: 'Tableau de présence', detail: 'Visualisez vos présences (P), retards (R) et absences justifiées (AJ) / non justifiées (ANJ) par séance.' },
           { label: 'Score d\'absence', detail: 'Un score est calculé (AJ = 0.5, ANJ = 1, R = 0.25). Un score élevé déclenchera une alerte.' },
           { label: 'Justifications', detail: 'Pour les absences justifiées, le motif renseigné par l\'intervenant est visible.' },
+        ]
+      },
+      {
+        icon: '🚌',
+        title: 'Transport — Navette IFTL',
+        description: 'Souscrivez à l\'abonnement navette et gérez votre point de rassemblement.',
+        steps: [
+          { label: 'Souscrire', detail: 'Dans l\'onglet Transport, choisissez votre point de rassemblement parmi : Zaouia, Aéroport Med 5 - Terminal 1, Station Afriquia - AL Madina Deroua, Station Total - Sapino.' },
+          { label: 'Statut de la demande', detail: 'Votre demande est envoyée en statut "En attente". La scolarité valide et confirme l\'abonnement.' },
+          { label: 'Confirmation', detail: 'Une fois confirmé, votre point de rassemblement et le conducteur assigné sont affichés dans votre portail.' },
         ]
       },
       {
@@ -156,7 +181,8 @@ const GUIDE_CONTENT = {
         description: 'Saisissez les notes et éditez les bulletins officiels.',
         steps: [
           { label: 'Saisie des notes', detail: 'Sélectionnez le module, le groupe, l\'évaluation (CC, EFM…) et saisissez les notes individuellement.' },
-          { label: 'Calcul automatique', detail: 'Les moyennes sont calculées automatiquement avec les coefficients configurés.' },
+          { label: 'Calcul automatique', detail: 'Les moyennes sont calculées automatiquement : EFM × 60% + autres × 40%. Rattrapage plafonné à 12/20.' },
+          { label: 'Accès intervenants', detail: 'Les intervenants saisissent leurs propres notes via leur portail. La scolarité et la direction y ont accès en lecture.' },
           { label: 'Bulletin PDF', detail: 'Générez les bulletins individuels avec l\'en-tête officielle IFTL, la signature et le cachet.' },
         ]
       },
@@ -168,6 +194,7 @@ const GUIDE_CONTENT = {
           { label: 'Créer une facture', detail: 'Associez une facture à un apprenant avec le montant, la date et la description.' },
           { label: 'Enregistrer un paiement', detail: 'Ajoutez les paiements reçus (virement, espèces, chèque, CMI) pour mettre à jour le solde.' },
           { label: 'Reçu PDF', detail: 'Générez un reçu PDF officiel avec historique des paiements et statut (soldée, partielle, impayée).' },
+          { label: 'Facture entreprise', detail: 'Les factures officielles s\'appliquent uniquement aux entreprises en formation continue.' },
         ]
       },
       {
@@ -178,6 +205,18 @@ const GUIDE_CONTENT = {
           { label: 'Profil intervenant', detail: 'Renseignez nom, email, modules enseignés et niveaux. L\'email est utilisé pour lier le compte portail.' },
           { label: 'Taux horaire', detail: 'Définissez le taux horaire (DH/h) pour que l\'intervenant visualise sa rémunération estimée dans ses statistiques.' },
           { label: 'Compte portail', detail: 'Créez un compte Firebase avec l\'email de l\'intervenant (role: intervenant) pour lui donner accès au portail.' },
+        ]
+      },
+      {
+        icon: '🚌',
+        title: 'Transport — Navette IFTL',
+        description: 'Gérez les véhicules, conducteurs, abonnements et points de rassemblement.',
+        steps: [
+          { label: 'Véhicules', detail: 'Enregistrez les véhicules de la navette avec immatriculation, marque, capacité et conducteur affecté.' },
+          { label: 'Conducteurs', detail: 'Renseignez le nom du conducteur sur chaque véhicule. Le terme "conducteur" est utilisé (anciennement "chauffeur").' },
+          { label: 'Points de rassemblement', detail: 'Les 4 points disponibles : Zaouia, Aéroport Med 5 - Terminal 1, Station Afriquia - AL Madina Deroua, Station Total - Sapino.' },
+          { label: 'Abonnements', detail: 'Gérez les abonnements des apprenants par point de rassemblement. Validez ou refusez les demandes depuis la liste des abonnements.' },
+          { label: 'Vue par point', detail: 'Consultez la liste des apprenants par point de rassemblement pour organiser les navettes.' },
         ]
       },
     ]
@@ -216,6 +255,27 @@ const GUIDE_CONTENT = {
           { label: 'Ouvrir / Clôturer', detail: 'Vous pouvez ouvrir ou clôturer une feuille si l\'intervenant ne peut pas le faire.' },
         ]
       },
+      {
+        icon: '📝',
+        title: 'Notes des intervenants',
+        description: 'Consultez les notes saisies par les intervenants pour chaque groupe.',
+        steps: [
+          { label: 'Accès en lecture', detail: 'La scolarité peut consulter toutes les notes saisies par les intervenants, organisées par module et par groupe.' },
+          { label: 'Suivi des saisies', detail: 'Identifiez les modules dont les notes ne sont pas encore saisies pour relancer les intervenants.' },
+          { label: 'Bulletins', detail: 'Générez les bulletins PDF officiels depuis le dossier de chaque apprenant.' },
+        ]
+      },
+      {
+        icon: '🚌',
+        title: 'Transport — Abonnements',
+        description: 'Gérez les abonnements navette des apprenants.',
+        steps: [
+          { label: 'Demandes en attente', detail: 'Les demandes d\'abonnement soumises par les apprenants depuis leur portail apparaissent ici.' },
+          { label: 'Valider / Refuser', detail: 'Confirmez ou refusez chaque demande. L\'apprenant est notifié dans son portail.' },
+          { label: 'Liste par point', detail: 'Consultez les apprenants affectés à chaque point de rassemblement : Zaouia, Aéroport Med 5, Station Afriquia, Station Total Sapino.' },
+          { label: 'Conducteurs', detail: 'Le conducteur affecté à chaque véhicule/navette est visible dans la gestion des abonnements.' },
+        ]
+      },
     ]
   },
 
@@ -239,7 +299,7 @@ const GUIDE_CONTENT = {
         description: 'Suivi financier complet.',
         steps: [
           { label: 'Vue d\'ensemble', detail: 'Montants encaissés, restants à percevoir, répartition par filière.' },
-          { label: 'Reçus', detail: 'Accédez à tous les reçus PDF avec l\'historique complet des paiements.' },
+          { label: 'Reçus & Factures', detail: 'Les reçus sont pour les apprenants. Les factures officielles sont réservées aux entreprises (formation continue).' },
         ]
       },
       {
@@ -260,9 +320,119 @@ const GUIDE_CONTENT = {
           { label: 'Ciblage', detail: 'Ciblez par filière, groupe ou l\'ensemble des apprenants.' },
         ]
       },
+      {
+        icon: '🚌',
+        title: 'Transport',
+        description: 'Supervision de la navette IFTL.',
+        steps: [
+          { label: 'Véhicules & conducteurs', detail: 'Vue de tous les véhicules avec leur conducteur assigné, capacité et état.' },
+          { label: 'Abonnements', detail: 'Nombre d\'apprenants abonnés par point de rassemblement et taux de remplissage des navettes.' },
+        ]
+      },
     ]
   },
 };
+
+// ── PDF download ──────────────────────────────────────────────────────────────
+async function downloadGuidePDF(guide) {
+  const { default: jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const contentW = w - margin * 2;
+
+  // Parse color to RGB
+  const hexToRgb = (hex) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return [r, g, b];
+  };
+  const [cr, cg, cb] = hexToRgb(guide.color);
+
+  // Header
+  doc.setFillColor(cr, cg, cb);
+  doc.rect(0, 0, w, 28, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text(guide.title, margin, 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255, 0.75);
+  doc.text(guide.subtitle, margin, 20);
+  doc.setFontSize(7);
+  doc.text('Institut de Formation Transport & Logistique — IFTL', w - margin, 24, { align: 'right' });
+
+  let y = 36;
+
+  for (const section of guide.sections) {
+    // Section header
+    if (y > 265) { doc.addPage(); y = 15; }
+    doc.setFillColor(cr, cg, cb);
+    doc.roundedRect(margin, y, contentW, 9, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${section.icon}  ${section.title}`, margin + 3, y + 6);
+    y += 13;
+
+    // Description
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    const descLines = doc.splitTextToSize(section.description, contentW - 4);
+    doc.text(descLines, margin + 2, y);
+    y += descLines.length * 4.5 + 2;
+
+    // Steps
+    for (let i = 0; i < section.steps.length; i++) {
+      const step = section.steps[i];
+      if (y > 268) { doc.addPage(); y = 15; }
+
+      // Bullet circle
+      doc.setFillColor(cr, cg, cb);
+      doc.circle(margin + 4, y + 2.5, 2.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
+      doc.text(String(i + 1), margin + 4, y + 3.3, { align: 'center' });
+
+      // Label
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(30, 30, 30);
+      doc.text(step.label, margin + 10, y + 2.5);
+
+      y += 6;
+
+      // Detail
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(90, 90, 90);
+      const lines = doc.splitTextToSize(step.detail, contentW - 14);
+      if (y + lines.length * 4 > 275) { doc.addPage(); y = 15; }
+      doc.text(lines, margin + 10, y);
+      y += lines.length * 4 + 3;
+    }
+    y += 5;
+  }
+
+  // Footer on each page
+  const total = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setFillColor(245, 247, 250);
+    doc.rect(0, 285, w, 12, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text('IFTL — Institut de Formation Transport & Logistique', margin, 291);
+    doc.text(`Page ${p} / ${total}`, w - margin, 291, { align: 'right' });
+  }
+
+  doc.save(`Guide_ERP_IFTL_${guide.title.replace(/\s+/g, '_')}.pdf`);
+}
 
 // ── Accordion section ─────────────────────────────────────────────────────────
 function GuideSection({ section, color, defaultOpen = false }) {
@@ -310,6 +480,7 @@ function GuideSection({ section, color, defaultOpen = false }) {
 export default function HelpGuide({ role = 'admin', onClose }) {
   const guide = GUIDE_CONTENT[role] || GUIDE_CONTENT.admin;
   const [search, setSearch] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   const filtered = search.trim()
     ? guide.sections.filter(s =>
@@ -318,6 +489,12 @@ export default function HelpGuide({ role = 'admin', onClose }) {
         s.steps.some(step => step.label.toLowerCase().includes(search.toLowerCase()) || step.detail.toLowerCase().includes(search.toLowerCase()))
       )
     : guide.sections;
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try { await downloadGuidePDF(guide); }
+    finally { setDownloading(false); }
+  };
 
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -330,6 +507,13 @@ export default function HelpGuide({ role = 'admin', onClose }) {
             <p className="text-white font-black text-base">{guide.title}</p>
             <p className="text-white/70 text-xs mt-0.5">{guide.subtitle}</p>
           </div>
+          <button onClick={handleDownload} disabled={downloading}
+            title="Télécharger en PDF"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0"
+            style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>
+            <IcoDownload />
+            {downloading ? 'PDF…' : 'PDF'}
+          </button>
           <button onClick={onClose} className="text-white/70 hover:text-white p-1 shrink-0"><IcoClose /></button>
         </div>
 

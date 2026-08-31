@@ -348,9 +348,9 @@ function VehiculeModal({ vehicule, onClose, onSaved }) {
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Chauffeur affecté</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Conducteur affecté</label>
                 <input type="text" value={form.chauffeurNom} onChange={e => set('chauffeurNom', e.target.value)}
-                  placeholder="Nom du chauffeur"
+                  placeholder="Nom du conducteur"
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]" />
               </div>
             </div>
@@ -856,7 +856,7 @@ function FlotteVehiculesTab() {
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Statut</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Km</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Prochaine révision</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden xl:table-cell">Chauffeur</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden xl:table-cell">Conducteur</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
