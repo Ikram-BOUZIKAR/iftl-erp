@@ -14,7 +14,7 @@ import { db } from '../../services/firebase';
 import { useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
-import { generateBulletin } from '../../services/pdfService';
+import { generateBulletin, generatePV } from '../../services/pdfService';
 
 const TYPE_EVAL_STYLES = {
   controle: { cls: 'bg-sky-100 text-sky-700', label: 'Contrôle' },
@@ -28,6 +28,7 @@ const TABS = [
   { key: 'evaluations', label: 'Évaluations' },
   { key: 'saisie', label: 'Saisie des notes' },
   { key: 'bulletins', label: 'Bulletins' },
+  { key: 'pv', label: 'PV du groupe' },
 ];
 
 const EMPTY_EVAL_FORM = {
@@ -925,6 +926,261 @@ function BulletinsTab({ evaluations, modules, groupes }) {
   );
 }
 
+// ─── PV Tab ───────────────────────────────────────────────────────────────────
+
+function PvTab({ evaluations, modules, groupes }) {
+  const [selectedGroupeId, setSelectedGroupeId] = useState('');
+  const [students, setStudents] = useState([]);
+  const [notesByStudent, setNotesByStudent] = useState({});
+  const [groupeModules, setGroupeModules] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const toast = useToast();
+
+  const MENTIONS = { '≥16': 'Très Bien', '≥14': 'Bien', '≥12': 'Assez Bien', '≥10': 'Passable', '<10': 'Non Admis' };
+
+  function getMoyenne(sNotes, moduleId) {
+    const md = sNotes?.[moduleId];
+    if (!md || md.moyenne === null || md.moyenne === undefined) return null;
+    return md.moyenne;
+  }
+
+  function getMoyGen(sNotes, mods) {
+    const valid = mods.map(m => ({ coeff: m.coeff ?? 1, moy: getMoyenne(sNotes, m.id) })).filter(x => x.moy !== null);
+    const tc = valid.reduce((s, x) => s + x.coeff, 0);
+    return tc > 0 ? valid.reduce((s, x) => s + x.moy * x.coeff, 0) / tc : null;
+  }
+
+  function mention(moy) {
+    if (moy === null || moy === undefined) return '—';
+    if (moy >= 16) return 'Très Bien';
+    if (moy >= 14) return 'Bien';
+    if (moy >= 12) return 'Assez Bien';
+    if (moy >= 10) return 'Passable';
+    return 'Non Admis';
+  }
+
+  useEffect(() => {
+    if (!selectedGroupeId) { setStudents([]); setNotesByStudent({}); setGroupeModules([]); return; }
+    const load = async () => {
+      setLoading(true);
+      try {
+        // Load students
+        const snap = await getDocs(query(collection(db, 'students'), where('groupeId', '==', selectedGroupeId)));
+        const sts = [];
+        snap.forEach(d => sts.push({ id: d.id, ...d.data() }));
+        sts.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+        setStudents(sts);
+
+        // Evaluations for this groupe
+        const grpEvals = evaluations.filter(e => e.groupeId === selectedGroupeId && e.source === 'intervenant');
+        const usedModuleIds = [...new Set(grpEvals.map(e => e.moduleId).filter(Boolean))];
+        const usedMods = modules.filter(m => usedModuleIds.includes(m.id));
+        setGroupeModules(usedMods);
+
+        if (sts.length === 0 || grpEvals.length === 0) { setNotesByStudent({}); setLoading(false); return; }
+
+        // Load all notes for these evaluations
+        const evalIds = grpEvals.map(e => e.id);
+        const notesMap = {};
+        sts.forEach(s => { notesMap[s.id] = {}; });
+
+        // Batch fetch notes per evaluation
+        for (const ev of grpEvals) {
+          const nSnap = await getDocs(query(collection(db, 'notes'), where('evaluationId', '==', ev.id)));
+          nSnap.forEach(nd => {
+            const n = nd.data();
+            const sid = n.studentId;
+            if (!notesMap[sid]) return;
+            if (!notesMap[sid][ev.moduleId]) notesMap[sid][ev.moduleId] = { notes: [], moyenne: null };
+            notesMap[sid][ev.moduleId].notes.push({
+              type: ev.type, note: n.note ?? null, bareme: ev.bareme ?? 20,
+              absent: n.absent ?? false, coeff: ev.coefficient ?? 1,
+            });
+          });
+        }
+        // Compute moyennes per module per student
+        for (const sid of Object.keys(notesMap)) {
+          for (const mid of Object.keys(notesMap[sid])) {
+            const mdata = notesMap[sid][mid];
+            const valid = mdata.notes.filter(n => !n.absent && n.note !== null);
+            const tc = valid.reduce((s, n) => s + n.coeff, 0);
+            mdata.moyenne = tc > 0 ? valid.reduce((s, n) => s + (n.note / n.bareme) * 20 * n.coeff, 0) / tc : null;
+          }
+        }
+        setNotesByStudent(notesMap);
+      } catch (err) {
+        toast.error('Erreur chargement PV : ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [selectedGroupeId, evaluations, modules]);
+
+  const groupe = groupes.find(g => g.id === selectedGroupeId);
+
+  const admisCount = students.filter(s => {
+    const moy = getMoyGen(notesByStudent[s.id], groupeModules);
+    return moy !== null && moy >= 10;
+  }).length;
+
+  const handleGeneratePV = async () => {
+    if (!groupe || students.length === 0) return;
+    setGenerating(true);
+    try {
+      generatePV(groupe, students, groupeModules, notesByStudent, '2025-2026');
+    } catch (err) {
+      toast.error('Erreur génération PV : ' + err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-wrap items-end gap-4">
+        <div className="flex-1 min-w-52">
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Groupe</label>
+          <select
+            value={selectedGroupeId}
+            onChange={e => setSelectedGroupeId(e.target.value)}
+            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
+          >
+            <option value="">— Sélectionner un groupe —</option>
+            {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+          </select>
+        </div>
+        {selectedGroupeId && students.length > 0 && groupeModules.length > 0 && (
+          <button
+            onClick={handleGeneratePV}
+            disabled={generating}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#003d63] rounded-xl hover:bg-[#005989] transition-colors disabled:opacity-50"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            {generating ? 'Génération…' : 'Télécharger PV PDF'}
+          </button>
+        )}
+      </div>
+
+      {/* Loading */}
+      {loading && <div className="py-10 text-center"><Spinner /></div>}
+
+      {/* Summary */}
+      {!loading && selectedGroupeId && students.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-wrap gap-6">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#003d63]">{students.length}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Apprenants</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-emerald-600">{admisCount}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Admis</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-red-500">{students.length - admisCount}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Non Admis</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-amber-600">
+              {students.length > 0 ? ((admisCount / students.length) * 100).toFixed(0) : 0}%
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">Taux de réussite</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-slate-600">{groupeModules.length}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Modules avec notes</p>
+          </div>
+        </div>
+      )}
+
+      {/* PV Table */}
+      {!loading && selectedGroupeId && students.length > 0 && groupeModules.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-[#003d63] text-white">
+                  <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">N°</th>
+                  <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Nom</th>
+                  <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Prénom</th>
+                  <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Code</th>
+                  {groupeModules.map(m => (
+                    <th key={m.id} className="px-2 py-3 text-center font-semibold whitespace-nowrap">
+                      {m.code || m.nom}<br/>
+                      <span className="font-normal opacity-75 text-[10px]">c.{m.coeff ?? 1}</span>
+                    </th>
+                  ))}
+                  <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Moy. Gén.</th>
+                  <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Mention</th>
+                  <th className="px-3 py-3 text-center font-semibold whitespace-nowrap">Décision</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {students.map((s, idx) => {
+                  const sNotes = notesByStudent[s.id] || {};
+                  const moyGen = getMoyGen(sNotes, groupeModules);
+                  const dec = moyGen !== null ? (moyGen >= 10 ? 'Admis' : 'Non Admis') : '—';
+                  return (
+                    <tr key={s.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="px-3 py-2 text-slate-500">{idx + 1}</td>
+                      <td className="px-3 py-2 font-medium text-slate-800">{s.nom}</td>
+                      <td className="px-3 py-2 text-slate-700">{s.prenom}</td>
+                      <td className="px-3 py-2 text-slate-500 font-mono">{s.codeApprenant || s.code || ''}</td>
+                      {groupeModules.map(m => {
+                        const moy = getMoyenne(sNotes, m.id);
+                        return (
+                          <td key={m.id} className="px-2 py-2 text-center">
+                            {moy !== null ? (
+                              <span className={`font-semibold ${moy >= 10 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {moy.toFixed(2)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-3 py-2 text-center">
+                        {moyGen !== null ? (
+                          <span className={`font-bold text-sm ${moyGen >= 10 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {moyGen.toFixed(2)}
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-center text-slate-600">{mention(moyGen)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dec === 'Admis' ? 'bg-emerald-100 text-emerald-700' : dec === 'Non Admis' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
+                          {dec}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && selectedGroupeId && students.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center text-slate-500 text-sm">
+          Aucun apprenant dans ce groupe.
+        </div>
+      )}
+
+      {!loading && selectedGroupeId && students.length > 0 && groupeModules.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center text-amber-700 text-sm">
+          Aucune note saisie par intervenant pour ce groupe. Les notes doivent être saisies avec <strong>source = intervenant</strong>.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
@@ -1011,6 +1267,13 @@ export default function NotesPage() {
       )}
       {activeTab === 'bulletins' && (
         <BulletinsTab
+          evaluations={evaluations}
+          modules={modules}
+          groupes={groupes}
+        />
+      )}
+      {activeTab === 'pv' && (
+        <PvTab
           evaluations={evaluations}
           modules={modules}
           groupes={groupes}

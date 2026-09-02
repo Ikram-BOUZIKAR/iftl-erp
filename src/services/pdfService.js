@@ -700,3 +700,151 @@ export function generateAbsenceReport({ students, absencesByStudent, academicYea
   drawFooter(doc);
   doc.save(`rapport_absences_${academicYear || 'export'}.pdf`);
 }
+
+// ─── generatePV ───────────────────────────────────────────────────────────────
+/**
+ * Generates a Procès-Verbal (PV) PDF for a groupe showing all students' notes.
+ * @param {object} groupe - { id, nom, filiereCode }
+ * @param {Array}  students - [{ id, nom, prenom, codeApprenant|code, cin }]
+ * @param {Array}  modules  - [{ id, nom, code, coeff }]
+ * @param {object} notesByStudent - { studentId: { moduleId: { moyenne, notes:[{type,note,bareme,absent}] } } }
+ * @param {string} anneeAcad
+ */
+export function generatePV(groupe, students, modules, notesByStudent, anneeAcad = '2025-2026') {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const autoTableMod = require('jspdf-autotable');
+  const autoTable = autoTableMod.default || autoTableMod;
+
+  const NAVY = [0, 61, 99];
+  const RED  = [227, 30, 36];
+  const LIGHT = [240, 246, 251];
+  const W = doc.internal.pageSize.getWidth();
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, W, 22, 'F');
+  doc.setFillColor(...RED);
+  doc.rect(0, 22, W, 2, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('PROCÈS-VERBAL DES NOTES', 14, 10);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Groupe : ${groupe.nom}   |   Filière : ${groupe.filiereCode || ''}   |   Année : ${anneeAcad}`, 14, 17);
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-MA')}`, W - 14, 17, { align: 'right' });
+
+  // ── Build table ───────────────────────────────────────────────────────────
+  function mention(moy) {
+    if (moy === null || moy === undefined) return '—';
+    if (moy >= 16) return 'Très Bien';
+    if (moy >= 14) return 'Bien';
+    if (moy >= 12) return 'Assez Bien';
+    if (moy >= 10) return 'Passable';
+    return 'Non Admis';
+  }
+  function decision(moy) {
+    if (moy === null || moy === undefined) return '—';
+    return moy >= 10 ? 'Admis' : 'Non Admis';
+  }
+
+  const sortedModules = [...modules].sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+
+  const head = [
+    ['N°', 'Nom', 'Prénom', 'Code',
+      ...sortedModules.map(m => `${m.nom}\n(c.${m.coeff ?? 1})`),
+      'Moy. Gén.', 'Mention', 'Décision'
+    ]
+  ];
+
+  const body = students.map((s, idx) => {
+    const sNotes = notesByStudent[s.id] || {};
+    const modMoyennes = sortedModules.map(m => {
+      const md = sNotes[m.id];
+      if (!md || md.moyenne === null || md.moyenne === undefined) return null;
+      return md.moyenne;
+    });
+
+    const validMods = sortedModules.map((m, i) => ({ coeff: m.coeff ?? 1, moy: modMoyennes[i] }))
+      .filter(x => x.moy !== null);
+    const totalCoeff = validMods.reduce((s, x) => s + x.coeff, 0);
+    const moyGen = totalCoeff > 0
+      ? validMods.reduce((s, x) => s + x.moy * x.coeff, 0) / totalCoeff
+      : null;
+
+    return [
+      idx + 1,
+      s.nom || '',
+      s.prenom || '',
+      s.codeApprenant || s.code || '',
+      ...modMoyennes.map(m => m !== null ? m.toFixed(2) : '—'),
+      moyGen !== null ? moyGen.toFixed(2) : '—',
+      mention(moyGen),
+      decision(moyGen),
+    ];
+  });
+
+  // Sort by nom
+  body.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  body.forEach((row, i) => { row[0] = i + 1; });
+
+  const colCount = head[0].length;
+  const fixedW = 8 + 30 + 22 + 16; // N° + Nom + Prénom + Code
+  const tailW = 14 + 22 + 18; // MoyGen + Mention + Décision
+  const modW = Math.max(12, Math.floor((W - 14 - fixedW - tailW) / Math.max(sortedModules.length, 1)));
+
+  const columnStyles = {
+    0: { cellWidth: 8, halign: 'center' },
+    1: { cellWidth: 30 },
+    2: { cellWidth: 22 },
+    3: { cellWidth: 16, halign: 'center' },
+    [colCount - 3]: { cellWidth: 14, halign: 'center', fontStyle: 'bold' },
+    [colCount - 2]: { cellWidth: 22, halign: 'center' },
+    [colCount - 1]: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+  };
+  for (let i = 4; i < colCount - 3; i++) {
+    columnStyles[i] = { cellWidth: modW, halign: 'center' };
+  }
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: 28,
+    margin: { left: 7, right: 7 },
+    styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak', valign: 'middle' },
+    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+    alternateRowStyles: { fillColor: LIGHT },
+    columnStyles,
+    didParseCell(data) {
+      if (data.section === 'body') {
+        const val = String(data.cell.raw);
+        const col = data.column.index;
+        if (col === colCount - 1) {
+          data.cell.styles.textColor = val === 'Admis' ? [0, 140, 0] : [200, 0, 0];
+        } else if (col >= 4 && col < colCount - 2) {
+          const n = parseFloat(val);
+          if (!isNaN(n)) {
+            data.cell.styles.textColor = n >= 10 ? [0, 120, 0] : [200, 0, 0];
+          }
+        }
+      }
+    },
+  });
+
+  // Summary stats
+  let finalY = doc.lastAutoTable?.finalY ?? 28;
+  if (finalY < doc.internal.pageSize.getHeight() - 20) {
+    finalY += 6;
+    const total = body.length;
+    const admis = body.filter(r => r[r.length - 1] === 'Admis').length;
+    doc.setFontSize(8);
+    doc.setTextColor(...NAVY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total : ${total} apprenants   |   Admis : ${admis}   |   Non Admis : ${total - admis}   |   Taux : ${total > 0 ? ((admis/total)*100).toFixed(1) : 0}%`, 14, finalY);
+  }
+
+  drawFooter(doc);
+  const fname = `PV_${(groupe.nom || 'groupe').replace(/[^a-z0-9]/gi,'_')}_${anneeAcad.replace(/\//g,'-')}.pdf`;
+  doc.save(fname);
+}
