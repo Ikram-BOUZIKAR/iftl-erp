@@ -287,6 +287,13 @@ service cloud.firestore {
       allow delete: if hasRole(['admin', 'direction']);
     }
 
+    // ── Affectations (Masse Horaire) ──────────────────────────────────────────
+    match /affectations/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
     // ── Historique notes (PV importés) ────────────────────────────────────────
     match /historique_notes/{docId} {
       // Staff can read all; apprenants can read their own via studentCode on their users doc
