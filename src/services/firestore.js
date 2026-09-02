@@ -300,27 +300,24 @@ export const candidaturesService = {
 // ─── Affectations (Masse Horaire) ────────────────────────────────────────────
 export const affectationsService = {
   async getAll(anneeAcademique) {
-    let q = anneeAcademique
-      ? query(collection(db, 'affectations'), where('anneeAcademique', '==', anneeAcademique), orderBy('moduleId', 'asc'))
-      : query(collection(db, 'affectations'), orderBy('moduleId', 'asc'));
-    const snap = await getDocs(q);
+    // No orderBy with where to avoid needing a composite index — sort in memory
+    const snap = await getDocs(collection(db, 'affectations'));
     const items = [];
     snap.forEach(d => items.push({ id: d.id, ...d.data() }));
-    return items;
+    const filtered = anneeAcademique ? items.filter(a => a.anneeAcademique === anneeAcademique) : items;
+    return filtered.sort((a, b) => (a.moduleId || '').localeCompare(b.moduleId || ''));
   },
   async upsert(intervenantId, moduleId, groupeId, masseHoraire, anneeAcademique) {
-    const q = query(
-      collection(db, 'affectations'),
-      where('intervenantId', '==', intervenantId),
-      where('moduleId', '==', moduleId),
-      where('groupeId', '==', groupeId),
-      where('anneeAcademique', '==', anneeAcademique)
-    );
+    // Use only one where to avoid composite index; filter remaining in memory
+    const q = query(collection(db, 'affectations'), where('moduleId', '==', moduleId));
     const snap = await getDocs(q);
-    if (!snap.empty) {
-      const ref = snap.docs[0].ref;
-      await updateDoc(ref, { masseHoraire, updatedAt: new Date() });
-      return { id: ref.id };
+    const existing = snap.docs.find(d => {
+      const data = d.data();
+      return data.groupeId === groupeId && data.anneeAcademique === anneeAcademique;
+    });
+    if (existing) {
+      await updateDoc(existing.ref, { intervenantId, masseHoraire, updatedAt: new Date() });
+      return { id: existing.id };
     }
     const ref = await addDoc(collection(db, 'affectations'), {
       intervenantId, moduleId, groupeId, masseHoraire, anneeAcademique,
