@@ -96,16 +96,29 @@ function EditModal({ affectation, intervenants, onSave, onClose }) {
 function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose }) {
   const [intervenantId, setIntervenantId] = useState('');
   const [selectedGroupes, setSelectedGroupes] = useState([]);
-  // moduleId → masseHoraire value
+  // module name (key) → masseHoraire value; deduped by name to avoid filière duplicates
   const [selectedModules, setSelectedModules] = useState({});
   const [globalMH, setGlobalMH] = useState('');
   const [useGlobalMH, setUseGlobalMH] = useState(true);
   const [saving, setSaving] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
 
-  const sortedModules = useMemo(() =>
-    [...modules].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')),
-  [modules]);
+  // Group all module docs by name — same name can exist per filière
+  const modulesByName = useMemo(() => {
+    const map = {};
+    for (const m of modules) {
+      const key = (m.nom || '').trim();
+      if (!map[key]) map[key] = [];
+      map[key].push(m);
+    }
+    return map;
+  }, [modules]);
+
+  // Deduplicated list: one entry per unique name, sorted
+  const deduplicatedModules = useMemo(() =>
+    Object.keys(modulesByName).sort((a, b) => a.localeCompare(b, 'fr')),
+  [modulesByName]);
+
   const sortedGroupes = useMemo(() =>
     [...groupes].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')),
   [groupes]);
@@ -113,38 +126,43 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
     [...intervenants].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')),
   [intervenants]);
 
-  const filteredModules = useMemo(() => {
+  const filteredModuleNames = useMemo(() => {
     const q = moduleSearch.trim().toLowerCase();
-    if (!q) return sortedModules;
-    return sortedModules.filter(m =>
-      (m.nom||'').toLowerCase().includes(q) || (m.code||'').toLowerCase().includes(q)
-    );
-  }, [sortedModules, moduleSearch]);
+    if (!q) return deduplicatedModules;
+    return deduplicatedModules.filter(nom => nom.toLowerCase().includes(q));
+  }, [deduplicatedModules, moduleSearch]);
 
   const toggleGroupe = (id) =>
     setSelectedGroupes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const toggleModule = (id) =>
+  const toggleModule = (nom) =>
     setSelectedModules(prev => {
       const next = { ...prev };
-      if (next[id] !== undefined) { delete next[id]; } else { next[id] = globalMH; }
+      if (next[nom] !== undefined) { delete next[nom]; } else { next[nom] = globalMH; }
       return next;
     });
 
-  const moduleIds = Object.keys(selectedModules);
-  const totalCombinations = moduleIds.length * selectedGroupes.length;
+  const selectedNames = Object.keys(selectedModules);
+  const totalCombinations = selectedNames.length * selectedGroupes.length;
 
-  const canSave = intervenantId && moduleIds.length > 0 && selectedGroupes.length > 0 &&
-    moduleIds.every(id => parseFloat(useGlobalMH ? globalMH : selectedModules[id]) > 0);
+  const canSave = intervenantId && selectedNames.length > 0 && selectedGroupes.length > 0 &&
+    selectedNames.every(nom => parseFloat(useGlobalMH ? globalMH : selectedModules[nom]) > 0);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const ops = [];
-      for (const moduleId of moduleIds) {
-        const mh = parseFloat(useGlobalMH ? globalMH : selectedModules[moduleId]);
+      for (const nom of selectedNames) {
+        const mh = parseFloat(useGlobalMH ? globalMH : selectedModules[nom]);
+        const docsForName = modulesByName[nom] || [];
         for (const groupeId of selectedGroupes) {
-          ops.push(affectationsService.upsert(intervenantId, moduleId, groupeId, mh, ANNEE));
+          // Pick module doc matching the group's filière, fall back to first doc
+          const grp = groupes.find(g => g.id === groupeId);
+          const bestDoc = (grp?.filiere && docsForName.find(m => m.filiere === grp.filiere))
+            || docsForName[0];
+          if (bestDoc) {
+            ops.push(affectationsService.upsert(intervenantId, bestDoc.id, groupeId, mh, ANNEE));
+          }
         }
       }
       await Promise.all(ops);
@@ -208,29 +226,28 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
               Modules <span className="text-red-500">*</span>
-              {moduleIds.length > 0 && <span className="ml-2 normal-case font-normal text-[#005989]">{moduleIds.length} sélectionné{moduleIds.length > 1 ? 's' : ''}</span>}
+              {selectedNames.length > 0 && <span className="ml-2 normal-case font-normal text-[#005989]">{selectedNames.length} sélectionné{selectedNames.length > 1 ? 's' : ''}</span>}
             </label>
             <input type="text" value={moduleSearch} onChange={e => setModuleSearch(e.target.value)}
               placeholder="Rechercher un module…"
               className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-[#005989]" />
             <div className="border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
-              {filteredModules.map((m, i) => {
-                const checked = selectedModules[m.id] !== undefined;
+              {filteredModuleNames.map((nom, i) => {
+                const checked = selectedModules[nom] !== undefined;
                 return (
-                  <label key={m.id}
+                  <label key={nom}
                     className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 text-sm ${i > 0 ? 'border-t border-slate-100' : ''} ${checked ? 'bg-blue-50' : ''}`}>
                     <input type="checkbox" checked={checked}
-                      onChange={() => toggleModule(m.id)}
+                      onChange={() => toggleModule(nom)}
                       className="accent-[#005989]" />
                     <span className={`flex-1 ${checked ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
-                      {m.nom}
-                      {m.code && <span className="ml-1.5 text-xs text-slate-400">({m.code})</span>}
+                      {nom}
                     </span>
                     {!useGlobalMH && checked && (
                       <input type="number" min="0" step="0.5"
-                        value={selectedModules[m.id] || ''}
+                        value={selectedModules[nom] || ''}
                         onClick={e => e.stopPropagation()}
-                        onChange={e => setSelectedModules(prev => ({ ...prev, [m.id]: e.target.value }))}
+                        onChange={e => setSelectedModules(prev => ({ ...prev, [nom]: e.target.value }))}
                         placeholder="h"
                         className="w-20 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-[#005989]" />
                     )}
@@ -240,7 +257,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
                   </label>
                 );
               })}
-              {filteredModules.length === 0 && (
+              {filteredModuleNames.length === 0 && (
                 <p className="px-4 py-3 text-sm text-slate-400">Aucun module trouvé</p>
               )}
             </div>
@@ -272,7 +289,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
           {totalCombinations > 0 && (
             <div className="bg-[#005989]/5 border border-[#005989]/20 rounded-xl px-4 py-3 text-sm">
               <span className="font-bold text-[#005989]">{totalCombinations}</span> affectation{totalCombinations > 1 ? 's' : ''} seront créées ou mises à jour
-              <span className="text-slate-500 ml-1">({moduleIds.length} module{moduleIds.length > 1 ? 's' : ''} × {selectedGroupes.length} groupe{selectedGroupes.length > 1 ? 's' : ''})</span>
+              <span className="text-slate-500 ml-1">({selectedNames.length} module{selectedNames.length > 1 ? 's' : ''} × {selectedGroupes.length} groupe{selectedGroupes.length > 1 ? 's' : ''})</span>
             </div>
           )}
         </div>
