@@ -49,7 +49,7 @@ function Ico({ k, cls = 'w-[18px] h-[18px] shrink-0' }) {
 // ── Role visibility ───────────────────────────────────────────────────────────
 const ACCESS = {
   admin:       null,  // null = all
-  direction:   null,
+  direction:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
   scolarite:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
   intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/annonces'],
   apprenant:   ['/', '/planning', '/notes', '/absences', '/annonces'],
