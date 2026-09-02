@@ -1,9 +1,11 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
-import { intervenantsService } from '../../services/firestore';
+import { intervenantsService, affectationsService } from '../../services/firestore';
+
+const ANNEE_COURANTE = '2026-2027';
 
 const TYPES = [
   { value: 'cours',     label: 'Cours',     color: 'bg-[#005989] text-white'  },
@@ -205,6 +207,34 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
   const [uploadingFiche, setUploadingFiche] = useState(false);
   const syllabusInputRef = useRef(null);
   const ficheInputRef = useRef(null);
+  const [groupAffectations, setGroupAffectations] = useState([]);
+  const [loadingAff, setLoadingAff] = useState(false);
+
+  useEffect(() => {
+    if (!form.groupeId) { setGroupAffectations([]); return; }
+    let cancelled = false;
+    setLoadingAff(true);
+    affectationsService.getAll(ANNEE_COURANTE)
+      .then(all => { if (!cancelled) setGroupAffectations(all.filter(a => a.groupeId === form.groupeId)); })
+      .catch(() => { if (!cancelled) setGroupAffectations([]); })
+      .finally(() => { if (!cancelled) setLoadingAff(false); });
+    return () => { cancelled = true; };
+  }, [form.groupeId]);
+
+  // Modules available for the selected group (filtered by affectations when configured)
+  const filteredModules = useMemo(() => {
+    if (!form.groupeId || loadingAff || groupAffectations.length === 0) return modules;
+    const moduleIds = new Set(groupAffectations.map(a => a.moduleId));
+    return modules.filter(m => moduleIds.has(m.id));
+  }, [form.groupeId, groupAffectations, loadingAff, modules]);
+
+  const handleModuleChange = (moduleId) => {
+    set('module', moduleId);
+    if (moduleId && form.groupeId && groupAffectations.length > 0) {
+      const aff = groupAffectations.find(a => a.moduleId === moduleId);
+      if (aff?.intervenantId) set('intervenantId', aff.intervenantId);
+    }
+  };
 
   // Merge prop list with locally-created intervenants, avoiding duplicates
   const allIntervenants = useMemo(() => {
@@ -340,10 +370,27 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
               Module <span className="text-red-500">*</span>
             </label>
-            {modules.length > 0 ? (
-              <select value={form.module} onChange={e => set('module', e.target.value)} className={inputCls('module')}>
+            {/* No-affectation banner */}
+            {form.groupeId && !loadingAff && groupAffectations.length === 0 && modules.length > 0 && (
+              <div className="mb-2 flex items-start gap-2 rounded-xl border border-orange-300 bg-orange-50 px-3 py-2.5">
+                <span className="text-orange-500 mt-0.5 text-sm shrink-0">⚠</span>
+                <div className="flex-1 text-xs text-orange-800">
+                  <strong>Aucune affectation configurée pour ce groupe.</strong>
+                  {' '}Configurez d'abord la masse horaire avant de planifier des séances.{' '}
+                  <a href="/masse-horaire" className="underline font-semibold hover:text-orange-900">
+                    Configurer les affectations →
+                  </a>
+                </div>
+              </div>
+            )}
+            {loadingAff ? (
+              <div className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 text-slate-400 bg-slate-50">
+                Chargement des modules…
+              </div>
+            ) : filteredModules.length > 0 ? (
+              <select value={form.module} onChange={e => handleModuleChange(e.target.value)} className={inputCls('module')}>
                 <option value="">— Sélectionner un module —</option>
-                {modules.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom}</option>)}
+                {filteredModules.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom}</option>)}
               </select>
             ) : (
               <input type="text" value={form.module} onChange={e => set('module', e.target.value)}
