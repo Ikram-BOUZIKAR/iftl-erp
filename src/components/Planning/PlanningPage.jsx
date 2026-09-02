@@ -121,6 +121,47 @@ export default function PlanningPage() {
     catch (err) { toast.error('Erreur : ' + err.message); }
   };
 
+  const handleDuplicateWeek = async () => {
+    if (!sessions || sessions.length === 0) {
+      toast.error('Aucune séance à dupliquer cette semaine.');
+      return;
+    }
+    const nextWeek = addWeeks(weekStart, 1);
+    const nextWeekEnd = addDays(nextWeek, 6);
+    const nextWeekLabel = `${format(nextWeek, 'dd/MM', { locale: fr })} – ${format(nextWeekEnd, 'dd/MM/yyyy', { locale: fr })}`;
+    const ok = await confirm({
+      title: 'Dupliquer le planning ?',
+      message: `${sessions.length} séance(s) seront copiées sur la semaine du ${nextWeekLabel}. Les séances déjà existantes seront ignorées.`,
+      confirmLabel: 'Dupliquer',
+    });
+    if (!ok) return;
+    let created = 0, skipped = 0;
+    try {
+      for (const s of sessions) {
+        const origDate = s.date instanceof Date ? s.date : new Date(s.date);
+        const newDate = addWeeks(origDate, 1);
+        const newDateStr = format(newDate, 'yyyy-MM-dd');
+        await sessionsService.create({
+          groupeId: s.groupeId,
+          moduleId: s.moduleId,
+          intervenantId: s.intervenantId || '',
+          date: newDateStr,
+          heureDebut: s.heureDebut,
+          heureFin: s.heureFin,
+          type: s.type || 'cours',
+          salle: s.salle || '',
+          note: s.note || '',
+          statut: 'planifiee',
+        });
+        created++;
+      }
+      toast.success(`${created} séance(s) dupliquée(s) sur la semaine du ${nextWeekLabel}.`);
+      refetch();
+    } catch (err) {
+      toast.error('Erreur lors de la duplication : ' + err.message);
+    }
+  };
+
   const openAdd = (date, slot, groupeId) => {
     setEditing(null);
     setDefaultSlot(date && slot ? { date: format(date, 'yyyy-MM-dd'), heureDebut: slot.start, heureFin: slot.end, groupeId } : null);
@@ -157,6 +198,13 @@ export default function PlanningPage() {
               →
             </button>
           </div>
+          <button
+            onClick={handleDuplicateWeek}
+            title="Copier toutes les séances de cette semaine vers la semaine suivante"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 rounded-xl text-sm font-semibold transition-colors"
+          >
+            ⧉ Dupliquer la semaine
+          </button>
           <button
             onClick={() => setShowNotify(true)}
             title="Envoyer le planning de la semaine aux intervenants"

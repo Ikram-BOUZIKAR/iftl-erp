@@ -82,7 +82,7 @@ export default function LoginPage({ auth }) {
       ══════════════════════════════════════════════════════════════════════ */}
       <Link
         to="/resultats"
-        className="group w-full lg:w-1/3 flex flex-col overflow-hidden cursor-pointer select-none"
+        className="group w-full lg:w-1/4 flex flex-col overflow-hidden cursor-pointer select-none"
         style={{ background: P.blue.dark }}
       >
         {/* Zone couleur */}
@@ -140,7 +140,7 @@ export default function LoginPage({ auth }) {
       ══════════════════════════════════════════════════════════════════════ */}
       <Link
         to="/candidature"
-        className="group w-full lg:w-1/3 flex flex-col overflow-hidden cursor-pointer select-none"
+        className="group w-full lg:w-1/4 flex flex-col overflow-hidden cursor-pointer select-none"
         style={{ background: P.green.dark }}
       >
         {/* Zone couleur */}
@@ -207,7 +207,7 @@ export default function LoginPage({ auth }) {
           PANNEAU 3 — Connexion — JAUNE
       ══════════════════════════════════════════════════════════════════════ */}
       <div
-        className="w-full lg:w-1/3 flex flex-col overflow-hidden"
+        className="w-full lg:w-1/2 flex flex-col overflow-hidden"
         style={{ background: P.yellow.dark }}
       >
         {/* Zone couleur */}
