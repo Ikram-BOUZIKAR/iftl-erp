@@ -297,6 +297,57 @@ export const candidaturesService = {
   }
 };
 
+// ─── Affectations (Masse Horaire) ────────────────────────────────────────────
+export const affectationsService = {
+  async getAll(anneeAcademique) {
+    let q = anneeAcademique
+      ? query(collection(db, 'affectations'), where('anneeAcademique', '==', anneeAcademique), orderBy('moduleId', 'asc'))
+      : query(collection(db, 'affectations'), orderBy('moduleId', 'asc'));
+    const snap = await getDocs(q);
+    const items = [];
+    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+    return items;
+  },
+  async upsert(intervenantId, moduleId, groupeId, masseHoraire, anneeAcademique) {
+    const q = query(
+      collection(db, 'affectations'),
+      where('intervenantId', '==', intervenantId),
+      where('moduleId', '==', moduleId),
+      where('groupeId', '==', groupeId),
+      where('anneeAcademique', '==', anneeAcademique)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const ref = snap.docs[0].ref;
+      await updateDoc(ref, { masseHoraire, updatedAt: new Date() });
+      return { id: ref.id };
+    }
+    const ref = await addDoc(collection(db, 'affectations'), {
+      intervenantId, moduleId, groupeId, masseHoraire, anneeAcademique,
+      createdAt: new Date(), updatedAt: new Date()
+    });
+    return { id: ref.id };
+  },
+  async delete(id) {
+    await deleteDoc(doc(db, 'affectations', id));
+  },
+  // Compute heuresFaites per affectation from sessions list
+  computeHeuresFaites(affectation, sessions) {
+    const relevant = sessions.filter(s =>
+      s.moduleId === affectation.moduleId &&
+      s.groupeId === affectation.groupeId &&
+      (s.intervenantId === affectation.intervenantId || !affectation.intervenantId)
+    );
+    let total = 0;
+    for (const s of relevant) {
+      const [sh, sm] = (s.heureDebut||'0:0').split(':').map(Number);
+      const [eh, em] = (s.heureFin||'0:0').split(':').map(Number);
+      total += (eh*60+em - sh*60-sm) / 60;
+    }
+    return Math.round(total * 10) / 10;
+  }
+};
+
 // ─── Logs ─────────────────────────────────────────────────────────────────────
 export const logsService = {
   async log(action, userId, details = {}) {
@@ -311,5 +362,6 @@ export default {
   sessions: sessionsService,
   presences: presencesService,
   candidatures: candidaturesService,
+  affectations: affectationsService,
   logs: logsService
 };

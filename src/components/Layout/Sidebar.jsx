@@ -20,6 +20,7 @@ const PATHS = {
   alert:      'd="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"',
   users:      'd="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"',
   layers:     'd="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"',
+  mh:         'd="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"',
   userTie:    'd="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"',
   inbox:      'd="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"',
   userPlus:   'd="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"',
@@ -49,8 +50,8 @@ function Ico({ k, cls = 'w-[18px] h-[18px] shrink-0' }) {
 const ACCESS = {
   admin:       null,  // null = all
   direction:   null,
-  scolarite:   ['/', '/planning', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
-  intervenant: ['/', '/planning', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/annonces'],
+  scolarite:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
+  intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/annonces'],
   apprenant:   ['/', '/planning', '/notes', '/absences', '/annonces'],
   parent:      ['/', '/notes', '/absences', '/annonces'],
 };
@@ -70,9 +71,10 @@ const SECTIONS = [
   {
     label: 'Pédagogie',
     items: [
-      { to: '/planning',    label: 'Planning / EDT',       icon: 'calendar' },
-      { to: '/emargement',  label: 'Émargement',           icon: 'clipboard' },
-      { to: '/modules',     label: 'Modules & Référentiel',icon: 'book' },
+      { to: '/planning',      label: 'Planning / EDT',       icon: 'calendar' },
+      { to: '/masse-horaire', label: 'Masse Horaire',        icon: 'mh' },
+      { to: '/emargement',    label: 'Émargement',           icon: 'clipboard' },
+      { to: '/modules',       label: 'Modules & Référentiel',icon: 'book' },
       { to: '/notes',       label: 'Notes & Évaluations',  icon: 'award' },
       { to: '/absences',    label: 'Absences & Retards',   icon: 'alert' },
     ],
