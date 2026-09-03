@@ -848,3 +848,348 @@ export function generatePV(groupe, students, modules, notesByStudent, anneeAcad 
   const fname = `PV_${(groupe.nom || 'groupe').replace(/[^a-z0-9]/gi,'_')}_${anneeAcad.replace(/\//g,'-')}.pdf`;
   doc.save(fname);
 }
+
+// ─── Filière full names ───────────────────────────────────────────────────────
+const FILIERE_LABELS = {
+  OTM:     'Organisateur(trice) du Transport Multimodal',
+  ECOM:    'E-Commerce et Logistique',
+  AEL:     'Agent(e) d\'Exploitation Logistique',
+  OFLP:    'Opérateur/Opératrice de la Filière Logistique et des Ports',
+  ADEE:    'Agent(e) de Diagnostic, d\'Entretien et d\'Électronique Automobile',
+  MAINT:   'Technicien(ne) de Maintenance Industrielle',
+  CNAM:    'Licence Professionnelle Logistique (CNAM)',
+};
+
+function mention(moy) {
+  if (moy === null || moy === undefined) return '—';
+  if (moy >= 16) return 'Très Bien';
+  if (moy >= 14) return 'Bien';
+  if (moy >= 12) return 'Assez Bien';
+  if (moy >= 10) return 'Passable';
+  return 'Insuffisant';
+}
+
+function moyGenFromModules(modules) {
+  const valid = modules.filter(m => m.note !== null && m.note !== undefined);
+  const sumCoeff = valid.reduce((s, m) => s + (m.coeff || 1), 0);
+  if (!sumCoeff) return null;
+  return valid.reduce((s, m) => s + m.note * (m.coeff || 1), 0) / sumCoeff;
+}
+
+// ─── Relevé de Notes 1A TS ────────────────────────────────────────────────────
+/**
+ * @param {object} student  { nom, prenom, codeApprenant, cin, dateNaissance, sexe }
+ * @param {object} info     { anneeAcademique, filiere, groupe }
+ * @param {Array}  modules  [{ ref?, nom, note, coeff }]
+ * @param {object} summary  { moyenneGenerale?, mention?, decision? }  — overrides computed values if provided
+ */
+export function generateReleve1A(student, info, modules, summary = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+  const annee = info.anneeAcademique || '2025-2026';
+
+  // ── Header ──
+  doc.setFillColor(...BRAND.blue);
+  doc.rect(0, 0, w, 38, 'F');
+  doc.setFillColor(...BRAND.yellow);
+  doc.rect(0, 38, w, 3, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...BRAND.white);
+  doc.text('IFTL', 14, 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
+  doc.setFontSize(6.5);
+  doc.text('Route de Casablanca, Marrakech | Tél : +212 524 XXX XXX | www.iftl.ma', 14, 28);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...BRAND.yellow);
+  doc.text('RELEVÉ DE NOTES ANNUEL', w - 14, 16, { align: 'right' });
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.white);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Année académique : ${annee}`, w - 14, 24, { align: 'right' });
+
+  let y = 50;
+
+  // ── Student identity ──
+  const filiereFull = FILIERE_LABELS[info.filiere] || info.filiere || '—';
+  const grpLetter = (info.groupe || '').replace(/^.*?([A-F])$/i, '$1') || info.groupe || '—';
+
+  const fields = [
+    { label: 'Nom & Prénom', value: `${student.nom || ''} ${student.prenom || ''}`.trim() },
+    { label: 'Code Apprenant', value: student.codeApprenant || '—' },
+    { label: 'Sexe', value: student.sexe === 'F' ? 'Féminin' : student.sexe === 'M' ? 'Masculin' : '—' },
+    { label: 'C.N.I', value: student.cin || '—' },
+    { label: 'Date de naissance', value: student.dateNaissance || '—' },
+    { label: 'Groupe', value: `Gr. ${grpLetter}` },
+  ];
+  y = infoBox(doc, fields, y, 14, 14);
+
+  // Filière banner
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, w - 28, 8, 1, 1, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text(`Niveau : Technicien(ne) Spécialisé(e)   |   Filière : ${filiereFull}   |   Gr. : ${grpLetter}`, 18, y + 5.5);
+  y += 14;
+
+  // ── Notes table ──
+  const moy = summary.moyenneGenerale ?? moyGenFromModules(modules);
+  const men = summary.mention || mention(moy);
+  const decision = summary.decision || (moy !== null && moy >= 10 ? 'ADMIS(E)' : 'NON ADMIS(E)');
+
+  const rows = modules.map(m => [
+    m.ref || '—',
+    m.nom || '—',
+    m.note !== null && m.note !== undefined ? m.note.toFixed(2) : '—',
+    String(m.coeff || 1),
+  ]);
+
+  // Average row
+  rows.push([
+    { content: 'Moyenne Générale Annuelle', colSpan: 2, styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white } },
+    { content: moy !== null ? moy.toFixed(2) : '—', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white, halign: 'center' } },
+    { content: '', styles: { fillColor: BRAND.blue } },
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 14, right: 14 },
+    head: [['Réf.', 'Module', 'Note (/20)', 'Coef.']],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+    headStyles: { fillColor: BRAND.darkBlue, textColor: BRAND.white, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 253] },
+    columnStyles: {
+      0: { cellWidth: 22, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 26, halign: 'center' },
+      3: { cellWidth: 18, halign: 'center' },
+    },
+    didParseCell: (data) => {
+      if (data.row.index === rows.length - 1 && data.section === 'body') {
+        data.cell.styles.fillColor = BRAND.blue;
+        data.cell.styles.textColor = BRAND.white;
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Mention & Décision ──
+  const boxW = (w - 28 - 6) / 2;
+  ['Mention', 'Décision'].forEach((label, i) => {
+    const val = i === 0 ? men : decision;
+    const color = i === 1 ? (val.startsWith('ADMIS') ? [0, 130, 60] : [180, 0, 0]) : BRAND.darkBlue;
+    const x = 14 + i * (boxW + 6);
+    doc.setFillColor(248, 250, 253);
+    doc.setDrawColor(...BRAND.blue);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, boxW, 10, 1, 1, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...BRAND.grey);
+    doc.text(label + ' :', x + 4, y + 4.5);
+    doc.setFontSize(9);
+    doc.setTextColor(...color);
+    doc.text(val, x + boxW / 2, y + 7.5, { align: 'center' });
+  });
+  y += 16;
+
+  // ── Signature ──
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Signature et Cachet de la Direction :', w - 14 - 60, y);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.2);
+  doc.line(w - 14 - 60, y + 18, w - 14, y + 18);
+
+  drawFooter(doc);
+  const fname = `Releve_${student.codeApprenant || student.nom}_${annee.replace(/\//g, '-')}.pdf`;
+  doc.save(fname);
+}
+
+// ─── Relevé de Notes 2A TS (Fin de Formation) ─────────────────────────────────
+/**
+ * @param {object} student  { nom, prenom, codeApprenant, cin, dateNaissance, sexe }
+ * @param {object} info     { anneeAcademique, filiere, groupe }
+ * @param {Array}  modules  [{ ref?, nom, note, coeff }]
+ * @param {object} summary2A {
+ *   moy2A,           // Moyenne 2ème année
+ *   moy1A,           // Moyenne 1ère année (from bulletins)
+ *   moyStage,        // Stages & insertion professionnelle
+ *   moyEFF,          // Examen de Fin de Formation (soutenance)
+ * }
+ */
+export function generateReleve2A(student, info, modules, summary2A = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+  const annee = info.anneeAcademique || '2025-2026';
+
+  // ── Header ──
+  doc.setFillColor(...BRAND.blue);
+  doc.rect(0, 0, w, 38, 'F');
+  doc.setFillColor(...BRAND.yellow);
+  doc.rect(0, 38, w, 3, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...BRAND.white);
+  doc.text('IFTL', 14, 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
+  doc.setFontSize(6.5);
+  doc.text('Route de Casablanca, Marrakech | Tél : +212 524 XXX XXX | www.iftl.ma', 14, 28);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.yellow);
+  doc.text('RELEVÉ DE NOTES DE FIN DE FORMATION', w - 14, 16, { align: 'right' });
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.white);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Année académique : ${annee}`, w - 14, 24, { align: 'right' });
+
+  let y = 50;
+
+  // ── Student identity ──
+  const filiereFull = FILIERE_LABELS[info.filiere] || info.filiere || '—';
+  const grpLetter = (info.groupe || '').replace(/^.*?([A-F])$/i, '$1') || info.groupe || '—';
+
+  const fields = [
+    { label: 'Nom & Prénom', value: `${student.nom || ''} ${student.prenom || ''}`.trim() },
+    { label: 'Code Apprenant', value: student.codeApprenant || '—' },
+    { label: 'Sexe', value: student.sexe === 'F' ? 'Féminin' : student.sexe === 'M' ? 'Masculin' : '—' },
+    { label: 'C.N.I', value: student.cin || '—' },
+    { label: 'Date de naissance', value: student.dateNaissance || '—' },
+    { label: 'Groupe', value: `Gr. ${grpLetter}` },
+  ];
+  y = infoBox(doc, fields, y, 14, 14);
+
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, w - 28, 8, 1, 1, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text(`Niveau : Technicien(ne) Spécialisé(e)   |   Filière : ${filiereFull}   |   Gr. : ${grpLetter}`, 18, y + 5.5);
+  y += 14;
+
+  // ── 2A modules table ──
+  const moy2A = summary2A.moy2A ?? moyGenFromModules(modules);
+
+  const rows = modules.map(m => [
+    m.ref || '—',
+    m.nom || '—',
+    m.note !== null && m.note !== undefined ? m.note.toFixed(2) : '—',
+    String(m.coeff || 1),
+  ]);
+  rows.push([
+    { content: 'Moyenne Générale de la 2ème année', colSpan: 2, styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white } },
+    { content: moy2A !== null ? moy2A.toFixed(2) : '—', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white, halign: 'center' } },
+    { content: '', styles: { fillColor: BRAND.blue } },
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 14, right: 14 },
+    head: [['Réf.', 'Module', 'Note (/20)', 'Coef.']],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+    headStyles: { fillColor: BRAND.darkBlue, textColor: BRAND.white, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 253] },
+    columnStyles: {
+      0: { cellWidth: 22, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 26, halign: 'center' },
+      3: { cellWidth: 18, halign: 'center' },
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Weighted average table ──
+  const moy1A     = summary2A.moy1A   ?? null;
+  const moyStage  = summary2A.moyStage ?? null;
+  const moyEFF    = summary2A.moyEFF   ?? null;
+
+  const wRows = [
+    ['Moyenne Générale de la 2ème année', '30 %', moy2A !== null ? moy2A.toFixed(2) : '—'],
+    ['Moyenne Générale de la 1ère année', '20 %', moy1A !== null ? Number(moy1A).toFixed(2) : '—'],
+    ['Stages & Insertion Professionnelle',  '30 %', moyStage !== null ? Number(moyStage).toFixed(2) : '—'],
+    ['Examen de Fin de Formation (Soutenance)', '20 %', moyEFF !== null ? Number(moyEFF).toFixed(2) : '—'],
+  ];
+
+  const moyPass = (moy2A !== null && moy1A !== null && moyStage !== null && moyEFF !== null)
+    ? moy2A * 0.3 + Number(moy1A) * 0.2 + Number(moyStage) * 0.3 + Number(moyEFF) * 0.2
+    : null;
+
+  wRows.push([
+    { content: 'Moyenne Générale de Passage', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white } },
+    { content: '', styles: { fillColor: BRAND.blue } },
+    { content: moyPass !== null ? moyPass.toFixed(2) : '—', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white, halign: 'center' } },
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 14, right: 14 },
+    head: [['Composante', 'Pondération', 'Moyenne (/20)']],
+    body: wRows,
+    styles: { fontSize: 8, cellPadding: 2.5 },
+    headStyles: { fillColor: [0, 58, 90], textColor: BRAND.white, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 253] },
+    columnStyles: {
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 28, halign: 'center' },
+      2: { cellWidth: 32, halign: 'center' },
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Mention & Décision ──
+  const men = mention(moyPass);
+  const decision = moyPass !== null ? (moyPass >= 10 ? 'ADMIS(E)' : 'NON ADMIS(E)') : '—';
+  const boxW = (w - 28 - 6) / 2;
+  ['Mention', 'Décision'].forEach((label, i) => {
+    const val = i === 0 ? men : decision;
+    const color = i === 1 ? (val.startsWith('ADMIS') ? [0, 130, 60] : val === '—' ? BRAND.grey : [180, 0, 0]) : BRAND.darkBlue;
+    const x = 14 + i * (boxW + 6);
+    doc.setFillColor(248, 250, 253);
+    doc.setDrawColor(...BRAND.blue);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, boxW, 10, 1, 1, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...BRAND.grey);
+    doc.text(label + ' :', x + 4, y + 4.5);
+    doc.setFontSize(9);
+    doc.setTextColor(...color);
+    doc.text(val, x + boxW / 2, y + 7.5, { align: 'center' });
+  });
+  y += 16;
+
+  // ── Signature ──
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Signature et Cachet de la Direction :', w - 14 - 60, y);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.2);
+  doc.line(w - 14 - 60, y + 18, w - 14, y + 18);
+
+  drawFooter(doc);
+  const fname = `Releve2A_${student.codeApprenant || student.nom}_${annee.replace(/\//g, '-')}.pdf`;
+  doc.save(fname);
+}

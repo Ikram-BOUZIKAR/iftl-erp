@@ -49,8 +49,8 @@ function Ico({ k, cls = 'w-[18px] h-[18px] shrink-0' }) {
 // ── Role visibility ───────────────────────────────────────────────────────────
 const ACCESS = {
   admin:       null,  // null = all
-  direction:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
-  scolarite:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
+  direction:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
+  scolarite:   ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
   intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/apprenants', '/annonces'],
   apprenant:   ['/', '/planning', '/notes', '/absences', '/annonces'],
   parent:      ['/', '/notes', '/absences', '/annonces'],
@@ -76,6 +76,7 @@ const SECTIONS = [
       { to: '/emargement',    label: 'Émargement',           icon: 'clipboard' },
       { to: '/modules',       label: 'Modules & Référentiel',icon: 'book' },
       { to: '/notes',       label: 'Notes & Évaluations',  icon: 'award' },
+      { to: '/releves',     label: 'Relevés de Notes',     icon: 'doc' },
       { to: '/absences',    label: 'Absences & Retards',   icon: 'alert' },
     ],
   },

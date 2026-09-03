@@ -43,6 +43,7 @@ import FormationContinuePage from './components/FormationContinue/FormationConti
 import RepairGroupesPage    from './components/Admin/RepairGroupesPage';
 import PassageNiveauPage    from './components/Admin/PassageNiveauPage';
 import DeduplicationPage    from './components/Admin/DeduplicationPage';
+import RelevesPage          from './components/Releves/RelevesPage';
 import './App.css';
 
 function App() {
@@ -109,6 +110,7 @@ function App() {
                         <Route path="/emargement/:id" element={<SessionAttendance />} />
                         <Route path="/modules"       element={<ModulesPage />} />
                         <Route path="/notes"         element={<NotesPage />} />
+                        <Route path="/releves"       element={<RelevesPage />} />
                         <Route path="/absences"      element={<AbsencesPage />} />
                         {/* Population */}
                         <Route path="/apprenants"    element={<ApprenantsPage />} />

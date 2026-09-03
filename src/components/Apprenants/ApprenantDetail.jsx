@@ -810,6 +810,17 @@ export default function ApprenantDetail() {
                     )}
                   </div>
                 </div>
+                {(student.nomTuteur || student.telephoneTuteur) && (
+                  <div className="mt-3 grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Tuteur / Tutrice</p>
+                      <div className="text-sm text-slate-800 font-medium">{student.nomTuteur || '—'}</div>
+                      {student.telephoneTuteur && (
+                        <div className="text-xs text-slate-500">{student.telephoneTuteur}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Baccalauréat */}

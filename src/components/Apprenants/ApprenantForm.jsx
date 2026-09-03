@@ -44,6 +44,8 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
     telephonePere: initial?.telephonePere || '',
     nomMere: initial?.nomMere || '',
     telephoneMere: initial?.telephoneMere || '',
+    nomTuteur: initial?.nomTuteur || '',
+    telephoneTuteur: initial?.telephoneTuteur || '',
     typeBac: initial?.typeBac || '',
     mentionBac: initial?.mentionBac || '',
     etablissementBac: initial?.etablissementBac || '',
@@ -157,6 +159,10 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
           <div className="grid grid-cols-2 gap-4">
             <Field label="Nom de la mère" fieldKey="nomMere" />
             <Field label="Téléphone mère" fieldKey="telephoneMere" type="tel" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Nom du tuteur / tutrice" fieldKey="nomTuteur" />
+            <Field label="Téléphone tuteur" fieldKey="telephoneTuteur" type="tel" />
           </div>
 
           {/* Section Baccalauréat */}
