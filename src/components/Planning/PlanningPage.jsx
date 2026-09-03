@@ -6,6 +6,7 @@ import { db } from '../../services/firebase';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import SessionForm from './SessionForm';
+import PlanningAutoModal from './PlanningAutoModal';
 import PlanningNotificationModal from '../Notifications/PlanningNotificationModal';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
@@ -68,6 +69,7 @@ export default function PlanningPage() {
   const [editing, setEditing]             = useState(null);
   const [defaultSlot, setDefaultSlot]     = useState(null);
   const [showNotify, setShowNotify]       = useState(false);
+  const [showAuto, setShowAuto]           = useState(false);
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -357,6 +359,11 @@ export default function PlanningPage() {
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#005989] text-[#005989] hover:bg-[#005989]/5 rounded-xl text-xs font-semibold transition-colors">
             ✉ Notifier
           </button>
+          <button onClick={() => setShowAuto(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-amber-400 text-amber-700 hover:bg-amber-50 rounded-xl text-xs font-semibold transition-colors"
+            title="Planification automatique intelligente">
+            ⚡ Auto
+          </button>
           <button onClick={() => openAdd(null, null, activeGroupId)}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white rounded-xl text-xs font-semibold shadow-sm transition-colors">
             + Séance
@@ -439,6 +446,16 @@ export default function PlanningPage() {
           groupes={groupes}
           weekStart={weekStart}
           onClose={() => setShowNotify(false)}
+        />
+      )}
+
+      {showAuto && (
+        <PlanningAutoModal
+          modules={modules}
+          groupes={groupes}
+          intervenants={intervenants}
+          onClose={() => setShowAuto(false)}
+          onCreated={() => { fetchWeekSessions(); }}
         />
       )}
     </div>

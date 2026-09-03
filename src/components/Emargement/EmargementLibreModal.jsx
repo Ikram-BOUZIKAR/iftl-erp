@@ -29,6 +29,8 @@ const ALL_SLOTS = [
   { label: 'Dim matin',    start: '09:00', end: '13:00' },
 ];
 
+const GRANDES_SALLES_EMARG = ['Grande Salle 01', 'Grande Salle 02', 'Amphi'];
+
 export default function EmargementLibreModal({ groupes, intervenants, onClose }) {
   const navigate = useNavigate();
   const toast    = useToast();
@@ -46,8 +48,13 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
     contenuSeance: '',
     objectifs:     '',
   });
+  const [extraGroupeIds, setExtraGroupeIds] = useState([]); // extra groups for grande salle
   const [modules, setModules] = useState([]);
   const [saving,  setSaving]  = useState(false);
+
+  const isGrandeSalle = GRANDES_SALLES_EMARG.includes(form.salle);
+  const toggleExtraGroupe = (gId) =>
+    setExtraGroupeIds(prev => prev.includes(gId) ? prev.filter(x => x !== gId) : [...prev, gId]);
 
   const niveaux = [...new Set(groupes.map(g => g.niveau).filter(Boolean))]
     .sort((a, b) => {
@@ -82,9 +89,9 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
     setSaving(true);
     try {
       const mod = modules.find(m => m.id === form.moduleId);
-      const moduleLabel = mod ? `${mod.code} — ${mod.nom}` : (form.moduleId || 'Séance libre');
-      const session = await sessionsService.create({
-        groupeId:      form.groupeId,
+      const moduleLabel = mod ? `${mod.nom}` : (form.moduleId || 'Séance libre');
+      const allGroupIds = [form.groupeId, ...extraGroupeIds];
+      const base = {
         intervenantId: form.intervenantId || null,
         module:        moduleLabel,
         moduleId:      form.moduleId || null,
@@ -96,8 +103,15 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
         contenuSeance: form.contenuSeance,
         objectifs:     form.objectifs,
         statut:        'en_cours',
-      });
-      navigate(`/emargement/${session.id}`);
+      };
+
+      // For grande salle with extra groups: create a session per group
+      let firstSessionId = null;
+      for (const gId of allGroupIds) {
+        const sess = await sessionsService.create({ ...base, groupeId: gId });
+        if (!firstSessionId) firstSessionId = sess.id;
+      }
+      navigate(`/emargement/${firstSessionId}`);
     } catch (err) {
       toast.error('Erreur : ' + err.message);
       setSaving(false);
@@ -186,9 +200,43 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Salle</label>
-              <input type="text" placeholder="Ex: Salle A, Lab 1…" value={form.salle} onChange={e => set('salle', e.target.value)} className={inp} />
+              <input type="text" list="salles-emarg-list" value={form.salle} onChange={e => { set('salle', e.target.value); setExtraGroupeIds([]); }} className={inp} placeholder="Choisir ou saisir…" />
+              <datalist id="salles-emarg-list">
+                <option value="Grande Salle 01" /><option value="Grande Salle 02" /><option value="Amphi" />
+                <option value="33" /><option value="34" /><option value="35" /><option value="36" />
+                <option value="43" /><option value="44" /><option value="45" /><option value="46" />
+                <option value="21" /><option value="22" /><option value="24" /><option value="25" /><option value="26" />
+                <option value="Entrepôt" />
+                <option value="Salle Info 7" /><option value="Salle Info 16" />
+                <option value="Salle Simu 6" /><option value="Salle Simu 9" />
+                <option value="Pistes" />
+              </datalist>
             </div>
           </div>
+
+          {/* Grande salle: groupes supplémentaires */}
+          {isGrandeSalle && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-semibold text-amber-800 mb-2">🏛️ Grande salle — groupes supplémentaires</p>
+              <div className="flex flex-wrap gap-2">
+                {groupes.filter(g => g.id !== form.groupeId).map(g => (
+                  <button type="button" key={g.id} onClick={() => toggleExtraGroupe(g.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                      extraGroupeIds.includes(g.id)
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-white text-amber-700 border-amber-300 hover:border-amber-500'
+                    }`}>
+                    {g.nom}
+                  </button>
+                ))}
+              </div>
+              {extraGroupeIds.length > 0 && (
+                <p className="text-[10px] text-amber-700 mt-2">
+                  {extraGroupeIds.length + 1} groupe(s) — une feuille par groupe sera créée
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Créneaux */}
           <div>

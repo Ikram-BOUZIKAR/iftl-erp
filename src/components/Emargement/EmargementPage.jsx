@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import EmargementLibreModal from './EmargementLibreModal';
+
+const GRANDES_SALLES = ['Grande Salle 01', 'Grande Salle 02', 'Amphi'];
+
+function toJsDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (v?.toDate) return v.toDate();
+  return new Date(v);
+}
 
 const STATUT_STYLES = {
   planifiee: { badge: 'bg-slate-100 text-slate-600', label: 'Planifiée' },
@@ -29,24 +38,58 @@ export default function EmargementPage() {
   const { data: sessions, loading, refetch } = useSessions();
   const { data: groupes } = useGroupes();
   const { data: intervenants } = useIntervenants();
+  const [modules, setModules] = useState([]);
   const [filterStatut, setFilterStatut] = useState('');
   const [filterGroupe, setFilterGroupe] = useState('');
+  const [filterDate, setFilterDate] = useState('');
   const [search, setSearch] = useState('');
   const [showLibreModal, setShowLibreModal] = useState(false);
+
+  useEffect(() => {
+    getDocs(query(collection(db, 'modules'), orderBy('code', 'asc')))
+      .then(snap => setModules(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(() => {});
+  }, []);
 
   const getGroupeName = (id) => groupes.find(g => g.id === id)?.nom || '—';
   const getIntervenantName = (id) => {
     const i = intervenants.find(x => x.id === id);
     return i ? `${i.prenom} ${i.nom}` : '—';
   };
+  const getModuleName = (s) => {
+    if (s.moduleId) {
+      const m = modules.find(m => m.id === s.moduleId);
+      if (m) return m.nom || m.code || s.moduleId;
+    }
+    return s.module || s.moduleId || '—';
+  };
+  const getDateStr = (s) => {
+    const d = toJsDate(s.date);
+    return d ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  };
 
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const filtered = sessions.filter(s => {
     const matchStatut = !filterStatut || s.statut === filterStatut;
     const matchGroupe = !filterGroupe || s.groupeId === filterGroupe;
     const q = search.toLowerCase();
-    const matchSearch = !q || s.module?.toLowerCase().includes(q) || s.salle?.toLowerCase().includes(q);
-    return matchStatut && matchGroupe && matchSearch;
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const moduleName = getModuleName(s);
+    const matchSearch = !q || moduleName.toLowerCase().includes(q) || s.salle?.toLowerCase().includes(q) ||
+      getGroupeName(s.groupeId).toLowerCase().includes(q);
+    let matchDate = true;
+    if (filterDate === 'today') {
+      const d = toJsDate(s.date); d && d.setHours(0, 0, 0, 0);
+      matchDate = d && d.getTime() === today.getTime();
+    } else if (filterDate === 'week') {
+      const d = toJsDate(s.date);
+      if (d) { const diff = Math.floor((d - today) / 86400000); matchDate = diff >= -6 && diff <= 6; }
+    }
+    return matchStatut && matchGroupe && matchSearch && matchDate;
+  }).sort((a, b) => {
+    const da = toJsDate(a.date) || new Date(0);
+    const db_ = toJsDate(b.date) || new Date(0);
+    return db_ - da;
+  });
 
   const handleOpenEmargement = async (id, module) => {
     try {
@@ -118,14 +161,20 @@ export default function EmargementPage() {
           </div>
           <input
             type="text"
-            placeholder="Rechercher (module, salle)…"
+            placeholder="Rechercher module, groupe, salle…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            className="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 focus:border-[#005989] transition-colors"
           />
         </div>
+        <select value={filterDate} onChange={e => setFilterDate(e.target.value)}
+          className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
+          <option value="">Toutes les dates</option>
+          <option value="today">Aujourd'hui</option>
+          <option value="week">Cette semaine</option>
+        </select>
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
-          className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+          className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
           <option value="">Tous les statuts</option>
           <option value="planifiee">Planifiée</option>
           <option value="en_cours">En cours</option>
@@ -133,7 +182,7 @@ export default function EmargementPage() {
           <option value="annulee">Annulée</option>
         </select>
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
-          className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+          className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
           <option value="">Tous les groupes</option>
           {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
@@ -175,9 +224,14 @@ export default function EmargementPage() {
                 return (
                   <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-800">{s.module}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-800">{getModuleName(s)}</p>
+                        {GRANDES_SALLES.includes(s.salle) && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200 shrink-0">🏛️ Grande salle</span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {s.date ? new Date(s.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                        {getDateStr(s)}
                         {' · '}{s.heureDebut}–{s.heureFin}
                         {s.salle ? ` · ${s.salle}` : ''}
                         {s.type ? ` · ${s.type.toUpperCase()}` : ''}

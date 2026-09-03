@@ -463,8 +463,20 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Salle</label>
-              <input type="text" value={form.salle} onChange={e => set('salle', e.target.value)}
-                placeholder="Ex: Salle A, Lab 1…" className={inputCls('')} />
+              <input type="text" list="salles-list" value={form.salle} onChange={e => set('salle', e.target.value)}
+                placeholder="Choisir ou saisir…" className={inputCls('')} />
+              <datalist id="salles-list">
+                <option value="Grande Salle 01" />
+                <option value="Grande Salle 02" />
+                <option value="Amphi" />
+                <option value="33" /><option value="34" /><option value="35" /><option value="36" />
+                <option value="43" /><option value="44" /><option value="45" /><option value="46" />
+                <option value="21" /><option value="22" /><option value="24" /><option value="25" /><option value="26" />
+                <option value="Entrepôt" />
+                <option value="Salle Info 7" /><option value="Salle Info 16" />
+                <option value="Salle Simu 6" /><option value="Salle Simu 9" />
+                <option value="Pistes" />
+              </datalist>
             </div>
           </div>
 

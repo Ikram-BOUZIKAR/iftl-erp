@@ -1,11 +1,20 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { sessionsService, presencesService, studentsService, groupesService, intervenantsService } from '../../services/firestore';
-import { doc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { generateFeuillEmargement } from '../../services/pdfService';
 import { computeAbsenceScore } from '../../services/absenceService';
 import { useToast } from '../UI/Toast';
+
+const GRANDES_SALLES = ['Grande Salle 01', 'Grande Salle 02', 'Amphi'];
+
+function toJsDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (v?.toDate) return v.toDate();
+  return new Date(v);
+}
 
 const STATUTS = [
   { value: 'present', label: 'Présent', short: 'P', bg: 'bg-emerald-500 text-white', border: 'border-emerald-500' },
@@ -18,8 +27,11 @@ export default function SessionAttendance() {
   const { id } = useParams();
   const toast = useToast();
   const [session, setSession] = useState(null);
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState([]); // all students (all groups merged for grande salle)
+  const [studentGroupMap, setStudentGroupMap] = useState({}); // studentId → groupe name
   const [groupe, setGroupe] = useState(null);
+  const [siblingGroupes, setSiblingGroupes] = useState([]); // extra groups for grande salle
+  const [allSessionIds, setAllSessionIds] = useState([]); // [id, ...siblingIds]
   const [intervenant, setIntervenant] = useState(null);
   const [attendance, setAttendance] = useState({});
   const [contenuSeance, setContenuSeance] = useState('');
@@ -28,7 +40,7 @@ export default function SessionAttendance() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [liveUpdate, setLiveUpdate] = useState(false);
-  const dirtyRef = useRef(new Set()); // tracks locally-modified student IDs
+  const dirtyRef = useRef(new Set());
 
   useEffect(() => {
     let unsub;
@@ -39,25 +51,71 @@ export default function SessionAttendance() {
       setContenuSeance(sess.contenuSeance || '');
       setObjectifs(sess.objectifs || '');
 
-      const [studentsData, groupeData, intervenantData] = await Promise.all([
-        sess.groupeId ? studentsService.getAll({ groupeId: sess.groupeId }) : Promise.resolve([]),
+      // Detect sibling sessions (grande salle) — same date, heureDebut, salle
+      let siblingIds = [];
+      let siblingGroupIds = [];
+      const isGrande = GRANDES_SALLES.includes(sess.salle);
+      if (isGrande && sess.date && sess.heureDebut && sess.salle) {
+        const sibQ = query(
+          collection(db, 'sessions'),
+          where('salle', '==', sess.salle),
+          where('heureDebut', '==', sess.heureDebut),
+          where('date', '==', sess.date),
+        );
+        const sibSnap = await getDocs(sibQ);
+        sibSnap.forEach(d => {
+          if (d.id !== id && d.data().groupeId && d.data().groupeId !== sess.groupeId) {
+            siblingIds.push(d.id);
+            siblingGroupIds.push(d.data().groupeId);
+          }
+        });
+      }
+      setAllSessionIds([id, ...siblingIds]);
+
+      // Load all groups involved
+      const allGroupIds = [sess.groupeId, ...siblingGroupIds].filter(Boolean);
+      const [groupeData, intervenantData, ...extraGroupes] = await Promise.all([
         sess.groupeId ? groupesService.getById(sess.groupeId) : Promise.resolve(null),
         sess.intervenantId ? intervenantsService.getById(sess.intervenantId) : Promise.resolve(null),
+        ...siblingGroupIds.map(gId => groupesService.getById(gId)),
       ]);
-
-      const active = studentsData.filter(s => s.statut === 'actif');
-      setStudents(active);
       setGroupe(groupeData);
       setIntervenant(intervenantData);
+      setSiblingGroupes(extraGroupes.filter(Boolean));
+
+      // Build groupe name lookup
+      const groupeNameMap = {};
+      if (groupeData) groupeNameMap[sess.groupeId] = groupeData.nom;
+      extraGroupes.forEach((g, i) => { if (g) groupeNameMap[siblingGroupIds[i]] = g.nom; });
+
+      // Load students from all groups
+      const studentsPerGroup = await Promise.all(
+        allGroupIds.map(gId => studentsService.getAll({ groupeId: gId }))
+      );
+      const sgMap = {};
+      const allActive = [];
+      const seenIds = new Set();
+      studentsPerGroup.forEach((arr, i) => {
+        arr.filter(s => s.statut === 'actif').forEach(s => {
+          if (!seenIds.has(s.id)) {
+            seenIds.add(s.id);
+            allActive.push(s);
+            sgMap[s.id] = groupeNameMap[allGroupIds[i]] || '?';
+          }
+        });
+      });
+      setStudents(allActive);
+      setStudentGroupMap(sgMap);
 
       const init = {};
-      for (const s of active) init[s.id] = { statut: 'present', heureArrivee: '', justification: '' };
+      for (const s of allActive) init[s.id] = { statut: 'present', heureArrivee: '', justification: '' };
       setAttendance(init);
       setLoading(false);
 
-      // Real-time presence subscription — only updates non-dirty records
+      // Real-time presence subscription across all session IDs
+      const sessionIdsToWatch = [id, ...siblingIds];
       unsub = onSnapshot(
-        query(collection(db, 'presences'), where('sessionId', '==', id)),
+        query(collection(db, 'presences'), where('sessionId', 'in', sessionIdsToWatch.slice(0, 10))),
         snap => {
           setAttendance(prev => {
             const next = { ...prev };
@@ -111,7 +169,7 @@ export default function SessionAttendance() {
         presencesService.bulkUpsert(id, entries),
         updateDoc(doc(db, 'sessions', id), { contenuSeance, objectifs, updatedAt: new Date() }),
       ]);
-      dirtyRef.current.clear(); // reset dirty tracking after save
+      dirtyRef.current.clear();
       setLiveUpdate(false);
       toast.success('Feuille de présence sauvegardée');
     } catch (err) {
@@ -179,9 +237,13 @@ export default function SessionAttendance() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
-            <InfoItem label="Date" value={session.date ? new Date(session.date).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '—'} />
+            <InfoItem label="Date" value={toJsDate(session.date)?.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) || '—'} />
             <InfoItem label="Horaire" value={`${session.heureDebut} – ${session.heureFin}`} />
-            <InfoItem label="Groupe" value={groupe?.nom || '—'} />
+            <InfoItem label="Groupe" value={
+              siblingGroupes.length > 0
+                ? <span>{groupe?.nom || '—'} <span className="text-xs text-amber-600 font-semibold">+{siblingGroupes.length} groupes</span></span>
+                : groupe?.nom || '—'
+            } />
             <InfoItem label="Intervenant" value={intervenant ? `${intervenant.prenom} ${intervenant.nom}` : '—'} />
             <InfoItem label="Salle" value={session.salle || '—'} />
             <InfoItem label="Type" value={session.type?.toUpperCase() || '—'} />
@@ -317,7 +379,14 @@ export default function SessionAttendance() {
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-800 truncate">{student.nom} {student.prenom}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-800 truncate">{student.nom} {student.prenom}</p>
+                        {siblingGroupes.length > 0 && studentGroupMap[student.id] && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                            {studentGroupMap[student.id]}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400">{student.cin || student.email}</p>
                     </div>
 
