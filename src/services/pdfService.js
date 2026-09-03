@@ -1193,3 +1193,327 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
   const fname = `Releve2A_${student.codeApprenant || student.nom}_${annee.replace(/\//g, '-')}.pdf`;
   doc.save(fname);
 }
+
+// ─── Attestation de passage de soutenance ────────────────────────────────────
+/**
+ * @param {object} student  - { nom, prenom, dateNaissance, cin, codeApprenant }
+ * @param {object} opts     - { anneeFiliere, filiere, anneeFormation, datesSoutenance, dateFait }
+ *   anneeFiliere : '1ère' | '2ème'
+ *   datesSoutenance : human-readable string, e.g. 'les 12 et 13 juin 2027'
+ *   dateFait : Date or string
+ */
+export function generateAttestationSoutenance(student, opts = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  drawPageBorder(doc);
+  const w = doc.internal.pageSize.getWidth();
+
+  let y = drawIftlHeaderAttestation(doc, 'ATTESTATION DE PASSAGE DE SOUTENANCE');
+
+  const dateFait = opts.dateFait
+    ? format(new Date(opts.dateFait), "d MMMM yyyy", { locale: fr })
+    : format(new Date(), "d MMMM yyyy", { locale: fr });
+
+  const nomPrenom = `${(student.prenom || '').trim()} ${(student.nom || '').toUpperCase().trim()}`.trim();
+  const dob = student.dateNaissance
+    ? format(new Date(student.dateNaissance), "d MMMM yyyy", { locale: fr })
+    : '—';
+
+  // ── Objet ──
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.blue);
+  doc.text('ATTESTATION DE PASSAGE DE SOUTENANCE', w / 2, y, { align: 'center' });
+
+  // ── Intro ──
+  y += 10;
+  const introLines = doc.splitTextToSize(
+    'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport ' +
+    'et de la Logistique « IFTL », institut public à gestion déléguée créé en vertu du Décret n° 2-25-250 ' +
+    'du 1 Kaada 1446 (29 avril 2025), placé sous la tutelle du Ministère de l\'Inclusion économique, de la Petite ' +
+    'entreprise, de l\'Emploi et des Compétences et situé au Pôle urbain de Nouaceur LOT P\'41-Nouaceur,',
+    w - 28
+  );
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.black);
+  doc.text(introLines, 14, y);
+  y += introLines.length * 5.5 + 4;
+
+  // ── Certifie ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.blue);
+  doc.text('CERTIFIE', w / 2, y, { align: 'center' });
+  y += 8;
+
+  // ── Body ──
+  const anneeFiliere = opts.anneeFiliere || '—';
+  const filiere = opts.filiere || '—';
+  const anneeFormation = opts.anneeFormation || '—';
+  const datesSoutenance = opts.datesSoutenance || '—';
+
+  const bodyText =
+    `Que l'apprenant(e) : `;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.black);
+  doc.text(bodyText, 14, y);
+  y += 6;
+
+  // Student info box
+  const fields = [
+    { label: 'Nom et Prénom', value: nomPrenom },
+    { label: 'Date de naissance', value: dob },
+    { label: 'CIN', value: student.cin || '—' },
+    { label: 'Code Apprenant', value: student.codeApprenant || '—' },
+  ];
+  y = drawInfoBoxSimple(doc, fields, y);
+  y += 6;
+
+  const bodyLines = doc.splitTextToSize(
+    `est inscrit(e) en ${anneeFiliere} année de la filière : ${filiere}, au titre de l'année de formation ${anneeFormation}, ` +
+    `et a satisfait aux conditions d'assiduité et d'évaluation continue requises par l'Institut.`,
+    w - 28
+  );
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.black);
+  doc.text(bodyLines, 14, y);
+  y += bodyLines.length * 5.5 + 4;
+
+  const passageLines = doc.splitTextToSize(
+    `La présente attestation est délivrée pour lui permettre de se présenter aux épreuves de soutenance ${datesSoutenance}.`,
+    w - 28
+  );
+  doc.text(passageLines, 14, y);
+  y += passageLines.length * 5.5 + 6;
+
+  // ── Validity note ──
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.grey);
+  const noteLines = doc.splitTextToSize(
+    'Cette attestation est délivrée à l\'intéressé(e) pour faire valoir ce que de droit et ne préjuge pas ' +
+    'des résultats définitifs de la soutenance.',
+    w - 28
+  );
+  doc.text(noteLines, 14, y);
+  y += noteLines.length * 5 + 8;
+
+  // ── Signature ──
+  drawSignatureBlock(doc, y, dateFait);
+
+  drawFooter(doc);
+  const safe = nomPrenom.replace(/\s+/g, '_');
+  doc.save(`Attestation_Soutenance_${safe}.pdf`);
+}
+
+// ─── Attestation de fin de formation et de réussite ──────────────────────────
+/**
+ * @param {object} student  - { nom, prenom, dateNaissance, cin, codeApprenant }
+ * @param {object} opts     - { niveau, filiere, anneeAcademique, dateDeliberation, dateFait, competencesMetier? }
+ */
+export function generateAttestationReussite(student, opts = {}) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  drawPageBorder(doc);
+  const w = doc.internal.pageSize.getWidth();
+
+  let y = drawIftlHeaderAttestation(doc, 'ATTESTATION DE FIN DE FORMATION ET DE RÉUSSITE');
+
+  const dateFait = opts.dateFait
+    ? format(new Date(opts.dateFait), "d MMMM yyyy", { locale: fr })
+    : format(new Date(), "d MMMM yyyy", { locale: fr });
+
+  const nomPrenom = `${(student.prenom || '').trim()} ${(student.nom || '').toUpperCase().trim()}`.trim();
+  const dob = student.dateNaissance
+    ? format(new Date(student.dateNaissance), "d MMMM yyyy", { locale: fr })
+    : '—';
+
+  const dateDelib = opts.dateDeliberation
+    ? format(new Date(opts.dateDeliberation), "d MMMM yyyy", { locale: fr })
+    : '—';
+
+  // ── Titre ──
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.blue);
+  doc.text('ATTESTATION DE FIN DE FORMATION ET DE RÉUSSITE', w / 2, y, { align: 'center' });
+
+  // ── Intro ──
+  y += 10;
+  const introLines = doc.splitTextToSize(
+    'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport ' +
+    'et de la Logistique « IFTL », institut public à gestion déléguée créé en vertu du Décret n° 2-25-250 ' +
+    'du 1 Kaada 1446 (29 avril 2025), placé sous la tutelle du Ministère de l\'Inclusion économique, de la Petite ' +
+    'entreprise, de l\'Emploi et des Compétences et situé au Pôle urbain de Nouaceur LOT P\'41-Nouaceur,',
+    w - 28
+  );
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.black);
+  doc.text(introLines, 14, y);
+  y += introLines.length * 5.5 + 4;
+
+  // ── Atteste ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.blue);
+  doc.text('ATTESTE', w / 2, y, { align: 'center' });
+  y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.black);
+  doc.text('Que l\'apprenant(e) :', 14, y);
+  y += 6;
+
+  // Student info box
+  const fields = [
+    { label: 'Nom et Prénom', value: nomPrenom },
+    { label: 'Date de naissance', value: dob },
+    { label: 'CIN', value: student.cin || '—' },
+    { label: 'Code Apprenant', value: student.codeApprenant || '—' },
+  ];
+  y = drawInfoBoxSimple(doc, fields, y);
+  y += 6;
+
+  const niveau = opts.niveau || '—';
+  const filiere = opts.filiere || '—';
+  const anneeAcademique = opts.anneeAcademique || '—';
+  const competences = opts.competencesMetier || '';
+
+  const body1Lines = doc.splitTextToSize(
+    `a validé avec succès l'ensemble des modules pédagogiques et professionnels relatifs à la Formation de niveau ` +
+    `${niveau} dans la filière : ${filiere}, au titre de l'année académique ${anneeAcademique}, conformément aux normes ` +
+    `en vigueur, et dans le plein respect des critères d'assiduité, de discipline et de performance exigés par l'Institut.`,
+    w - 28
+  );
+  doc.text(body1Lines, 14, y);
+  y += body1Lines.length * 5.5 + 4;
+
+  const body2Lines = doc.splitTextToSize(
+    `Ce résultat a été arrêté en application des délibérations du Conseil de gestion et de coordination pédagogique ` +
+    `de l'Institut, tenu le ${dateDelib}, et dûment consignées dans le procès-verbal correspondant.`,
+    w - 28
+  );
+  doc.text(body2Lines, 14, y);
+  y += body2Lines.length * 5.5 + 4;
+
+  if (competences) {
+    const cLines = doc.splitTextToSize(`Compétences métier acquises : ${competences}`, w - 28);
+    doc.text(cLines, 14, y);
+    y += cLines.length * 5.5 + 4;
+  }
+
+  // ── Validity note ──
+  y += 2;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.grey);
+  const noteLines = doc.splitTextToSize(
+    'La présente attestation est délivrée à l\'intéressé(e) pour faire valoir ce que de droit, dans l\'attente ' +
+    'de la remise du diplôme officiel.',
+    w - 28
+  );
+  doc.text(noteLines, 14, y);
+  y += noteLines.length * 5 + 8;
+
+  // ── Signature ──
+  drawSignatureBlock(doc, y, dateFait);
+
+  drawFooter(doc);
+  const safe = nomPrenom.replace(/\s+/g, '_');
+  doc.save(`Attestation_Reussite_${safe}.pdf`);
+}
+
+// ─── Shared attestation helpers ───────────────────────────────────────────────
+
+function drawIftlHeaderAttestation(doc, docTitle) {
+  const w = doc.internal.pageSize.getWidth();
+
+  // Blue header band
+  doc.setFillColor(...BRAND.blue);
+  doc.rect(0, 0, w, 42, 'F');
+
+  // Yellow accent bar
+  doc.setFillColor(...BRAND.yellow);
+  doc.rect(0, 42, w, 3, 'F');
+
+  // Logo zone – left side
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...BRAND.yellow);
+  doc.text('IFTL', 14, 17);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.white);
+  doc.text('Institut de Formation dans les métiers', 14, 24);
+  doc.text('Transport & Logistique', 14, 30);
+  doc.setFontSize(6.5);
+  doc.text('Pôle Urbain Nouaceur LOT P\'41 | +212 66 04 71 53 | www.iftl.ma', 14, 36);
+
+  // Document type – right side
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.white);
+  doc.text(docTitle, w - 14, 22, { align: 'right' });
+
+  return 54; // y after header
+}
+
+function drawInfoBoxSimple(doc, fields, startY) {
+  const w = doc.internal.pageSize.getWidth();
+  const lineH = 6.5;
+  const pad = 4;
+  const boxH = fields.length * lineH + pad * 2;
+
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, startY, w - 28, boxH, 2, 2, 'FD');
+
+  let y = startY + pad + 4;
+  for (const f of fields) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BRAND.grey);
+    doc.text(f.label + ' :', 20, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...BRAND.black);
+    doc.text(f.value, 70, y);
+    y += lineH;
+  }
+  return startY + boxH;
+}
+
+function drawSignatureBlock(doc, y, dateFait) {
+  const w = doc.internal.pageSize.getWidth();
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.black);
+  doc.text(`Fait à Nouaceur, le ${dateFait}`, w - 14, y, { align: 'right' });
+  y += 6;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('M. KARAOUANE Mohamed', w - 14, y, { align: 'right' });
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Directeur Général de l\'IFTL', w - 14, y, { align: 'right' });
+  y += 16;
+
+  // Signature line
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.line(w - 14 - 60, y, w - 14, y);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Signature et cachet de la Direction', w - 14 - 30, y + 4, { align: 'center' });
+}

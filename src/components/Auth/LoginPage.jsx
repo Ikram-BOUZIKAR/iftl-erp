@@ -121,7 +121,7 @@ export default function LoginPage({ auth }) {
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: `rgba(200,212,93,0.8)`, marginBottom: 4 }}>Candidature</div>
             <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>Candidater<br/>à une formation</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>Transport · Logistique · 6 filières</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>Formation initiale · continue · apprentissage</div>
           </div>
           <div style={{ marginLeft: 'auto', flexShrink: 0, position: 'relative', zIndex: 1, opacity: 0.35 }}>
             <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-6 h-6" strokeWidth={1.75} />

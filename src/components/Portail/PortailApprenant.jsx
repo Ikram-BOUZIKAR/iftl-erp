@@ -5,6 +5,7 @@ import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
+import { generateAttestationSoutenance, generateAttestationReussite } from '../../services/pdfService';
 
 const BLUE = '#005989';
 const BG = '#f1f5f9';
@@ -283,6 +284,105 @@ function ProfilTab({ student, userProfile, userId }) {
             {saving ? 'Enregistrement…' : saved ? '✓ Modifications enregistrées' : 'Enregistrer les modifications'}
           </button>
         </div>
+      </div>
+
+      {/* Documents téléchargeables */}
+      <AttestationsSection student={student} userProfile={userProfile} />
+    </div>
+  );
+}
+
+function AttestationsSection({ student, userProfile }) {
+  const [downloading, setDownloading] = useState(null);
+
+  const handleSoutenance = async () => {
+    setDownloading('soutenance');
+    try {
+      generateAttestationSoutenance(student || userProfile, {
+        anneeFiliere: student?.anneeFormation ? (student.anneeFormation.startsWith('2') ? '2ème' : '1ère') : '1ère',
+        filiere: student?.filiere || userProfile?.filiere || '—',
+        anneeFormation: student?.anneeAcademique || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
+        datesSoutenance: '—',
+        dateFait: new Date(),
+      });
+    } catch (e) {
+      console.error('Attestation soutenance error:', e);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleReussite = async () => {
+    setDownloading('reussite');
+    try {
+      generateAttestationReussite(student || userProfile, {
+        niveau: student?.niveau || userProfile?.niveau || '—',
+        filiere: student?.filiere || userProfile?.filiere || '—',
+        anneeAcademique: student?.anneeAcademique || '—',
+        dateDeliberation: '—',
+        dateFait: new Date(),
+      });
+    } catch (e) {
+      console.error('Attestation réussite error:', e);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const statut = student?.statut || userProfile?.statut;
+  const canDownload = !statut || statut === 'actif' || statut === 'diplome' || statut === 'diplomé';
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100" style={{ background: `${BLUE}07` }}>
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Mes Documents</p>
+        <p className="text-xs text-slate-400 mt-0.5">Téléchargez vos attestations officielles</p>
+      </div>
+      <div className="p-5 space-y-3">
+        {!canDownload && (
+          <p className="text-xs text-slate-400 italic">Documents disponibles uniquement pour les apprenants actifs ou diplômés.</p>
+        )}
+        <button
+          onClick={handleSoutenance}
+          disabled={!canDownload || downloading === 'soutenance'}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-all disabled:opacity-50 hover:shadow-sm"
+          style={{ borderColor: '#bfdbfe', background: '#eff6ff' }}
+        >
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#2563eb' }}>
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-800">Attestation de passage de soutenance</p>
+            <p className="text-xs text-slate-500 mt-0.5">Justificatif pour se présenter aux épreuves de soutenance</p>
+          </div>
+          {downloading === 'soutenance'
+            ? <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+            : <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          }
+        </button>
+
+        <button
+          onClick={handleReussite}
+          disabled={!canDownload || downloading === 'reussite'}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-all disabled:opacity-50 hover:shadow-sm"
+          style={{ borderColor: '#bbf7d0', background: '#f0fdf4' }}
+        >
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#16a34a' }}>
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-800">Attestation de fin de formation et de réussite</p>
+            <p className="text-xs text-slate-500 mt-0.5">Délivrée après validation de l'ensemble des modules</p>
+          </div>
+          {downloading === 'reussite'
+            ? <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin shrink-0" />
+            : <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          }
+        </button>
       </div>
     </div>
   );
