@@ -23,10 +23,10 @@ const LIME_DK = '#141f0a';
 // ── Shared input / button components ──────────────────────────────────────────
 const inputBase = {
   width: '100%',
-  background: 'rgba(255,255,255,0.055)',
-  border: '1.5px solid rgba(255,255,255,0.09)',
+  background: '#f8fafc',
+  border: '1.5px solid #e2e8f0',
   borderRadius: 12,
-  color: '#fff',
+  color: '#0f172a',
   fontSize: 14,
   padding: '13px 13px 13px 42px',
   outline: 'none',
@@ -130,18 +130,18 @@ export default function LoginPage({ auth }) {
       </div>
 
       {/* ══ BOTTOM: IFTL branding + login form ══ */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: NAVY2 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 72, width: '100%', maxWidth: 820 }}>
 
           {/* Brand block */}
           <div style={{ flexShrink: 0 }}>
             <div style={{ width: 56, height: 56, borderRadius: 15, background: YELLOW, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 17, color: NAVY, marginBottom: 16, letterSpacing: '-0.02em' }}>IF</div>
-            <div style={{ fontWeight: 900, fontSize: 'clamp(34px,4.5vw,54px)', lineHeight: 1, letterSpacing: '-0.03em', color: '#fff', marginBottom: 6 }}>IFTL</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les métiers Transport &amp; Logistique</div>
+            <div style={{ fontWeight: 900, fontSize: 'clamp(34px,4.5vw,54px)', lineHeight: 1, letterSpacing: '-0.03em', color: NAVY, marginBottom: 6 }}>IFTL</div>
+            <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les métiers Transport &amp; Logistique</div>
           </div>
 
           {/* Separator */}
-          <div style={{ width: 1, height: 200, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+          <div style={{ width: 1, height: 200, background: '#e2e8f0', flexShrink: 0 }} />
 
           {/* Form */}
           <div style={{ flex: 1, maxWidth: 380 }}>
@@ -149,32 +149,32 @@ export default function LoginPage({ auth }) {
               <div>
                 <button
                   onClick={() => { setResetMode(false); setResetSent(false); setError(''); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.45)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}
-                  onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
-                  onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.45)'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#334155'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
                 >
                   <Ico path="M10 19l-7-7m0 0l7-7m-7 7h18" size="w-4 h-4" /> Retour
                 </button>
 
                 {resetSent ? (
-                  <div style={{ padding: '20px', borderRadius: 14, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(34,197,94,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                      <Ico path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" size="w-5 h-5" stroke="#22c55e" />
+                  <div style={{ padding: '20px', borderRadius: 14, background: '#f0fdf4', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                      <Ico path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" size="w-5 h-5" stroke="#16a34a" />
                     </div>
-                    <p style={{ fontWeight: 700, marginBottom: 4 }}>Email envoyé !</p>
-                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Vérifiez <strong style={{ color: '#fff' }}>{resetEmail}</strong></p>
+                    <p style={{ fontWeight: 700, color: '#15803d', marginBottom: 4 }}>Email envoyé !</p>
+                    <p style={{ fontSize: 12, color: '#4ade80' }}>Vérifiez <strong style={{ color: '#15803d' }}>{resetEmail}</strong></p>
                   </div>
                 ) : (
                   <form onSubmit={handleReset}>
-                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: 16 }}>Entrez votre email pour recevoir un lien de réinitialisation.</p>
+                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>Entrez votre email pour recevoir un lien de réinitialisation.</p>
                     <input
                       type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
                       placeholder="vous@iftl.ma"
                       style={{ ...inputBase, paddingLeft: 14, marginBottom: 12 }}
-                      onFocus={e => e.target.style.borderColor = `${YELLOW}65`}
-                      onBlur={e  => e.target.style.borderColor = 'rgba(255,255,255,0.09)'}
+                      onFocus={e => e.target.style.borderColor = BLUE}
+                      onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
                     />
-                    {error && <p style={{ fontSize: 12, color: '#fca5a5', marginBottom: 12 }}>{error}</p>}
+                    {error && <p style={{ fontSize: 12, color: '#dc2626', marginBottom: 12 }}>{error}</p>}
                     <button
                       type="submit" disabled={resetLoading}
                       style={{ width: '100%', padding: '13px', background: YELLOW, color: NAVY, border: 'none', borderRadius: 12, fontWeight: 800, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -186,21 +186,21 @@ export default function LoginPage({ auth }) {
               </div>
             ) : (
               <form onSubmit={handleLogin}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: YELLOW, marginBottom: 10 }}>Connexion professionnelle</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: BLUE, marginBottom: 10 }}>Connexion professionnelle</div>
 
                 {/* Email */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>Email</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 6 }}>Email</div>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.22)', display: 'flex', pointerEvents: 'none' }}>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
                       <Ico path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" size="w-4 h-4" />
                     </span>
                     <input
                       type="email" value={email} onChange={e => setEmail(e.target.value)}
                       placeholder="vous@iftl.ma" required autoComplete="email"
                       style={inputBase}
-                      onFocus={e => e.target.style.borderColor = `${YELLOW}50`}
-                      onBlur={e  => e.target.style.borderColor = 'rgba(255,255,255,0.09)'}
+                      onFocus={e => e.target.style.borderColor = BLUE}
+                      onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
                     />
                   </div>
                 </div>
@@ -208,28 +208,28 @@ export default function LoginPage({ auth }) {
                 {/* Password */}
                 <div style={{ marginBottom: 4 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>Mot de passe</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8' }}>Mot de passe</span>
                     <button type="button" onClick={() => { setResetMode(true); setResetEmail(email); setError(''); }}
-                      style={{ fontSize: 11.5, fontWeight: 600, color: `${YELLOW}88`, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                      onMouseEnter={e => e.currentTarget.style.color = YELLOW}
-                      onMouseLeave={e => e.currentTarget.style.color = `${YELLOW}88`}
+                      style={{ fontSize: 11.5, fontWeight: 600, color: BLUE, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
                     >Oublié ?</button>
                   </div>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.22)', display: 'flex', pointerEvents: 'none' }}>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
                       <Ico path="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" size="w-4 h-4" />
                     </span>
                     <input
                       type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••" required autoComplete="current-password"
                       style={{ ...inputBase, paddingRight: 44 }}
-                      onFocus={e => e.target.style.borderColor = `${YELLOW}50`}
-                      onBlur={e  => e.target.style.borderColor = 'rgba(255,255,255,0.09)'}
+                      onFocus={e => e.target.style.borderColor = BLUE}
+                      onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
                     />
                     <button type="button" onClick={() => setShowPwd(v => !v)}
-                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', padding: 4, display: 'flex' }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.65)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.25)'}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#475569'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
                     >
                       {showPwd
                         ? <Ico path="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" size="w-4 h-4" />
@@ -241,14 +241,14 @@ export default function LoginPage({ auth }) {
 
                 {/* Pending / Error */}
                 {auth.pendingAccount && (
-                  <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(234,179,8,0.11)', border: '1px solid rgba(234,179,8,0.22)', color: '#fde047', fontSize: 12, marginTop: 12 }}>
-                    <Ico path="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#fde047" />
+                  <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#fefce8', border: '1px solid #fde68a', color: '#92400e', fontSize: 12, marginTop: 12 }}>
+                    <Ico path="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#d97706" />
                     Compte en attente de validation par un administrateur.
                   </div>
                 )}
                 {error && (
-                  <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.22)', color: '#fca5a5', fontSize: 12, marginTop: 12 }}>
-                    <Ico path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#fca5a5" />
+                  <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, marginTop: 12 }}>
+                    <Ico path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#dc2626" />
                     {error}
                   </div>
                 )}
@@ -267,14 +267,14 @@ export default function LoginPage({ auth }) {
                 </button>
 
                 {/* Divider + register */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,0.16)', fontSize: 10, margin: '16px 0' }}>
-                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} /> ou <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#cbd5e1', fontSize: 10, margin: '16px 0' }}>
+                  <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} /> ou <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
                 </div>
                 <Link
                   to="/register"
-                  style={{ width: '100%', padding: '12px 20px', background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(255,255,255,0.09)', borderRadius: 12, color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', transition: 'background .15s, color .15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#fff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+                  style={{ width: '100%', padding: '12px 20px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, color: '#64748b', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', transition: 'background .15s, color .15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#334155'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
                 >
                   <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
                   Créer un compte
