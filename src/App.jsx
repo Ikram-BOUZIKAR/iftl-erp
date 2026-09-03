@@ -44,6 +44,7 @@ import FormationContinuePage from './components/FormationContinue/FormationConti
 import RepairGroupesPage    from './components/Admin/RepairGroupesPage';
 import PassageNiveauPage    from './components/Admin/PassageNiveauPage';
 import DeduplicationPage    from './components/Admin/DeduplicationPage';
+import EDTImportPage        from './components/Admin/EDTImportPage';
 import RelevesPage          from './components/Releves/RelevesPage';
 import './App.css';
 
@@ -151,6 +152,7 @@ function App() {
                         <Route path="/admin/repair-groupes"    element={<RepairGroupesPage />} />
                         <Route path="/admin/passage-niveau"    element={<PassageNiveauPage />} />
                         <Route path="/admin/deduplication"     element={<DeduplicationPage />} />
+                        <Route path="/admin/import-edt"        element={<EDTImportPage />} />
                         <Route path="*"              element={<Navigate to="/" replace />} />
                       </Routes>
                     </MainLayout>
