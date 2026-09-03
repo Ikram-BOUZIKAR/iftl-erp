@@ -902,7 +902,7 @@ export function generateReleve1A(student, info, modules, summary = {}) {
   doc.setFontSize(7);
   doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
   doc.setFontSize(6.5);
-  doc.text('Route de Casablanca, Marrakech | Tél : +212 524 XXX XXX | www.iftl.ma', 14, 28);
+  doc.text('Pole Urbain P 41 | Tél : +212 66 04 71 53 | www.iftl.ma | info@iftl.ma', 14, 28);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
@@ -962,7 +962,7 @@ export function generateReleve1A(student, info, modules, summary = {}) {
   autoTable(doc, {
     startY: y,
     margin: { left: 14, right: 14 },
-    head: [['Réf.', 'Module', 'Note (/20)', 'Coef.']],
+    head: [['Réf.', 'Module', 'Note Générale (/20)', 'Coef.']],
     body: rows,
     styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
     headStyles: { fillColor: BRAND.darkBlue, textColor: BRAND.white, fontStyle: 'bold', fontSize: 8 },
@@ -1008,7 +1008,7 @@ export function generateReleve1A(student, info, modules, summary = {}) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.grey);
-  doc.text('Signature et Cachet de la Direction :', w - 14 - 60, y);
+  doc.text('Signature de la direction :', w - 14 - 60, y);
   doc.setDrawColor(...BRAND.blue);
   doc.setLineWidth(0.2);
   doc.line(w - 14 - 60, y + 18, w - 14, y + 18);
@@ -1049,7 +1049,7 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
   doc.setFontSize(7);
   doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
   doc.setFontSize(6.5);
-  doc.text('Route de Casablanca, Marrakech | Tél : +212 524 XXX XXX | www.iftl.ma', 14, 28);
+  doc.text('Pole Urbain P 41 | Tél : +212 66 04 71 53 | www.iftl.ma | info@iftl.ma', 14, 28);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -1104,7 +1104,7 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
   autoTable(doc, {
     startY: y,
     margin: { left: 14, right: 14 },
-    head: [['Réf.', 'Module', 'Note (/20)', 'Coef.']],
+    head: [['Réf.', 'Module', 'Note Générale (/20)', 'Coef.']],
     body: rows,
     styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
     headStyles: { fillColor: BRAND.darkBlue, textColor: BRAND.white, fontStyle: 'bold', fontSize: 8 },
@@ -1127,8 +1127,8 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
   const wRows = [
     ['Moyenne Générale de la 2ème année', '30 %', moy2A !== null ? moy2A.toFixed(2) : '—'],
     ['Moyenne Générale de la 1ère année', '20 %', moy1A !== null ? Number(moy1A).toFixed(2) : '—'],
-    ['Stages & Insertion Professionnelle',  '30 %', moyStage !== null ? Number(moyStage).toFixed(2) : '—'],
-    ['Examen de Fin de Formation (Soutenance)', '20 %', moyEFF !== null ? Number(moyEFF).toFixed(2) : '—'],
+    ['Stages & insertion professionnelle',  '30 %', moyStage !== null ? Number(moyStage).toFixed(2) : '—'],
+    ['Examen de Fin de Formation', '20 %', moyEFF !== null ? Number(moyEFF).toFixed(2) : '—'],
   ];
 
   const moyPass = (moy2A !== null && moy1A !== null && moyStage !== null && moyEFF !== null)
@@ -1136,7 +1136,7 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
     : null;
 
   wRows.push([
-    { content: 'Moyenne Générale de Passage', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white } },
+    { content: 'NOTE GÉNÉRALE DE RÉUSSITE', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white } },
     { content: '', styles: { fillColor: BRAND.blue } },
     { content: moyPass !== null ? moyPass.toFixed(2) : '—', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white, halign: 'center' } },
   ]);
@@ -1184,7 +1184,7 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.grey);
-  doc.text('Signature et Cachet de la Direction :', w - 14 - 60, y);
+  doc.text('Signature de la direction :', w - 14 - 60, y);
   doc.setDrawColor(...BRAND.blue);
   doc.setLineWidth(0.2);
   doc.line(w - 14 - 60, y + 18, w - 14, y + 18);
