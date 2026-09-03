@@ -56,6 +56,7 @@ export default function LoginPage({ auth }) {
       const role = snap.data()?.role;
       if (role === 'intervenant') navigate('/portail-intervenant');
       else if (role === 'apprenant') navigate('/portail-apprenant');
+      else if (role === 'parent') navigate('/portail-tuteur');
       else navigate('/');
     } catch {
       setError('Identifiants incorrects. Vérifiez votre email et mot de passe.');

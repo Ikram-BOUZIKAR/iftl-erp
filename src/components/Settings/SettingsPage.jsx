@@ -702,7 +702,7 @@ const TABS = [
 export default function SettingsPage({ auth }) {
   const toast = useToast();
   const userRole = auth?.userProfile?.role || '';
-  const isAdmin = ['admin', 'direction'].includes(userRole);
+  const isAdmin = ['admin', 'direction', 'scolarite'].includes(userRole);
   const [activeTab, setActiveTab] = useState('etablissement');
   const [settings, setSettings] = useState({
     nomEcole: '',
