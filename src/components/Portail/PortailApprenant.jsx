@@ -6,6 +6,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
 import { generateAttestationSoutenance, generateAttestationReussite } from '../../services/pdfService';
+import { badgesService, getBadge, BADGE_CATALOGUE } from '../../services/badgesService';
 
 const BLUE = '#005989';
 const BG = '#f1f5f9';
@@ -286,8 +287,101 @@ function ProfilTab({ student, userProfile, userId }) {
         </div>
       </div>
 
+      {/* Badges */}
+      <BadgesSection studentId={student?.id} studentCode={studentCode} />
+
       {/* Documents téléchargeables */}
       <AttestationsSection student={student} userProfile={userProfile} />
+    </div>
+  );
+}
+
+function BadgesSection({ studentId, studentCode }) {
+  const [badges, setBadges] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!studentId && !studentCode) { setLoading(false); return; }
+    (async () => {
+      try {
+        const list = await badgesService.getByStudent(studentId || studentCode);
+        setBadges(list);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    })();
+  }, [studentId, studentCode]);
+
+  const catOrder = ['assiduite', 'notes', 'comportement'];
+  const byCategorie = {};
+  for (const b of badges) {
+    const cat = b.categorie || 'autres';
+    if (!byCategorie[cat]) byCategorie[cat] = [];
+    byCategorie[cat].push(b);
+  }
+
+  const catLabels = { assiduite: 'Assiduité', notes: 'Résultats', comportement: 'Comportement & Engagement', autres: 'Autres' };
+
+  if (loading) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between" style={{ background: `${BLUE}07` }}>
+        <div>
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Mes Badges</p>
+          <p className="text-xs text-slate-400 mt-0.5">Reconnaissance de vos efforts et performances</p>
+        </div>
+        {badges.length > 0 && (
+          <span className="text-sm font-black px-2.5 py-1 rounded-full" style={{ background: BLUE, color: '#fff' }}>
+            {badges.length}
+          </span>
+        )}
+      </div>
+      <div className="p-5">
+        {badges.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="text-4xl mb-3">🎯</div>
+            <p className="text-sm font-semibold text-slate-500">Aucun badge pour l'instant</p>
+            <p className="text-xs text-slate-400 mt-1">Continuez vos efforts — les badges arrivent !</p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {catOrder.filter(c => byCategorie[c]?.length).map(cat => (
+              <div key={cat}>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{catLabels[cat]}</p>
+                <div className="flex flex-wrap gap-2">
+                  {byCategorie[cat].map(badge => {
+                    const def = getBadge(badge.key) || {};
+                    return (
+                      <div key={badge.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all hover:shadow-md"
+                        style={{ background: def.bg || '#f8fafc', borderColor: def.border || '#e2e8f0', color: def.text || '#1e293b' }}
+                        title={def.description || badge.titre}
+                      >
+                        <span className="text-lg leading-none">{badge.emoji}</span>
+                        <span className="text-xs font-bold">{badge.titre}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {byCategorie.autres?.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{catLabels.autres}</p>
+                <div className="flex flex-wrap gap-2">
+                  {byCategorie.autres.map(badge => (
+                    <div key={badge.id}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold">
+                      <span className="text-lg leading-none">{badge.emoji}</span>
+                      <span className="text-xs font-bold text-slate-700">{badge.titre}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
