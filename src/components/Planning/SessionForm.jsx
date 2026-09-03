@@ -176,9 +176,15 @@ function NouvelIntervenantModal({ onClose, onCreated }) {
 
 // ── SessionForm ───────────────────────────────────────────────────────────────
 export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, onSave, onClose, onIntervenantCreated }) {
+  const toJsDate = (v) => {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    if (v?.toDate) return v.toDate();
+    return new Date(v);
+  };
   const resolvedDate = initial?.date
-    ? format(new Date(initial.date), 'yyyy-MM-dd')
-    : (defaultDate ? format(new Date(defaultDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    ? format(toJsDate(initial.date) || new Date(), 'yyyy-MM-dd')
+    : (defaultDate ? format(toJsDate(defaultDate) || new Date(), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
 
   const [form, setForm] = useState({
     date:               resolvedDate,

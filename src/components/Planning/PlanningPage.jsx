@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
@@ -71,6 +71,12 @@ export default function PlanningPage() {
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
+  // Deduplicate groupes by id (guard against duplicate Firestore docs)
+  const uniqueGroupes = useMemo(() => {
+    const seen = new Set();
+    return groupes.filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
+  }, [groupes]);
+
   // Init: pick first group
   useEffect(() => {
     if (groupes.length > 0 && !activeGroupId) {
@@ -101,18 +107,57 @@ export default function PlanningPage() {
   }, []);
 
   // Fetch week sessions: active group + all groups (for conflict detection)
+  // Sessions may be stored with Timestamp dates (sessionsService.create) OR string dates (legacy).
+  // We run two queries and merge to handle both cases.
   const fetchWeekSessions = useCallback(async () => {
     if (!weekStart) return;
     const dateFrom = format(weekStart, 'yyyy-MM-dd');
     const dateTo   = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+
+    const tsStart = new Date(weekStart); tsStart.setHours(0, 0, 0, 0);
+    const tsEnd   = new Date(weekStart); tsEnd.setDate(tsEnd.getDate() + 7); tsEnd.setHours(23, 59, 59, 999);
+
+    const toJsDate = (v) => {
+      if (!v) return null;
+      if (v instanceof Date) return v;
+      if (v?.toDate) return v.toDate();
+      return new Date(v);
+    };
+
+    const seen = new Set();
+    const all  = [];
+
+    const push = (snap) => {
+      snap.forEach(d => {
+        if (seen.has(d.id)) return;
+        seen.add(d.id);
+        const data = d.data();
+        const dateVal = toJsDate(data.date);
+        if (!dateVal) return;
+        const dateStr = format(dateVal, 'yyyy-MM-dd');
+        if (dateStr >= dateFrom && dateStr <= dateTo) {
+          all.push({ id: d.id, ...data, date: dateVal });
+        }
+      });
+    };
+
     try {
-      const snap = await getDocs(
+      // Query 1: Timestamp-stored sessions (normal path via sessionsService.create)
+      const snap1 = await getDocs(
+        query(collection(db, 'sessions'),
+          where('date', '>=', Timestamp.fromDate(tsStart)),
+          where('date', '<=', Timestamp.fromDate(tsEnd)))
+      );
+      push(snap1);
+
+      // Query 2: String-stored sessions (legacy or imported data)
+      const snap2 = await getDocs(
         query(collection(db, 'sessions'),
           where('date', '>=', dateFrom),
           where('date', '<=', dateTo))
       );
-      const all = [];
-      snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+      push(snap2);
+
       setAllSessions(all);
       setSessions(all.filter(s => s.groupeId === activeGroupId));
     } catch { /* silent */ }
@@ -322,7 +367,7 @@ export default function PlanningPage() {
       {/* ── Group selector ── */}
       <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex-shrink-0 mr-1">Groupe</span>
-        {groupes.map(g => (
+        {uniqueGroupes.map(g => (
           <button key={g.id} onClick={() => setActiveGroupId(g.id)}
             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
               activeGroupId === g.id
@@ -411,15 +456,23 @@ function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, 
     return i ? `${i.prenom} ${i.nom}` : null;
   };
 
+  const toJsDate = (v) => {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    if (v?.toDate) return v.toDate();
+    return new Date(v);
+  };
+
   const getSession = (di, si) => {
     const slot = DAY_SLOTS[di]?.[si];
     if (!slot || !groupe) return null;
     const dayStr = format(weekDays[di], 'yyyy-MM-dd');
-    return sessions.find(s =>
-      s.groupeId === groupe.id &&
-      s.heureDebut === slot.start &&
-      format(new Date(s.date), 'yyyy-MM-dd') === dayStr
-    ) || null;
+    return sessions.find(s => {
+      if (s.groupeId !== groupe.id) return false;
+      if (s.heureDebut !== slot.start) return false;
+      const d = toJsDate(s.date);
+      return d && format(d, 'yyyy-MM-dd') === dayStr;
+    }) || null;
   };
 
   const onDragStart = (e, session) => {
