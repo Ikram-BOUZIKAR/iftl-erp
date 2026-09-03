@@ -8,6 +8,49 @@ const ANNEE = '2026-2027';
 const ACADEMIC_START_2026 = new Date(2026, 8, 21); // 2026-09-21 (Monday)
 const ACADEMIC_START_2025 = new Date(2025, 8, 22); // 2025-09-22 reference
 
+// Jours fériés 2026-2027 (civils + religieux prévisionnels)
+const JOURS_FERIES_2026_2027 = new Set([
+  // Civils fin 2026
+  '2026-10-31', // Fête de l'Unité
+  '2026-11-06', // Marche Verte
+  '2026-11-18', // Fête de l'Indépendance
+  // Civils 2027
+  '2027-01-01', // Nouvel An grégorien
+  '2027-01-11', // Manifeste de l'Indépendance
+  '2027-01-14', // Nouvel An amazigh
+  '2027-05-01', // Fête du Travail
+  '2027-07-30', // Fête du Trône
+  '2027-08-14', // Récupération de Oued Eddahab
+  '2027-08-20', // Révolution du Roi et du Peuple
+  '2027-08-21', // Fête de la Jeunesse
+  // Religieux prévisionnels
+  '2027-03-10', // Aïd al-Fitr J1
+  '2027-03-11', // Aïd al-Fitr J2
+  '2027-05-17', // Aïd al-Adha J1
+  '2027-05-18', // Aïd al-Adha J2
+  '2027-05-19', // Aïd al-Adha J3
+  '2027-06-06', // Nouvel An hégirien (1er Moharram)
+  '2027-08-15', // Aïd al-Mawlid
+]);
+
+// Périodes de vacances scolaires 2026-2027
+const VACANCES_2026_2027 = [
+  { label: 'Vacances mi-trim. 1',  start: '2026-12-06', end: '2026-12-13' },
+  { label: 'Vacances semestrielles', start: '2027-01-24', end: '2027-01-31' },
+  { label: 'Ramadan 2027 (prévis.)', start: '2027-02-17', end: '2027-03-18' },
+  { label: 'Vacances mi-trim. 3',  start: '2027-03-21', end: '2027-03-28' },
+  { label: 'Vacances mi-trim. 4',  start: '2027-05-09', end: '2027-05-16' },
+];
+
+function isBlockedDate(dateStr) {
+  if (JOURS_FERIES_2026_2027.has(dateStr)) return true;
+  const d = new Date(dateStr);
+  for (const v of VACANCES_2026_2027) {
+    if (d >= new Date(v.start) && d <= new Date(v.end)) return true;
+  }
+  return false;
+}
+
 const SLOTS = [
   { start: '09:00', end: '10:30', colModule: 5, colSalle: 6 },
   { start: '10:45', end: '12:15', colModule: 7, colSalle: 8 },
@@ -203,19 +246,23 @@ export default function EDTImportPage() {
     setStep(1);
   };
 
+  const [skipFeries, setSkipFeries] = useState(true);
+
   const previewSessions = edtSessions.filter(s => {
     if (skipVacation && s.isVacation) return false;
     if (!groupeMap[s.groupe]) return false;
     return true;
   }).map(s => {
     const date = addDays(ACADEMIC_START_2026, s.weekNum * 7 + s.dayOffset);
+    const dateStr = toDateStr(date);
     return {
       ...s,
-      date: toDateStr(date),
+      date: dateStr,
       groupeId: groupeMap[s.groupe],
       intervenantId: fuzzyMatchIntervenant(s.intervenant, intervenants),
+      isBlocked: skipFeries && isBlockedDate(dateStr),
     };
-  });
+  }).filter(s => !s.isBlocked);
 
   // Deduplicate: same date+groupeId+heureDebut
   const deduped = [];
@@ -329,10 +376,17 @@ export default function EDTImportPage() {
                 <p className="font-semibold text-slate-800">Fichier : {filename}</p>
                 <p className="text-sm text-slate-500">{edtSessions.length} créneaux trouvés · {uniqueEdtGroups.length} groupes à mapper</p>
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="skipVac" checked={skipVacation} onChange={e => setSkipVacation(e.target.checked)}
-                  className="rounded" />
-                <label htmlFor="skipVac" className="text-sm text-slate-600">Ignorer les semaines vacances ({vacationWeeks.size} sem.)</label>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="skipVac" checked={skipVacation} onChange={e => setSkipVacation(e.target.checked)}
+                    className="rounded" />
+                  <label htmlFor="skipVac" className="text-sm text-slate-600">Ignorer semaines vacances Excel ({vacationWeeks.size} sem.)</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="skipFer" checked={skipFeries} onChange={e => setSkipFeries(e.target.checked)}
+                    className="rounded" />
+                  <label htmlFor="skipFer" className="text-sm text-slate-600">Ignorer jours fériés & vacances 2026-2027</label>
+                </div>
               </div>
             </div>
 
