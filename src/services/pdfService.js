@@ -851,13 +851,20 @@ export function generatePV(groupe, students, modules, notesByStudent, anneeAcad 
 
 // ─── Filière full names ───────────────────────────────────────────────────────
 const FILIERE_LABELS = {
-  OTM:     'Organisateur(trice) du Transport Multimodal',
-  ECOM:    'E-Commerce et Logistique',
-  AEL:     'Agent(e) d\'Exploitation Logistique',
-  OFLP:    'Opérateur/Opératrice de la Filière Logistique et des Ports',
-  ADEE:    'Agent(e) de Diagnostic, d\'Entretien et d\'Électronique Automobile',
-  MAINT:   'Technicien(ne) de Maintenance Industrielle',
+  // TS — Technicien Spécialisé
+  OTM:     'Transport Multimodal et Logistique Internationale',
+  ECOM:    'E-Commerce, Marketing Digital et Distribution',
+  AEL:     'Logistique Industrielle et Pilotage des Flux',
+  OFLP:    'Gestionnaire des opérations logistiques et d\'entrepôt',
+  ADEE:    'Diagnostic et Maintenance des Véhicules de Transport',
+  // T — Technicien
+  LE:      'Logistique d\'entreposage',
+  // Q — Qualification
+  CTRM:    'Conducteur(rice) en transport routier : Option Marchandises',
+  CTRP:    'Conducteur(rice) en transport routier : Option Personnes',
+  // Licence
   CNAM:    'Licence Professionnelle Logistique (CNAM)',
+  MAINT:   'Technicien(ne) de Maintenance Industrielle',
 };
 
 function mention(moy) {

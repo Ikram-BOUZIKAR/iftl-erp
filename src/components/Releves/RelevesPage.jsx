@@ -8,12 +8,16 @@ const ANNEE_1A = '2025-2026';
 const ANNEE_2A = '2025-2026';
 
 const FILIERE_LABELS = {
-  OTM:  'OTM – Transport Multimodal',
-  ECOM: 'ECOM – E-Commerce',
-  AEL:  'AEL – Agent Exploitation Logistique',
-  OFLP: 'OFLP – Filière Logistique',
-  ADEE: 'ADEE – Diagnostic Automobile',
-  MAINT:'MAINT – Maintenance',
+  OTM:  'Transport Multimodal et Logistique Internationale',
+  ECOM: 'E-Commerce, Marketing Digital et Distribution',
+  AEL:  'Logistique Industrielle et Pilotage des Flux',
+  OFLP: 'Gestionnaire des opérations logistiques et d\'entrepôt',
+  ADEE: 'Diagnostic et Maintenance des Véhicules de Transport',
+  LE:   'Logistique d\'entreposage',
+  CTRM: 'Conducteur(rice) en transport routier : Option Marchandises',
+  CTRP: 'Conducteur(rice) en transport routier : Option Personnes',
+  CNAM: 'Licence Professionnelle Logistique (CNAM)',
+  MAINT:'Technicien(ne) de Maintenance Industrielle',
 };
 
 // Map module names to codes using Firestore modules collection
