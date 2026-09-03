@@ -1,88 +1,186 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useWeekSessions, useGroupes, useIntervenants } from '../../hooks/useData';
+import { useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import SessionForm from './SessionForm';
 import PlanningNotificationModal from '../Notifications/PlanningNotificationModal';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-// ── Créneaux horaires par jour (0=Lun … 6=Dim) ──────────────────────────
+// ── Créneaux horaires par jour (0=Lun … 6=Dim) ───────────────────────────────
 export const DAY_SLOTS = [
-  // Lundi
   [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
-  // Mardi
   [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
-  // Mercredi
   [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
-  // Jeudi
   [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '13:15', end: '14:45' }, { start: '15:00', end: '16:30' }],
-  // Vendredi
   [{ start: '09:00', end: '10:30' }, { start: '10:45', end: '12:15' }, { start: '14:15', end: '15:45' }, { start: '16:00', end: '17:30' }],
-  // Samedi
   [{ start: '09:00', end: '11:00' }, { start: '11:15', end: '13:15' }, { start: '14:15', end: '17:30' }],
-  // Dimanche
   [{ start: '09:00', end: '13:00' }],
 ];
 
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-const MAX_SLOTS = Math.max(...DAY_SLOTS.map(d => d.length)); // 4
-
-const NIVEAU_ORDER = ['TS 1A', 'TS 2A', 'Technicien', 'T', 'Qualification', 'Licence', 'Mastère'];
+const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const MAX_SLOTS = Math.max(...DAY_SLOTS.map(d => d.length));
 
 export const TYPE_STYLES = {
-  cours:     { bar: 'bg-[#005989]', bg: 'bg-[#005989]/10 border-[#005989]/25', text: 'text-[#005989]', label: 'Cours'     },
-  tp:        { bar: 'bg-[#8a9a0a]', bg: 'bg-[#c8d45d]/25 border-[#c8d45d]/40', text: 'text-[#5a6a00]', label: 'TP'        },
-  td:        { bar: 'bg-[#d4a000]', bg: 'bg-[#f5c845]/20 border-[#f5c845]/40', text: 'text-[#7a5c00]', label: 'TD'        },
-  exam:      { bar: 'bg-red-500',   bg: 'bg-red-50 border-red-200',             text: 'text-red-700',   label: 'Examen'    },
-  efm:       { bar: 'bg-orange-500',bg: 'bg-orange-50 border-orange-200',       text: 'text-orange-700',label: 'EFM'       },
-  eff:       { bar: 'bg-rose-700',  bg: 'bg-rose-50 border-rose-200',           text: 'text-rose-800',  label: 'EFF'       },
-  cc:        { bar: 'bg-violet-500',bg: 'bg-violet-50 border-violet-200',       text: 'text-violet-700',label: 'CC'        },
-  seminaire: { bar: 'bg-teal-500',  bg: 'bg-teal-50 border-teal-200',           text: 'text-teal-700',  label: 'Séminaire' },
+  cours:     { bar: '#005989', bg: 'rgba(0,89,137,0.09)',   border: 'rgba(0,89,137,0.22)',  text: '#005989', label: 'Cours'     },
+  tp:        { bar: '#5a6a00', bg: 'rgba(90,106,0,0.09)',   border: 'rgba(90,106,0,0.22)',  text: '#5a6a00', label: 'TP'        },
+  td:        { bar: '#b48200', bg: 'rgba(180,130,0,0.09)',  border: 'rgba(180,130,0,0.22)', text: '#8a5f00', label: 'TD'        },
+  exam:      { bar: '#dc2626', bg: 'rgba(220,38,38,0.07)',  border: 'rgba(220,38,38,0.22)', text: '#dc2626', label: 'Examen'    },
+  efm:       { bar: '#ea580c', bg: 'rgba(234,88,12,0.08)',  border: 'rgba(234,88,12,0.22)', text: '#c2410c', label: 'EFM'       },
+  eff:       { bar: '#9f1239', bg: 'rgba(159,18,57,0.08)',  border: 'rgba(159,18,57,0.22)', text: '#9f1239', label: 'EFF'       },
+  cc:        { bar: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.2)', text: '#6d28d9', label: 'CC'        },
+  seminaire: { bar: '#0d9488', bg: 'rgba(13,148,136,0.08)', border: 'rgba(13,148,136,0.2)', text: '#0a7a70', label: 'Séminaire' },
 };
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function timeToHours(start, end) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+}
+
+function isVacance(date, vacances) {
+  const ds = format(date, 'yyyy-MM-dd');
+  return vacances.find(v => ds >= v.debut && ds <= v.fin) || null;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const toast   = useToast();
   const confirm = useConfirm();
 
-  const [weekStart, setWeekStart]       = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const { data: sessions, refetch }     = useWeekSessions(weekStart);
-  const { data: groupes }               = useGroupes();
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const { data: groupes }         = useGroupes();
   const { data: intervenants, refetch: refetchIntervenants } = useIntervenants();
-  const [modules, setModules]           = useState([]);
-  const [showForm, setShowForm]         = useState(false);
-  const [editing, setEditing]           = useState(null);
-  const [defaultSlot, setDefaultSlot]   = useState(null);
-  const [activeNiveau, setActiveNiveau] = useState('');
-  const [showNotify, setShowNotify]     = useState(false);
 
-  const weekDays = DAYS.map((_, i) => addDays(weekStart, i));
+  const [activeGroupId, setActiveGroupId] = useState('');
+  const [sessions, setSessions]           = useState([]);   // active group, this week
+  const [allSessions, setAllSessions]     = useState([]);   // all groups, this week (conflict check)
+  const [modules, setModules]             = useState([]);
+  const [affectations, setAffectations]   = useState([]);
+  const [allGroupSessions, setAllGroupSessions] = useState([]); // all weeks, active group (for progress)
+  const [vacances, setVacances]           = useState([]);
+  const [showForm, setShowForm]           = useState(false);
+  const [editing, setEditing]             = useState(null);
+  const [defaultSlot, setDefaultSlot]     = useState(null);
+  const [showNotify, setShowNotify]       = useState(false);
 
-  const niveaux = [...new Set(groupes.map(g => g.niveau).filter(Boolean))]
-    .sort((a, b) => {
-      const ai = NIVEAU_ORDER.indexOf(a);
-      const bi = NIVEAU_ORDER.indexOf(b);
-      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
-    });
+  const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
+  // Init: pick first group
   useEffect(() => {
-    if (niveaux.length > 0 && !activeNiveau) setActiveNiveau(niveaux[0]);
-  }, [niveaux.join(',')]);
+    if (groupes.length > 0 && !activeGroupId) {
+      setActiveGroupId(groupes[0].id);
+    }
+  }, [groupes, activeGroupId]);
 
-  const fetchModules = useCallback(async () => {
-    try {
-      const snap = await getDocs(query(collection(db, 'modules'), orderBy('code', 'asc')));
-      const data = [];
-      snap.forEach(d => data.push({ id: d.id, ...d.data() }));
-      setModules(data);
-    } catch { /* silent */ }
+  // Fetch vacances once
+  useEffect(() => {
+    getDocs(collection(db, 'vacances'))
+      .then(snap => {
+        const v = [];
+        snap.forEach(d => v.push({ id: d.id, ...d.data() }));
+        setVacances(v);
+      })
+      .catch(() => {});
   }, []);
 
-  useEffect(() => { fetchModules(); }, [fetchModules]);
+  // Fetch modules once
+  useEffect(() => {
+    getDocs(query(collection(db, 'modules'), orderBy('code', 'asc')))
+      .then(snap => {
+        const m = [];
+        snap.forEach(d => m.push({ id: d.id, ...d.data() }));
+        setModules(m);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch week sessions: active group + all groups (for conflict detection)
+  const fetchWeekSessions = useCallback(async () => {
+    if (!weekStart) return;
+    const dateFrom = format(weekStart, 'yyyy-MM-dd');
+    const dateTo   = format(addDays(weekStart, 6), 'yyyy-MM-dd');
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'sessions'),
+          where('date', '>=', dateFrom),
+          where('date', '<=', dateTo))
+      );
+      const all = [];
+      snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+      setAllSessions(all);
+      setSessions(all.filter(s => s.groupeId === activeGroupId));
+    } catch { /* silent */ }
+  }, [weekStart, activeGroupId]);
+
+  useEffect(() => { fetchWeekSessions(); }, [fetchWeekSessions]);
+
+  // Fetch affectations for active group (for module sidebar)
+  useEffect(() => {
+    if (!activeGroupId) return;
+    getDocs(query(collection(db, 'affectations'), where('groupeId', '==', activeGroupId)))
+      .then(snap => {
+        const a = [];
+        snap.forEach(d => a.push({ id: d.id, ...d.data() }));
+        setAffectations(a);
+      })
+      .catch(() => {});
+  }, [activeGroupId]);
+
+  // Fetch all sessions for active group (any week, for hours-done progress)
+  useEffect(() => {
+    if (!activeGroupId) return;
+    getDocs(query(collection(db, 'sessions'), where('groupeId', '==', activeGroupId)))
+      .then(snap => {
+        const s = [];
+        snap.forEach(d => s.push({ id: d.id, ...d.data() }));
+        setAllGroupSessions(s);
+      })
+      .catch(() => {});
+  }, [activeGroupId]);
+
+  // Conflict detection: same intervenant, same day+slot, different groups
+  const conflictedSessionIds = useMemo(() => {
+    const ids = new Set();
+    const key = s => `${s.date}_${s.heureDebut}_${s.intervenantId}`;
+    const byKey = {};
+    allSessions.forEach(s => {
+      if (!s.intervenantId) return;
+      const k = key(s);
+      if (!byKey[k]) byKey[k] = [];
+      byKey[k].push(s.id);
+    });
+    Object.values(byKey).forEach(group => {
+      if (group.length > 1) group.forEach(id => ids.add(id));
+    });
+    return ids;
+  }, [allSessions]);
+
+  // Module progress
+  const moduleProgress = useMemo(() => {
+    const progress = {};
+    affectations.forEach(a => {
+      const mod = modules.find(m => m.id === a.moduleId);
+      if (!mod) return;
+      progress[a.moduleId] = {
+        nom: mod.nom,
+        total: a.masseHoraire || 0,
+        done: 0,
+      };
+    });
+    allGroupSessions.forEach(s => {
+      const mid = s.moduleId || s.module;
+      if (progress[mid]) {
+        progress[mid].done += timeToHours(s.heureDebut, s.heureFin);
+      }
+    });
+    return Object.values(progress);
+  }, [affectations, modules, allGroupSessions]);
 
   const handleSave = async (data) => {
     try {
@@ -94,7 +192,7 @@ export default function PlanningPage() {
         toast.success('Séance créée');
       }
       setShowForm(false); setEditing(null); setDefaultSlot(null);
-      refetch();
+      fetchWeekSessions();
     } catch (err) {
       toast.error('Erreur : ' + err.message);
     }
@@ -108,42 +206,54 @@ export default function PlanningPage() {
         heureFin: newSlot.end,
         ...(newGroupeId && { groupeId: newGroupeId }),
       });
-      refetch();
+      fetchWeekSessions();
     } catch (err) {
       toast.error('Erreur déplacement : ' + err.message);
     }
   };
 
-  const handleDelete = async (id, module) => {
-    const ok = await confirm({ title: 'Supprimer cette séance ?', message: `"${module}" sera supprimée.`, danger: true, confirmLabel: 'Supprimer' });
+  const handleDelete = async (id, moduleName) => {
+    const ok = await confirm({ title: 'Supprimer cette séance ?', message: `"${moduleName}" sera supprimée.`, danger: true, confirmLabel: 'Supprimer' });
     if (!ok) return;
-    try { await sessionsService.delete(id); refetch(); toast.success('Séance supprimée'); }
+    try { await sessionsService.delete(id); fetchWeekSessions(); toast.success('Séance supprimée'); }
     catch (err) { toast.error('Erreur : ' + err.message); }
   };
 
   const handleDuplicateWeek = async () => {
-    if (!sessions || sessions.length === 0) {
-      toast.error('Aucune séance à dupliquer cette semaine.');
+    const groupeSessions = sessions.filter(s => s.groupeId === activeGroupId);
+    if (groupeSessions.length === 0) {
+      toast.error('Aucune séance à dupliquer pour ce groupe cette semaine.');
       return;
     }
-    const nextWeek = addWeeks(weekStart, 1);
-    const nextWeekEnd = addDays(nextWeek, 6);
-    const nextWeekLabel = `${format(nextWeek, 'dd/MM', { locale: fr })} – ${format(nextWeekEnd, 'dd/MM/yyyy', { locale: fr })}`;
+    const nextWeek   = addWeeks(weekStart, 1);
+    const nextEnd    = addDays(nextWeek, 6);
+    const weekLabel  = `${format(nextWeek, 'dd/MM', { locale: fr })} – ${format(nextEnd, 'dd/MM/yyyy', { locale: fr })}`;
+    const activeGroupe = groupes.find(g => g.id === activeGroupId);
+
+    // Count sessions that would be skipped (holidays)
+    const skippedByHoliday = groupeSessions.filter(s => {
+      const origDate = new Date(s.date);
+      const newDate  = addWeeks(origDate, 1);
+      return !!isVacance(newDate, vacances);
+    });
+
     const ok = await confirm({
-      title: 'Dupliquer le planning ?',
-      message: `${sessions.length} séance(s) seront copiées sur la semaine du ${nextWeekLabel}. Les séances déjà existantes seront ignorées.`,
+      title: 'Dupliquer vers S+1',
+      message: `${groupeSessions.length} séance(s) du groupe ${activeGroupe?.nom || ''} seront copiées sur la semaine du ${weekLabel}.${skippedByHoliday.length > 0 ? ` ${skippedByHoliday.length} séance(s) ignorée(s) (jour férié/vacances).` : ''}`,
       confirmLabel: 'Dupliquer',
     });
     if (!ok) return;
-    let created = 0, skipped = 0;
+
+    let created = 0;
     try {
-      for (const s of sessions) {
-        const origDate = s.date instanceof Date ? s.date : new Date(s.date);
-        const newDate = addWeeks(origDate, 1);
+      for (const s of groupeSessions) {
+        const origDate = new Date(s.date);
+        const newDate  = addWeeks(origDate, 1);
+        if (isVacance(newDate, vacances)) continue; // skip holidays
         const newDateStr = format(newDate, 'yyyy-MM-dd');
         await sessionsService.create({
           groupeId: s.groupeId,
-          moduleId: s.moduleId,
+          moduleId: s.moduleId || s.module,
           intervenantId: s.intervenantId || '',
           date: newDateStr,
           heureDebut: s.heureDebut,
@@ -155,10 +265,10 @@ export default function PlanningPage() {
         });
         created++;
       }
-      toast.success(`${created} séance(s) dupliquée(s) sur la semaine du ${nextWeekLabel}.`);
-      refetch();
+      toast.success(`${created} séance(s) dupliquée(s) → semaine du ${weekLabel}.`);
+      setWeekStart(nextWeek);
     } catch (err) {
-      toast.error('Erreur lors de la duplication : ' + err.message);
+      toast.error('Erreur duplication : ' + err.message);
     }
   };
 
@@ -168,107 +278,99 @@ export default function PlanningPage() {
     setShowForm(true);
   };
 
-  const currentGroupes = groupes.filter(g => g.niveau === activeNiveau);
+  // Conflicts count for banner
+  const conflictsThisGroup = sessions.filter(s => conflictedSessionIds.has(s.id)).length;
 
   return (
-    <div className="space-y-4 max-w-full">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 bg-white border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Planning / EDT</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Semaine du{' '}
+          <h1 className="text-xl font-bold text-slate-800" style={{ fontFamily: 'Outfit, sans-serif' }}>Planning / EDT</h1>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Sem. du{' '}
             <span className="font-semibold text-[#005989]">{format(weekStart, 'dd MMMM', { locale: fr })}</span>
             {' '}au{' '}
             <span className="font-semibold text-[#005989]">{format(addDays(weekStart, 6), 'dd MMMM yyyy', { locale: fr })}</span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Week navigation */}
           <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <button onClick={() => setWeekStart(w => subWeeks(w, 1))}
-              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-r border-slate-100 text-sm">
-              ←
-            </button>
+              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-r border-slate-100 text-sm">←</button>
             <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-              className="px-4 py-2 text-sm font-semibold text-[#005989] hover:bg-blue-50 transition-colors">
-              Aujourd'hui
-            </button>
+              className="px-3 py-2 text-xs font-semibold text-[#005989] hover:bg-blue-50 transition-colors">Aujourd'hui</button>
             <button onClick={() => setWeekStart(w => addWeeks(w, 1))}
-              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-l border-slate-100 text-sm">
-              →
-            </button>
+              className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-l border-slate-100 text-sm">→</button>
           </div>
-          <button
-            onClick={handleDuplicateWeek}
-            title="Copier toutes les séances de cette semaine vers la semaine suivante"
-            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 rounded-xl text-sm font-semibold transition-colors"
-          >
-            ⧉ Dupliquer la semaine
+          <button onClick={handleDuplicateWeek}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors">
+            ⧉ Dupliquer S+1
           </button>
-          <button
-            onClick={() => setShowNotify(true)}
-            title="Envoyer le planning de la semaine aux intervenants"
-            className="inline-flex items-center gap-2 px-4 py-2 border border-[#005989] text-[#005989] hover:bg-[#005989]/5 rounded-xl text-sm font-semibold transition-colors"
-          >
+          <button onClick={() => setShowNotify(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#005989] text-[#005989] hover:bg-[#005989]/5 rounded-xl text-xs font-semibold transition-colors">
             ✉ Notifier
           </button>
-          <button onClick={() => openAdd(null, null, null)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white rounded-xl text-sm font-semibold shadow-sm transition-colors">
-            + Ajouter séance
+          <button onClick={() => openAdd(null, null, activeGroupId)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white rounded-xl text-xs font-semibold shadow-sm transition-colors">
+            + Séance
           </button>
         </div>
       </div>
 
-      {/* Niveau tabs */}
-      {niveaux.length > 0 && (
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit max-w-full overflow-x-auto">
-          {niveaux.map(n => (
-            <button key={n} onClick={() => setActiveNiveau(n)}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
-                activeNiveau === n ? 'bg-white text-[#005989] shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {n}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Legend */}
-      <div className="flex items-center gap-3 flex-wrap text-xs">
-        {Object.entries(TYPE_STYLES).map(([type, s]) => (
-          <span key={type} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-semibold ${s.bg} ${s.text}`}>
-            {s.label}
-          </span>
+      {/* ── Group selector ── */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
+        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex-shrink-0 mr-1">Groupe</span>
+        {groupes.map(g => (
+          <button key={g.id} onClick={() => setActiveGroupId(g.id)}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              activeGroupId === g.id
+                ? 'bg-[#001829] border-[#001829] text-white'
+                : 'border-slate-200 text-slate-500 hover:border-[#005989] hover:text-[#005989] bg-white'
+            }`}>
+            {g.nom}
+            {g.filiere && <span className={`text-[10px] font-normal ${activeGroupId === g.id ? 'opacity-50' : 'text-slate-400'}`}>{g.filiere}</span>}
+          </button>
         ))}
-        <span className="text-slate-400 ml-2">• Glissez-déposez pour déplacer une séance • Clic sur + pour en créer une</span>
+        {conflictsThisGroup > 0 && (
+          <div className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
+            ⚠ {conflictsThisGroup} conflit{conflictsThisGroup > 1 ? 's' : ''} intervenant
+          </div>
+        )}
       </div>
 
-      {/* EDT Grid */}
-      {activeNiveau ? (
-        currentGroupes.length > 0 ? (
-          <EDTGrid
-            groupes={currentGroupes}
-            sessions={sessions}
-            weekDays={weekDays}
-            modules={modules}
-            intervenants={intervenants}
-            onAdd={openAdd}
-            onEdit={s => { setEditing(s); setShowForm(true); }}
-            onMove={handleMove}
-            onDelete={handleDelete}
-          />
-        ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
-            <p className="text-2xl mb-2">📋</p>
-            <p className="text-slate-600 font-semibold">Aucun groupe pour le niveau "{activeNiveau}"</p>
-            <p className="text-slate-400 text-sm mt-1">Créez des groupes avec ce niveau dans la gestion des groupes.</p>
-          </div>
-        )
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
-          <p className="text-slate-400 text-sm">Aucun groupe avec un niveau défini.</p>
+      {/* ── Main content: grid + sidebar ── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Grid area */}
+        <div className="flex-1 overflow-auto p-3 min-w-0">
+          {activeGroupId ? (
+            <EDTGrid
+              groupe={groupes.find(g => g.id === activeGroupId)}
+              sessions={sessions}
+              weekDays={weekDays}
+              modules={modules}
+              intervenants={intervenants}
+              vacances={vacances}
+              conflictedIds={conflictedSessionIds}
+              onAdd={openAdd}
+              onEdit={s => { setEditing(s); setShowForm(true); }}
+              onMove={handleMove}
+              onDelete={handleDelete}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+              Sélectionnez un groupe
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Sidebar */}
+        <ModuleSidebar
+          moduleProgress={moduleProgress}
+          activeGroupe={groupes.find(g => g.id === activeGroupId)}
+        />
+      </div>
 
       {showForm && (
         <SessionForm
@@ -299,24 +401,22 @@ export default function PlanningPage() {
 }
 
 // ── EDT Grid ──────────────────────────────────────────────────────────────────
-function EDTGrid({ groupes, sessions, weekDays, modules, intervenants, onAdd, onEdit, onMove, onDelete }) {
+function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, conflictedIds, onAdd, onEdit, onMove, onDelete }) {
   const [dragId,   setDragId]   = useState(null);
-  const [dropCell, setDropCell] = useState(null); // { groupeId, di, si }
+  const [dropCell, setDropCell] = useState(null);
 
-  const getModuleName = (id) => {
-    const m = modules.find(x => x.id === id);
-    return m ? m.nom : (id || '—');
-  };
-  const getIntervenantName = (id) => {
+  const getModuleName  = id => modules.find(x => x.id === id)?.nom || id || '—';
+  const getIntervenant = id => {
     const i = intervenants.find(x => x.id === id);
     return i ? `${i.prenom} ${i.nom}` : null;
   };
-  const getSession = (groupeId, di, si) => {
+
+  const getSession = (di, si) => {
     const slot = DAY_SLOTS[di]?.[si];
-    if (!slot) return null;
+    if (!slot || !groupe) return null;
     const dayStr = format(weekDays[di], 'yyyy-MM-dd');
     return sessions.find(s =>
-      s.groupeId === groupeId &&
+      s.groupeId === groupe.id &&
       s.heureDebut === slot.start &&
       format(new Date(s.date), 'yyyy-MM-dd') === dayStr
     ) || null;
@@ -327,38 +427,59 @@ function EDTGrid({ groupes, sessions, weekDays, modules, intervenants, onAdd, on
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', session.id);
   };
-  const onDragOver = (e, groupeId, di, si) => {
+  const onDragOver  = (e, di, si) => { e.preventDefault(); setDropCell({ di, si }); };
+  const onDrop      = (e, di, si) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDropCell({ groupeId, di, si });
-  };
-  const onDrop = (e, groupeId, di, si) => {
-    e.preventDefault();
-    const sid = e.dataTransfer.getData('text/plain');
+    const sid  = e.dataTransfer.getData('text/plain');
     const slot = DAY_SLOTS[di]?.[si];
-    if (sid && slot) {
-      onMove(sid, format(weekDays[di], 'yyyy-MM-dd'), slot, groupeId);
-    }
+    if (sid && slot) onMove(sid, format(weekDays[di], 'yyyy-MM-dd'), slot, groupe?.id);
     setDragId(null); setDropCell(null);
   };
-  const onDragEnd = () => { setDragId(null); setDropCell(null); };
+  const onDragEnd   = () => { setDragId(null); setDropCell(null); };
+
+  const DISPLAY_DAYS = 6; // Mon–Sat
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-      <table className="border-collapse text-xs" style={{ minWidth: `${160 + 7 * 130}px`, width: '100%' }}>
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{
+        borderCollapse: 'collapse',
+        minWidth: `${80 + DISPLAY_DAYS * 140}px`,
+        width: '100%',
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #e2e8f0',
+        overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      }}>
         {/* Day headers */}
         <thead>
           <tr>
-            <th className="sticky left-0 z-20 bg-[#001829] text-white px-3 py-3 text-left text-xs font-semibold w-40 border-r border-white/10">
-              Groupe / Créneau
+            <th style={{ width: 80, background: '#001829', padding: '8px 6px', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'Outfit,sans-serif' }}>Horaire</span>
             </th>
-            {weekDays.map((day, di) => {
-              const isToday = day.toDateString() === new Date().toDateString();
+            {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
+              const vac    = isVacance(day, vacances);
+              const today  = day.toDateString() === new Date().toDateString();
               return (
-                <th key={di} className={`px-2 py-3 text-center font-semibold border-r border-white/10 ${isToday ? 'bg-[#005989]' : 'bg-[#001829]'} text-white`}>
-                  <div className="font-bold text-xs">{DAYS[di]}</div>
-                  <div className="text-[10px] opacity-60 font-normal mt-0.5">{format(day, 'dd/MM')}</div>
-                  {isToday && <div className="w-1.5 h-1.5 bg-[#f5c845] rounded-full mx-auto mt-1" />}
+                <th key={di} style={{
+                  padding: '8px 6px',
+                  textAlign: 'center',
+                  background: vac ? '#3a3a3a' : today ? '#005989' : '#001829',
+                  borderRight: di < DISPLAY_DAYS - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                  position: 'relative',
+                }}>
+                  <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 10.5, fontWeight: 700, color: vac ? 'rgba(255,255,255,0.4)' : '#fff', letterSpacing: '0.3px' }}>
+                    {DAYS[di]}
+                  </div>
+                  <div style={{ fontSize: 10, color: today ? 'rgba(245,200,69,0.7)' : 'rgba(255,255,255,0.4)', marginTop: 1 }}>
+                    {format(day, 'dd/MM')}
+                  </div>
+                  {vac && (
+                    <div style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.3)', marginTop: 2, fontStyle: 'italic', lineHeight: 1.2 }}>
+                      {vac.label?.replace('⚠ prévisionnel', '').trim()}
+                    </div>
+                  )}
+                  {today && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#f5c845', margin: '3px auto 0' }} />}
                 </th>
               );
             })}
@@ -366,125 +487,265 @@ function EDTGrid({ groupes, sessions, weekDays, modules, intervenants, onAdd, on
         </thead>
 
         <tbody>
-          {groupes.map((groupe, gi) => (
-            <>
-              {/* Group header */}
-              <tr key={`gh-${groupe.id}`}>
-                <td colSpan={8}
-                  className="sticky left-0 z-10 px-3 py-2 bg-[#005989]/8 border-t-2 border-[#005989]/30">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#005989] text-xs">{groupe.nom}</span>
-                    {groupe.filiere && <span className="text-slate-400 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded">{groupe.filiere}</span>}
-                    {groupe.effectif && <span className="text-slate-400 text-[10px]">{groupe.effectif} étudiants</span>}
-                  </div>
-                </td>
-              </tr>
+          {Array.from({ length: MAX_SLOTS }, (_, si) => (
+            <tr key={si} style={{ borderBottom: si < MAX_SLOTS - 1 ? '1px solid #f1f5f9' : 'none' }}>
+              {/* Time slot label */}
+              <td style={{
+                padding: '4px 6px',
+                background: '#f8fafc',
+                borderRight: '1px solid #e2e8f0',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                width: 80,
+              }}>
+                <div style={{ display: 'inline-block', background: 'rgba(0,89,137,0.08)', color: '#005989', fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 3, fontFamily: 'Outfit,sans-serif', letterSpacing: '0.2px', marginBottom: 2 }}>
+                  C{si + 1}
+                </div>
+                <div style={{ fontSize: 8.5, color: '#94a3b8', fontFamily: 'monospace', lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+                  {DAY_SLOTS[0][si]?.start}
+                  <br />
+                  {DAY_SLOTS[0][si]?.end}
+                </div>
+              </td>
 
-              {/* Slot rows */}
-              {Array.from({ length: MAX_SLOTS }, (_, si) => (
-                <tr key={`${groupe.id}-${si}`} className="border-b border-slate-100">
-                  {/* Slot label (sticky) */}
-                  <td className="sticky left-0 z-10 bg-slate-50 border-r border-slate-200 px-3 py-1.5 whitespace-nowrap">
-                    <span className="text-[10px] font-bold text-[#005989] bg-[#005989]/10 px-1.5 py-0.5 rounded">C{si + 1}</span>
-                  </td>
+              {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
+                const slot    = DAY_SLOTS[di]?.[si];
+                const vac     = isVacance(day, vacances);
+                const session = slot && !vac ? getSession(di, si) : null;
+                const hasSlot = !!slot && !vac;
+                const isDrop  = dropCell?.di === di && dropCell?.si === si;
+                const isDrag  = session && dragId === session.id;
 
-                  {/* Day cells */}
-                  {weekDays.map((day, di) => {
-                    const slot     = DAY_SLOTS[di]?.[si];
-                    const session  = slot ? getSession(groupe.id, di, si) : null;
-                    const isActive = !!slot;
-                    const isDrop   = dropCell?.groupeId === groupe.id && dropCell?.di === di && dropCell?.si === si;
-                    const isDrag   = session && dragId === session.id;
+                if (vac) {
+                  return (
+                    <td key={di} style={{
+                      padding: 4,
+                      background: 'repeating-linear-gradient(-45deg,#f1f5f9,#f1f5f9 4px,#e8edf4 4px,#e8edf4 8px)',
+                      borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none',
+                      cursor: 'not-allowed',
+                    }} />
+                  );
+                }
 
-                    if (!isActive) {
-                      return (
-                        <td key={di} className="px-1 py-1 bg-slate-50/60 border-r border-slate-100">
-                          <div className="h-14 rounded-lg bg-slate-100/50" />
-                        </td>
-                      );
-                    }
+                if (!hasSlot) {
+                  return (
+                    <td key={di} style={{ padding: 4, background: '#f8fafc', borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                      <div style={{ height: 72, borderRadius: 8, background: '#f1f5f9' }} />
+                    </td>
+                  );
+                }
 
-                    return (
-                      <td
-                        key={di}
-                        className={`px-1 py-1 align-top border-r border-slate-100 transition-colors ${isDrop && !session ? 'bg-[#005989]/8' : 'bg-white'}`}
-                        onDragOver={e => onDragOver(e, groupe.id, di, si)}
-                        onDrop={e => onDrop(e, groupe.id, di, si)}
-                        onDragLeave={() => setDropCell(null)}
+                return (
+                  <td key={di} style={{
+                    padding: 4,
+                    verticalAlign: 'top',
+                    borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none',
+                    background: isDrop && !session ? 'rgba(0,89,137,0.05)' : '#fff',
+                    transition: 'background 0.1s',
+                    minHeight: 80,
+                  }}
+                    onDragOver={e => onDragOver(e, di, si)}
+                    onDrop={e => onDrop(e, di, si)}
+                    onDragLeave={() => setDropCell(null)}
+                  >
+                    {session ? (
+                      <SessionCard
+                        session={session}
+                        moduleName={getModuleName(session.moduleId || session.module)}
+                        intervenantName={getIntervenant(session.intervenantId)}
+                        isConflict={conflictedIds.has(session.id)}
+                        isDragging={isDrag}
+                        onDragStart={e => onDragStart(e, session)}
+                        onDragEnd={onDragEnd}
+                        onEdit={() => onEdit(session)}
+                        onDelete={() => onDelete(session.id, getModuleName(session.moduleId || session.module))}
+                      />
+                    ) : (
+                      <div
+                        onClick={() => onAdd(day, slot, groupe?.id)}
+                        onDragOver={e => onDragOver(e, di, si)}
+                        style={{
+                          height: 72,
+                          borderRadius: 8,
+                          border: isDrop ? '2px solid #005989' : '1.5px dashed #cbd5e1',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: isDrop ? '#005989' : '#cbd5e1',
+                          background: isDrop ? 'rgba(0,89,137,0.06)' : 'transparent',
+                          fontSize: 20,
+                          fontWeight: 300,
+                          transition: 'all 0.12s',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isDrop) { e.currentTarget.style.borderColor = 'rgba(0,89,137,0.4)'; e.currentTarget.style.color = 'rgba(0,89,137,0.5)'; }
+                        }}
+                        onMouseLeave={e => {
+                          if (!isDrop) { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#cbd5e1'; }
+                        }}
                       >
-                        <div className="text-[9px] text-slate-300 font-mono text-center mb-0.5">
-                          {slot.start}–{slot.end}
-                        </div>
-
-                        {session ? (
-                          <SessionCard
-                            session={session}
-                            moduleName={getModuleName(session.moduleId || session.module)}
-                            intervenantName={getIntervenantName(session.intervenantId)}
-                            isDragging={isDrag}
-                            onDragStart={e => onDragStart(e, session)}
-                            onDragEnd={onDragEnd}
-                            onEdit={() => onEdit(session)}
-                            onDelete={() => onDelete(session.id, session.module)}
-                          />
-                        ) : (
-                          <div
-                            onClick={() => onAdd(day, slot, groupe.id)}
-                            onDragOver={e => onDragOver(e, groupe.id, di, si)}
-                            className={`h-14 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${
-                              isDrop
-                                ? 'border-[#005989] bg-[#005989]/10 text-[#005989]'
-                                : 'border-slate-200 text-slate-200 hover:border-[#005989]/50 hover:text-[#005989]/50 hover:bg-[#005989]/4'
-                            }`}
-                          >
-                            <span className="text-xl font-light">+</span>
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </>
+                        +
+                      </div>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
           ))}
         </tbody>
       </table>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingLeft: 2 }}>
+        {Object.entries(TYPE_STYLES).map(([type, s]) => (
+          <span key={type} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '3px 8px', borderRadius: 20,
+            background: s.bg, border: `1px solid ${s.border}`,
+            color: s.text, fontSize: 10.5, fontWeight: 600,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.bar, flexShrink: 0 }} />
+            {s.label}
+          </span>
+        ))}
+        <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4, alignSelf: 'center' }}>
+          · Glissez pour déplacer · Clic + pour créer
+        </span>
+      </div>
     </div>
   );
 }
 
 // ── Session card ──────────────────────────────────────────────────────────────
-function SessionCard({ session, moduleName, intervenantName, isDragging, onDragStart, onDragEnd, onEdit, onDelete }) {
+function SessionCard({ session, moduleName, intervenantName, isConflict, isDragging, onDragStart, onDragEnd, onEdit, onDelete }) {
+  const [hovered, setHovered] = useState(false);
   const s = TYPE_STYLES[session.type] || TYPE_STYLES.cours;
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`rounded-xl border p-1.5 cursor-grab active:cursor-grabbing group transition-all ${s.bg} ${isDragging ? 'opacity-30 scale-95' : 'hover:shadow-md'}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        height: 72,
+        borderRadius: 8,
+        border: `1px solid ${isConflict ? 'rgba(220,38,38,0.4)' : s.border}`,
+        background: isConflict ? 'rgba(220,38,38,0.06)' : s.bg,
+        display: 'flex',
+        gap: 0,
+        cursor: 'grab',
+        opacity: isDragging ? 0.3 : 1,
+        transform: isDragging ? 'scale(0.97)' : 'scale(1)',
+        transition: 'all 0.12s',
+        boxShadow: hovered ? '0 2px 10px rgba(0,0,0,0.1)' : 'none',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
     >
-      <div className="flex gap-1 items-start">
-        <div className={`shrink-0 w-1 rounded-full self-stretch min-h-[36px] ${s.bar}`} />
-        <div className="flex-1 min-w-0">
-          <div className={`font-bold text-[10px] leading-tight truncate ${s.text}`}>{moduleName}</div>
-          {intervenantName && (
-            <div className="text-slate-500 text-[9px] truncate mt-0.5">{intervenantName}</div>
-          )}
-          {session.salle && (
-            <div className="text-slate-400 text-[9px] mt-0.5">🏫 {session.salle}</div>
-          )}
+      {/* Bar */}
+      <div style={{ width: 4, background: isConflict ? '#dc2626' : s.bar, flexShrink: 0, borderRadius: '7px 0 0 7px' }} />
+      {/* Content */}
+      <div style={{ flex: 1, padding: '5px 6px 5px 5px', minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: isConflict ? '#dc2626' : s.text, fontFamily: 'Outfit,sans-serif', marginBottom: 1 }}>
+          {(TYPE_STYLES[session.type] || TYPE_STYLES.cours).label}
+          {isConflict && ' · ⚠ Conflit'}
         </div>
-        <div className="shrink-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5">
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: isConflict ? '#dc2626' : s.text, lineHeight: 1.25, fontFamily: 'Outfit,sans-serif', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          {moduleName}
+        </div>
+        {intervenantName && (
+          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {intervenantName}
+          </div>
+        )}
+        {session.salle && (
+          <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            🏫 {session.salle}
+          </div>
+        )}
+      </div>
+      {/* Hover actions */}
+      {hovered && (
+        <div style={{ position: 'absolute', top: 3, right: 3, display: 'flex', gap: 2 }}>
           <button onClick={e => { e.stopPropagation(); onEdit(); }}
-            title="Modifier"
-            className="w-4 h-4 rounded text-slate-400 hover:text-[#005989] hover:bg-white/80 flex items-center justify-center transition-colors text-[10px]">
-            ✏
-          </button>
+            style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,0.9)', border: '1px solid #e2e8f0', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+            title="Modifier">✏</button>
           <button onClick={e => { e.stopPropagation(); onDelete(); }}
-            title="Supprimer"
-            className="w-4 h-4 rounded text-slate-400 hover:text-red-500 hover:bg-white/80 flex items-center justify-center transition-colors text-[10px]">
-            ✕
-          </button>
+            style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,0.9)', border: '1px solid #e2e8f0', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+            title="Supprimer">✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Module Sidebar ────────────────────────────────────────────────────────────
+function ModuleSidebar({ moduleProgress, activeGroupe }) {
+  return (
+    <div style={{
+      width: 220,
+      flexShrink: 0,
+      background: '#fff',
+      borderLeft: '1px solid #e2e8f0',
+      overflowY: 'auto',
+      padding: '12px 10px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontFamily: 'Outfit,sans-serif', fontSize: 11.5, fontWeight: 700, color: '#0f172a' }}>
+          Modules planifiés
+        </span>
+        {activeGroupe && (
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#005989', background: 'rgba(0,89,137,0.09)', padding: '2px 6px', borderRadius: 4 }}>
+            {activeGroupe.nom}
+          </span>
+        )}
+      </div>
+
+      {moduleProgress.length === 0 ? (
+        <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
+          Aucune affectation pour ce groupe
+        </p>
+      ) : (
+        moduleProgress.map((m, i) => {
+          const pct  = m.total > 0 ? Math.min(100, Math.round((m.done / m.total) * 100)) : 0;
+          const done = pct >= 100;
+          const med  = pct >= 60;
+          const barColor = done ? '#16a34a' : med ? '#005989' : '#d97706';
+          const pctColor = done ? '#16a34a' : med ? '#005989' : '#d97706';
+          return (
+            <div key={i} style={{ marginBottom: 8, padding: '7px 8px', background: '#f8fafc', borderRadius: 7, border: '1px solid #e8edf4' }}>
+              <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 10.5, fontWeight: 600, color: '#0f172a', marginBottom: 4, lineHeight: 1.3 }}>
+                {m.nom}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 9.5, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                  {m.done.toFixed(1)}h / {m.total}h
+                </span>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: pctColor, fontVariantNumeric: 'tabular-nums' }}>
+                  {done ? '✓ ' : ''}{pct}%
+                </span>
+              </div>
+              <div style={{ height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
+              </div>
+            </div>
+          );
+        })
+      )}
+
+      <div style={{ marginTop: 12, padding: '8px', background: '#f8fafc', borderRadius: 7, border: '1px solid #e8edf4' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 6, fontFamily: 'Outfit,sans-serif' }}>Légende</div>
+        {Object.entries(TYPE_STYLES).map(([type, s]) => (
+          <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: s.bar, flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#475569' }}>{s.label}</span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: 'repeating-linear-gradient(-45deg,#cbd5e1,#cbd5e1 2px,#e8edf4 2px,#e8edf4 4px)', flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: '#475569' }}>Férié / Vacances</span>
         </div>
       </div>
     </div>
