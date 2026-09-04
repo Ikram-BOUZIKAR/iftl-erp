@@ -136,7 +136,7 @@ export default function LoginPage({ auth }) {
 
           {/* Brand block */}
           <div style={{ flexShrink: 0 }}>
-            <img src="/iftl-logo.svg" alt="IFTL" style={{ width: 180, height: 'auto', display: 'block', marginBottom: 14 }} />
+            <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
             <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les Métiers du Transport &amp; de la Logistique</div>
           </div>
 
