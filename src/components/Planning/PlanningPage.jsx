@@ -533,7 +533,7 @@ function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, 
     <div style={{ overflowX: 'auto' }}>
       <table style={{
         borderCollapse: 'collapse',
-        minWidth: `${80 + DISPLAY_DAYS * 140}px`,
+        minWidth: `${80 + DISPLAY_DAYS * 110}px`,
         width: '100%',
         background: '#fff',
         borderRadius: 10,
@@ -620,7 +620,7 @@ function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, 
                 if (!hasSlot) {
                   return (
                     <td key={di} style={{ padding: 4, background: '#f8fafc', borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none' }}>
-                      <div style={{ height: 72, borderRadius: 8, background: '#f1f5f9' }} />
+                      <div style={{ height: 64, borderRadius: 8, background: '#f1f5f9' }} />
                     </td>
                   );
                 }
@@ -655,7 +655,7 @@ function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, 
                         onClick={() => onAdd(day, slot, groupe?.id)}
                         onDragOver={e => onDragOver(e, di, si)}
                         style={{
-                          height: 72,
+                          height: 64,
                           borderRadius: 8,
                           border: isDrop ? '2px solid #005989' : '1.5px dashed #cbd5e1',
                           display: 'flex',
@@ -719,7 +719,7 @@ function SessionCard({ session, moduleName, intervenantName, isConflict, isDragg
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        height: 72,
+        height: 64,
         borderRadius: 8,
         border: `1px solid ${isConflict ? 'rgba(220,38,38,0.4)' : s.border}`,
         background: isConflict ? 'rgba(220,38,38,0.06)' : s.bg,

@@ -136,9 +136,8 @@ export default function LoginPage({ auth }) {
 
           {/* Brand block */}
           <div style={{ flexShrink: 0 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 15, background: YELLOW, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 17, color: NAVY, marginBottom: 16, letterSpacing: '-0.02em' }}>IF</div>
-            <div style={{ fontWeight: 900, fontSize: 'clamp(34px,4.5vw,54px)', lineHeight: 1, letterSpacing: '-0.03em', color: NAVY, marginBottom: 6 }}>IFTL</div>
-            <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les métiers Transport &amp; Logistique</div>
+            <img src="/iftl-logo.svg" alt="IFTL" style={{ width: 180, height: 'auto', display: 'block', marginBottom: 14 }} />
+            <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les Métiers du Transport &amp; de la Logistique</div>
           </div>
 
           {/* Separator */}
