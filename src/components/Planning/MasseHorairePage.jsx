@@ -40,7 +40,7 @@ function ProgressBar({ done, total }) {
 // ── Modal Édition (affectation simple) ────────────────────────────────────────
 function EditModal({ affectation, intervenants, onSave, onClose }) {
   const [intervenantId, setIntervenantId] = useState(affectation.intervenantId || '');
-  const [masseHoraire, setMasseHoraire]   = useState(affectation.masseHoraire || '');
+  const [masseHoraire, setMasseHoraire]   = useState(affectation.masseHoraire || 24);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -74,7 +74,7 @@ function EditModal({ affectation, intervenants, onSave, onClose }) {
             <input type="number" min="0" step="0.5" value={masseHoraire}
               onChange={e => setMasseHoraire(e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]"
-              placeholder="ex: 30" />
+              placeholder="ex: 24" />
           </div>
         </div>
         <div className="flex gap-2 pt-2">
@@ -98,7 +98,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
   const [selectedGroupes, setSelectedGroupes] = useState([]);
   // module name (key) → masseHoraire value; deduped by name to avoid filière duplicates
   const [selectedModules, setSelectedModules] = useState({});
-  const [globalMH, setGlobalMH] = useState('');
+  const [globalMH, setGlobalMH] = useState('24');
   const [useGlobalMH, setUseGlobalMH] = useState(true);
   const [saving, setSaving] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
@@ -138,7 +138,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
   const toggleModule = (nom) =>
     setSelectedModules(prev => {
       const next = { ...prev };
-      if (next[nom] !== undefined) { delete next[nom]; } else { next[nom] = globalMH; }
+      if (next[nom] !== undefined) { delete next[nom]; } else { next[nom] = globalMH || '24'; }
       return next;
     });
 
@@ -217,7 +217,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
             {useGlobalMH && (
               <input type="number" min="0" step="0.5" value={globalMH}
                 onChange={e => { setGlobalMH(e.target.value); setSelectedModules(prev => Object.fromEntries(Object.keys(prev).map(k => [k, e.target.value]))); }}
-                placeholder="Nombre d'heures (ex: 30)"
+                placeholder="Nombre d'heures (ex: 24)"
                 className="w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]" />
             )}
           </div>
