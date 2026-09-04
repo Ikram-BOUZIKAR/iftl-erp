@@ -8,6 +8,7 @@ import { sessionsService } from '../../services/firestore';
 import SessionForm from './SessionForm';
 import PlanningAutoModal from './PlanningAutoModal';
 import PlanningNotificationModal from '../Notifications/PlanningNotificationModal';
+import CalendrierAcademique from './CalendrierAcademique';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
@@ -70,6 +71,7 @@ export default function PlanningPage() {
   const [defaultSlot, setDefaultSlot]     = useState(null);
   const [showNotify, setShowNotify]       = useState(false);
   const [showAuto, setShowAuto]           = useState(false);
+  const [activeTab, setActiveTab]         = useState('planning'); // 'planning' | 'calendrier'
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -333,7 +335,19 @@ export default function PlanningPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 bg-white border-b border-slate-200">
         <div>
+          <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold text-slate-800" style={{ fontFamily: 'Outfit, sans-serif' }}>Planning / EDT</h1>
+          <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
+            <button onClick={() => setActiveTab('planning')}
+              className={`px-3 py-1 transition-colors ${activeTab === 'planning' ? 'bg-[#005989] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+              Planning
+            </button>
+            <button onClick={() => setActiveTab('calendrier')}
+              className={`px-3 py-1 transition-colors border-l border-slate-200 ${activeTab === 'calendrier' ? 'bg-[#005989] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+              📅 Calendrier
+            </button>
+          </div>
+        </div>
           <p className="text-xs text-slate-400 mt-0.5">
             Sem. du{' '}
             <span className="font-semibold text-[#005989]">{format(weekStart, 'dd MMMM', { locale: fr })}</span>
@@ -392,37 +406,43 @@ export default function PlanningPage() {
         )}
       </div>
 
-      {/* ── Main content: grid + sidebar ── */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Grid area */}
-        <div className="flex-1 overflow-auto p-3 min-w-0">
-          {activeGroupId ? (
-            <EDTGrid
-              groupe={groupes.find(g => g.id === activeGroupId)}
-              sessions={sessions}
-              weekDays={weekDays}
-              modules={modules}
-              intervenants={intervenants}
-              vacances={vacances}
-              conflictedIds={conflictedSessionIds}
-              onAdd={openAdd}
-              onEdit={s => { setEditing(s); setShowForm(true); }}
-              onMove={handleMove}
-              onDelete={handleDelete}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-              Sélectionnez un groupe
-            </div>
-          )}
+      {/* ── Main content ── */}
+      {activeTab === 'calendrier' ? (
+        <div className="flex-1 overflow-auto p-4">
+          <CalendrierAcademique />
         </div>
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Grid area */}
+          <div className="flex-1 overflow-auto p-3 min-w-0">
+            {activeGroupId ? (
+              <EDTGrid
+                groupe={groupes.find(g => g.id === activeGroupId)}
+                sessions={sessions}
+                weekDays={weekDays}
+                modules={modules}
+                intervenants={intervenants}
+                vacances={vacances}
+                conflictedIds={conflictedSessionIds}
+                onAdd={openAdd}
+                onEdit={s => { setEditing(s); setShowForm(true); }}
+                onMove={handleMove}
+                onDelete={handleDelete}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                Sélectionnez un groupe
+              </div>
+            )}
+          </div>
 
-        {/* Sidebar */}
-        <ModuleSidebar
-          moduleProgress={moduleProgress}
-          activeGroupe={groupes.find(g => g.id === activeGroupId)}
-        />
-      </div>
+          {/* Sidebar */}
+          <ModuleSidebar
+            moduleProgress={moduleProgress}
+            activeGroupe={groupes.find(g => g.id === activeGroupId)}
+          />
+        </div>
+      )}
 
       {showForm && (
         <SessionForm
