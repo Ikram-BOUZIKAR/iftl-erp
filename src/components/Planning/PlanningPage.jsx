@@ -416,7 +416,7 @@ export default function PlanningPage() {
           {/* Grid area */}
           <div className="flex-1 overflow-auto p-3 min-w-0">
             {activeGroupId ? (
-              <EDTGrid
+              <TimelineGrid
                 groupe={groupes.find(g => g.id === activeGroupId)}
                 sessions={sessions}
                 weekDays={weekDays}
@@ -482,26 +482,32 @@ export default function PlanningPage() {
   );
 }
 
-// ── EDT Grid ──────────────────────────────────────────────────────────────────
-function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, conflictedIds, onAdd, onEdit, onMove, onDelete }) {
-  const [dragId,   setDragId]   = useState(null);
-  const [dropCell, setDropCell] = useState(null);
+// ── Timeline Grid (Option A — axe horaire vertical) ───────────────────────────
+function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, conflictedIds, onAdd, onEdit, onMove, onDelete }) {
+  const [dragId,    setDragId]    = useState(null);
+  const [dropSlot,  setDropSlot]  = useState(null); // { di, si }
 
-  const getModuleName  = id => modules.find(x => x.id === id)?.nom || id || '—';
-  const getIntervenant = id => {
-    const i = intervenants.find(x => x.id === id);
-    return i ? `${i.prenom} ${i.nom}` : null;
-  };
+  const START_MIN  = 8 * 60;       // 08:00
+  const END_MIN    = 17 * 60 + 30; // 17:30
+  const SCALE      = 1.4;          // px per minute
+  const TOTAL_H    = (END_MIN - START_MIN) * SCALE; // 798px
+  const DISPLAY_DAYS = 6;
 
-  const toJsDate = (v) => {
+  const toMin     = t => { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const slotTop   = slot => (toMin(slot.start) - START_MIN) * SCALE;
+  const slotH     = slot => (toMin(slot.end) - toMin(slot.start)) * SCALE;
+
+  const toJsDate = v => {
     if (!v) return null;
     if (v instanceof Date) return v;
     if (v?.toDate) return v.toDate();
     return new Date(v);
   };
 
-  const getSession = (di, si) => {
-    const slot = DAY_SLOTS[di]?.[si];
+  const getModuleName  = id => modules.find(x => x.id === id)?.nom || id || '—';
+  const getIntervenant = id => { const i = intervenants.find(x => x.id === id); return i ? `${i.prenom} ${i.nom}` : null; };
+
+  const getSlotSession = (di, slot) => {
     if (!slot || !groupe) return null;
     const dayStr = format(weekDays[di], 'yyyy-MM-dd');
     return sessions.find(s => {
@@ -517,200 +523,165 @@ function EDTGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, 
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', session.id);
   };
-  const onDragOver  = (e, di, si) => { e.preventDefault(); setDropCell({ di, si }); };
-  const onDrop      = (e, di, si) => {
+  const onDragOverSlot = (e, di, si) => { e.preventDefault(); setDropSlot({ di, si }); };
+  const onDropSlot     = (e, di, si) => {
     e.preventDefault();
     const sid  = e.dataTransfer.getData('text/plain');
     const slot = DAY_SLOTS[di]?.[si];
     if (sid && slot) onMove(sid, format(weekDays[di], 'yyyy-MM-dd'), slot, groupe?.id);
-    setDragId(null); setDropCell(null);
+    setDragId(null); setDropSlot(null);
   };
-  const onDragEnd   = () => { setDragId(null); setDropCell(null); };
+  const onDragEnd = () => { setDragId(null); setDropSlot(null); };
 
-  const DISPLAY_DAYS = 6; // Mon–Sat
+  // Time markers every 30 min for the axis
+  const timeMarkers = [];
+  for (let m = START_MIN; m <= END_MIN; m += 30) timeMarkers.push(m);
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{
-        borderCollapse: 'collapse',
-        minWidth: `${80 + DISPLAY_DAYS * 110}px`,
-        width: '100%',
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      }}>
-        {/* Day headers */}
-        <thead>
-          <tr>
-            <th style={{ width: 80, background: '#001829', padding: '8px 6px', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'Outfit,sans-serif' }}>Horaire</span>
-            </th>
-            {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
-              const vac    = isVacance(day, vacances);
-              const today  = day.toDateString() === new Date().toDateString();
+      <div style={{ minWidth: 620 }}>
+
+        {/* ── Header row ── */}
+        <div style={{ display: 'flex', borderRadius: '10px 10px 0 0', overflow: 'hidden' }}>
+          <div style={{ width: 54, flexShrink: 0, background: '#001829', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+            <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.6px', textTransform: 'uppercase', fontFamily: 'Outfit,sans-serif' }}>H</span>
+          </div>
+          {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
+            const vac   = isVacance(day, vacances);
+            const today = day.toDateString() === new Date().toDateString();
+            return (
+              <div key={di} style={{
+                flex: 1, padding: '10px 6px', textAlign: 'center',
+                background: vac ? '#3a3a3a' : today ? '#005989' : '#001829',
+                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+              }}>
+                <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 11, fontWeight: 700, color: vac ? 'rgba(255,255,255,0.35)' : '#fff', letterSpacing: '0.3px' }}>
+                  {DAYS[di]}
+                </div>
+                <div style={{ fontSize: 10, color: today ? 'rgba(245,200,69,0.75)' : 'rgba(255,255,255,0.4)', marginTop: 1 }}>
+                  {format(day, 'dd/MM')}
+                </div>
+                {vac && <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)', marginTop: 2, fontStyle: 'italic', lineHeight: 1.2 }}>{vac.label?.replace('⚠ prévisionnel', '').trim()}</div>}
+                {today && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#f5c845', margin: '3px auto 0' }} />}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Body ── */}
+        <div style={{
+          display: 'flex', background: '#fff',
+          border: '1px solid #e2e8f0', borderTop: 'none',
+          borderRadius: '0 0 10px 10px', overflow: 'hidden',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        }}>
+          {/* Time axis */}
+          <div style={{ width: 54, flexShrink: 0, background: '#f8fafc', borderRight: '1px solid #e2e8f0', position: 'relative', height: TOTAL_H }}>
+            {timeMarkers.map(m => {
+              const top     = (m - START_MIN) * SCALE;
+              const isHour  = m % 60 === 0;
+              const hh      = Math.floor(m / 60);
+              const mm      = m % 60 === 0 ? '00' : '30';
               return (
-                <th key={di} style={{
-                  padding: '8px 6px',
-                  textAlign: 'center',
-                  background: vac ? '#3a3a3a' : today ? '#005989' : '#001829',
-                  borderRight: di < DISPLAY_DAYS - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-                  position: 'relative',
-                }}>
-                  <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 10.5, fontWeight: 700, color: vac ? 'rgba(255,255,255,0.4)' : '#fff', letterSpacing: '0.3px' }}>
-                    {DAYS[di]}
+                <div key={m} style={{ position: 'absolute', top, left: 0, right: 0 }}>
+                  <div style={{ position: 'absolute', right: 6, top: 0, transform: 'translateY(-50%)', fontSize: isHour ? 9.5 : 8, fontWeight: isHour ? 700 : 500, color: isHour ? '#64748b' : '#b0bec5', fontVariantNumeric: 'tabular-nums', fontFamily: 'Outfit,sans-serif', whiteSpace: 'nowrap' }}>
+                    {hh}h{mm === '00' ? '' : mm}
                   </div>
-                  <div style={{ fontSize: 10, color: today ? 'rgba(245,200,69,0.7)' : 'rgba(255,255,255,0.4)', marginTop: 1 }}>
-                    {format(day, 'dd/MM')}
-                  </div>
-                  {vac && (
-                    <div style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.3)', marginTop: 2, fontStyle: 'italic', lineHeight: 1.2 }}>
-                      {vac.label?.replace('⚠ prévisionnel', '').trim()}
-                    </div>
-                  )}
-                  {today && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#f5c845', margin: '3px auto 0' }} />}
-                </th>
+                </div>
               );
             })}
-          </tr>
-        </thead>
+          </div>
 
-        <tbody>
-          {Array.from({ length: MAX_SLOTS }, (_, si) => (
-            <tr key={si} style={{ borderBottom: si < MAX_SLOTS - 1 ? '1px solid #f1f5f9' : 'none' }}>
-              {/* Time slot label */}
-              <td style={{
-                padding: '4px 6px',
-                background: '#f8fafc',
-                borderRight: '1px solid #e2e8f0',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                width: 80,
+          {/* Day columns */}
+          {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
+            const vac   = isVacance(day, vacances);
+            const slots = DAY_SLOTS[di] || [];
+
+            return (
+              <div key={di} style={{
+                flex: 1, position: 'relative', height: TOTAL_H,
+                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none',
+                background: vac ? 'repeating-linear-gradient(-45deg,#f1f5f9,#f1f5f9 4px,#e8edf4 4px,#e8edf4 8px)' : '#fff',
               }}>
-                <div style={{ display: 'inline-block', background: 'rgba(0,89,137,0.08)', color: '#005989', fontSize: 9, fontWeight: 700, padding: '2px 5px', borderRadius: 3, fontFamily: 'Outfit,sans-serif', letterSpacing: '0.2px', marginBottom: 2 }}>
-                  C{si + 1}
-                </div>
-                <div style={{ fontSize: 8.5, color: '#94a3b8', fontFamily: 'monospace', lineHeight: 1.3, whiteSpace: 'nowrap' }}>
-                  {DAY_SLOTS[0][si]?.start}
-                  <br />
-                  {DAY_SLOTS[0][si]?.end}
-                </div>
-              </td>
+                {/* Hour grid lines */}
+                {timeMarkers.map(m => (
+                  <div key={m} style={{ position: 'absolute', top: (m - START_MIN) * SCALE, left: 0, right: 0, borderTop: m % 60 === 0 ? '1px solid #dde3ea' : '1px solid #f1f5f9', pointerEvents: 'none' }} />
+                ))}
 
-              {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
-                const slot    = DAY_SLOTS[di]?.[si];
-                const vac     = isVacance(day, vacances);
-                const session = slot && !vac ? getSession(di, si) : null;
-                const hasSlot = !!slot && !vac;
-                const isDrop  = dropCell?.di === di && dropCell?.si === si;
-                const isDrag  = session && dragId === session.id;
-
-                if (vac) {
+                {/* Slot zones */}
+                {!vac && slots.map((slot, si) => {
+                  const session = getSlotSession(di, slot);
+                  const top     = slotTop(slot);
+                  const h       = slotH(slot);
+                  const isDrop  = dropSlot?.di === di && dropSlot?.si === si;
+                  const isDrag  = session && dragId === session.id;
                   return (
-                    <td key={di} style={{
-                      padding: 4,
-                      background: 'repeating-linear-gradient(-45deg,#f1f5f9,#f1f5f9 4px,#e8edf4 4px,#e8edf4 8px)',
-                      borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none',
-                      cursor: 'not-allowed',
-                    }} />
+                    <div key={si} style={{ position: 'absolute', top, left: 4, right: 4, height: h }}
+                      onDragOver={e => onDragOverSlot(e, di, si)}
+                      onDrop={e => onDropSlot(e, di, si)}
+                      onDragLeave={() => setDropSlot(null)}
+                    >
+                      {session ? (
+                        <TLSessionCard
+                          session={session}
+                          moduleName={getModuleName(session.moduleId || session.module)}
+                          intervenantName={getIntervenant(session.intervenantId)}
+                          isConflict={conflictedIds.has(session.id)}
+                          isDragging={isDrag}
+                          height={h}
+                          onDragStart={e => onDragStart(e, session)}
+                          onDragEnd={onDragEnd}
+                          onEdit={() => onEdit(session)}
+                          onDelete={() => onDelete(session.id, getModuleName(session.moduleId || session.module))}
+                        />
+                      ) : (
+                        <div
+                          onClick={() => onAdd(day, slot, groupe?.id)}
+                          onDragOver={e => onDragOverSlot(e, di, si)}
+                          style={{
+                            height: '100%', borderRadius: 7,
+                            border: isDrop ? '2px solid #005989' : '1.5px dashed #d1dae5',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', gap: 2,
+                            color: isDrop ? '#005989' : '#c8d4e0',
+                            background: isDrop ? 'rgba(0,89,137,0.06)' : 'rgba(248,250,252,0.6)',
+                            transition: 'all 0.12s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,89,137,0.35)'; e.currentTarget.style.color = 'rgba(0,89,137,0.45)'; e.currentTarget.style.background = 'rgba(0,89,137,0.03)'; }}
+                          onMouseLeave={e => { if (!isDrop) { e.currentTarget.style.borderColor = '#d1dae5'; e.currentTarget.style.color = '#c8d4e0'; e.currentTarget.style.background = 'rgba(248,250,252,0.6)'; } }}
+                        >
+                          <span style={{ fontSize: 16, fontWeight: 300, lineHeight: 1 }}>+</span>
+                          <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.2px', fontFamily: 'Outfit,sans-serif' }}>{slot.start}</span>
+                        </div>
+                      )}
+                    </div>
                   );
-                }
+                })}
+              </div>
+            );
+          })}
+        </div>
 
-                if (!hasSlot) {
-                  return (
-                    <td key={di} style={{ padding: 4, background: '#f8fafc', borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none' }}>
-                      <div style={{ height: 64, borderRadius: 8, background: '#f1f5f9' }} />
-                    </td>
-                  );
-                }
-
-                return (
-                  <td key={di} style={{
-                    padding: 4,
-                    verticalAlign: 'top',
-                    borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none',
-                    background: isDrop && !session ? 'rgba(0,89,137,0.05)' : '#fff',
-                    transition: 'background 0.1s',
-                    minHeight: 80,
-                  }}
-                    onDragOver={e => onDragOver(e, di, si)}
-                    onDrop={e => onDrop(e, di, si)}
-                    onDragLeave={() => setDropCell(null)}
-                  >
-                    {session ? (
-                      <SessionCard
-                        session={session}
-                        moduleName={getModuleName(session.moduleId || session.module)}
-                        intervenantName={getIntervenant(session.intervenantId)}
-                        isConflict={conflictedIds.has(session.id)}
-                        isDragging={isDrag}
-                        onDragStart={e => onDragStart(e, session)}
-                        onDragEnd={onDragEnd}
-                        onEdit={() => onEdit(session)}
-                        onDelete={() => onDelete(session.id, getModuleName(session.moduleId || session.module))}
-                      />
-                    ) : (
-                      <div
-                        onClick={() => onAdd(day, slot, groupe?.id)}
-                        onDragOver={e => onDragOver(e, di, si)}
-                        style={{
-                          height: 64,
-                          borderRadius: 8,
-                          border: isDrop ? '2px solid #005989' : '1.5px dashed #cbd5e1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          color: isDrop ? '#005989' : '#cbd5e1',
-                          background: isDrop ? 'rgba(0,89,137,0.06)' : 'transparent',
-                          fontSize: 20,
-                          fontWeight: 300,
-                          transition: 'all 0.12s',
-                        }}
-                        onMouseEnter={e => {
-                          if (!isDrop) { e.currentTarget.style.borderColor = 'rgba(0,89,137,0.4)'; e.currentTarget.style.color = 'rgba(0,89,137,0.5)'; }
-                        }}
-                        onMouseLeave={e => {
-                          if (!isDrop) { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#cbd5e1'; }
-                        }}
-                      >
-                        +
-                      </div>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
+        {/* Legend */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingLeft: 2 }}>
+          {Object.entries(TYPE_STYLES).map(([type, s]) => (
+            <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 20, background: s.bg, border: `1px solid ${s.border}`, color: s.text, fontSize: 10.5, fontWeight: 600 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.bar, flexShrink: 0 }} />
+              {s.label}
+            </span>
           ))}
-        </tbody>
-      </table>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingLeft: 2 }}>
-        {Object.entries(TYPE_STYLES).map(([type, s]) => (
-          <span key={type} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '3px 8px', borderRadius: 20,
-            background: s.bg, border: `1px solid ${s.border}`,
-            color: s.text, fontSize: 10.5, fontWeight: 600,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.bar, flexShrink: 0 }} />
-            {s.label}
-          </span>
-        ))}
-        <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4, alignSelf: 'center' }}>
-          · Glissez pour déplacer · Clic + pour créer
-        </span>
+          <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4, alignSelf: 'center' }}>· Glissez pour déplacer · Clic + pour créer</span>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Session card ──────────────────────────────────────────────────────────────
-function SessionCard({ session, moduleName, intervenantName, isConflict, isDragging, onDragStart, onDragEnd, onEdit, onDelete }) {
+// ── Timeline Session Card ──────────────────────────────────────────────────────
+function TLSessionCard({ session, moduleName, intervenantName, isConflict, isDragging, height, onDragStart, onDragEnd, onEdit, onDelete }) {
   const [hovered, setHovered] = useState(false);
   const s = TYPE_STYLES[session.type] || TYPE_STYLES.cours;
+  const compact = height < 90;
   return (
     <div
       draggable
@@ -719,51 +690,51 @@ function SessionCard({ session, moduleName, intervenantName, isConflict, isDragg
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        height: 64,
-        borderRadius: 8,
-        border: `1px solid ${isConflict ? 'rgba(220,38,38,0.4)' : s.border}`,
+        height: '100%', borderRadius: 7,
+        border: `1px solid ${isConflict ? 'rgba(220,38,38,0.35)' : s.border}`,
         background: isConflict ? 'rgba(220,38,38,0.06)' : s.bg,
-        display: 'flex',
-        gap: 0,
-        cursor: 'grab',
-        opacity: isDragging ? 0.3 : 1,
-        transform: isDragging ? 'scale(0.97)' : 'scale(1)',
-        transition: 'all 0.12s',
-        boxShadow: hovered ? '0 2px 10px rgba(0,0,0,0.1)' : 'none',
-        position: 'relative',
-        overflow: 'hidden',
+        display: 'flex', cursor: 'grab',
+        opacity: isDragging ? 0.25 : 1,
+        transition: 'box-shadow 0.12s, transform 0.1s',
+        boxShadow: hovered ? '0 4px 14px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+        transform: hovered ? 'scaleX(1.015)' : 'none',
+        position: 'relative', overflow: 'hidden',
       }}
     >
-      {/* Bar */}
-      <div style={{ width: 4, background: isConflict ? '#dc2626' : s.bar, flexShrink: 0, borderRadius: '7px 0 0 7px' }} />
+      {/* Left accent bar */}
+      <div style={{ width: 4, background: isConflict ? '#dc2626' : s.bar, flexShrink: 0, borderRadius: '6px 0 0 6px' }} />
       {/* Content */}
-      <div style={{ flex: 1, padding: '5px 6px 5px 5px', minWidth: 0, overflow: 'hidden' }}>
-        <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: isConflict ? '#dc2626' : s.text, fontFamily: 'Outfit,sans-serif', marginBottom: 1 }}>
-          {(TYPE_STYLES[session.type] || TYPE_STYLES.cours).label}
-          {isConflict && ' · ⚠ Conflit'}
+      <div style={{ flex: 1, padding: compact ? '4px 6px' : '6px 8px 5px', minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', color: isConflict ? '#dc2626' : s.text, fontFamily: 'Outfit,sans-serif', marginBottom: 2, opacity: 0.75 }}>
+          {(TYPE_STYLES[session.type] || TYPE_STYLES.cours).label}{isConflict && ' · ⚠ Conflit'}
         </div>
-        <div style={{ fontSize: 10.5, fontWeight: 600, color: isConflict ? '#dc2626' : s.text, lineHeight: 1.25, fontFamily: 'Outfit,sans-serif', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <div style={{ fontSize: compact ? 10 : 11, fontWeight: 700, color: isConflict ? '#dc2626' : s.text, lineHeight: 1.25, fontFamily: 'Outfit,sans-serif', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: compact ? 1 : 2, WebkitBoxOrient: 'vertical' }}>
           {moduleName}
         </div>
-        {intervenantName && (
-          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {!compact && intervenantName && (
+          <div style={{ fontSize: 9.5, color: '#64748b', marginTop: 3, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {intervenantName}
           </div>
         )}
-        {session.salle && (
+        {!compact && session.salle && (
           <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            🏫 {session.salle}
+            📍 {session.salle}
+          </div>
+        )}
+        {!compact && (
+          <div style={{ fontSize: 8.5, color: s.text, opacity: 0.45, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+            {session.heureDebut}–{session.heureFin}
           </div>
         )}
       </div>
       {/* Hover actions */}
       {hovered && (
-        <div style={{ position: 'absolute', top: 3, right: 3, display: 'flex', gap: 2 }}>
+        <div style={{ position: 'absolute', top: 3, right: 3, display: 'flex', gap: 2, zIndex: 3 }}>
           <button onClick={e => { e.stopPropagation(); onEdit(); }}
-            style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,0.9)', border: '1px solid #e2e8f0', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+            style={{ width: 20, height: 20, borderRadius: 4, background: 'rgba(255,255,255,0.95)', border: '1px solid #e2e8f0', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
             title="Modifier">✏</button>
           <button onClick={e => { e.stopPropagation(); onDelete(); }}
-            style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,0.9)', border: '1px solid #e2e8f0', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+            style={{ width: 20, height: 20, borderRadius: 4, background: 'rgba(255,255,255,0.95)', border: '1px solid #e2e8f0', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
             title="Supprimer">✕</button>
         </div>
       )}
