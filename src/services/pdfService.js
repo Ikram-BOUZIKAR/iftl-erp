@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import IFTL_LOGO from '../assets/iftlLogo.js';
 
 // ─── Brand constants ──────────────────────────────────────────────────────────
 
@@ -52,16 +53,10 @@ function drawIftlHeader(doc, title, subtitle) {
   doc.setFillColor(...BRAND.yellow);
   doc.rect(0, 38, w, 3, 'F');
 
-  // Institut name
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(...BRAND.white);
-  doc.text('IFTL', 14, 15);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
-  doc.setTextColor(...BRAND.white);
+  // IFTL logo
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
+  doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
 
   // Document title (right-aligned)
   doc.setFont('helvetica', 'bold');
@@ -726,6 +721,10 @@ export function generatePV(groupe, students, modules, notesByStudent, anneeAcad 
   doc.setFillColor(...RED);
   doc.rect(0, 22, W, 2, 'F');
 
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(W - 62, 1, 50, 20, 2, 2, 'F');
+  doc.addImage(IFTL_LOGO, 'PNG', W - 61, 2, 48, 18);
+
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
@@ -733,7 +732,7 @@ export function generatePV(groupe, students, modules, notesByStudent, anneeAcad 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`Groupe : ${groupe.nom}   |   Filière : ${groupe.filiereCode || ''}   |   Année : ${anneeAcad}`, 14, 17);
-  doc.text(`Généré le ${new Date().toLocaleDateString('fr-MA')}`, W - 14, 17, { align: 'right' });
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-MA')}`, W - 70, 17, { align: 'right' });
 
   // ── Build table ───────────────────────────────────────────────────────────
   function mention(moy) {
@@ -901,15 +900,9 @@ export function generateReleve1A(student, info, modules, summary = {}) {
   doc.setFillColor(...BRAND.yellow);
   doc.rect(0, 38, w, 3, 'F');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...BRAND.white);
-  doc.text('IFTL', 14, 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
-  doc.setFontSize(6.5);
-  doc.text('Pole Urbain P 41 | Tél : +212 66 04 71 53 | www.iftl.ma | info@iftl.ma', 14, 28);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
+  doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
@@ -1048,15 +1041,9 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
   doc.setFillColor(...BRAND.yellow);
   doc.rect(0, 38, w, 3, 'F');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...BRAND.white);
-  doc.text('IFTL', 14, 15);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 22);
-  doc.setFontSize(6.5);
-  doc.text('Pole Urbain P 41 | Tél : +212 66 04 71 53 | www.iftl.ma | info@iftl.ma', 14, 28);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
+  doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -1280,7 +1267,7 @@ export function generateAttestationSoutenance(student, opts = {}) {
 
   const bodyLines = doc.splitTextToSize(
     `est inscrit(e) en ${anneeFiliere} année de la filière : ${filiere}, au titre de l'année de formation ${anneeFormation}, ` +
-    `et a satisfait aux conditions d'assiduité et d'évaluation continue requises par l'Institut.`,
+    `et a satisfait aux conditions d'assiduité et d'évaluation continue requises par l'IFTL.`,
     w - 28
   );
   doc.setFont('helvetica', 'normal');
@@ -1394,7 +1381,7 @@ export function generateAttestationReussite(student, opts = {}) {
   const body1Lines = doc.splitTextToSize(
     `a validé avec succès l'ensemble des modules pédagogiques et professionnels relatifs à la Formation de niveau ` +
     `${niveau} dans la filière : ${filiere}, au titre de l'année académique ${anneeAcademique}, conformément aux normes ` +
-    `en vigueur, et dans le plein respect des critères d'assiduité, de discipline et de performance exigés par l'Institut.`,
+    `en vigueur, et dans le plein respect des critères d'assiduité, de discipline et de performance exigés par l'IFTL.`,
     w - 28
   );
   doc.text(body1Lines, 14, y);
@@ -1402,7 +1389,7 @@ export function generateAttestationReussite(student, opts = {}) {
 
   const body2Lines = doc.splitTextToSize(
     `Ce résultat a été arrêté en application des délibérations du Conseil de gestion et de coordination pédagogique ` +
-    `de l'Institut, tenu le ${dateDelib}, et dûment consignées dans le procès-verbal correspondant.`,
+    `de l'IFTL, tenu le ${dateDelib}, et dûment consignées dans le procès-verbal correspondant.`,
     w - 28
   );
   doc.text(body2Lines, 14, y);
@@ -1448,19 +1435,10 @@ function drawIftlHeaderAttestation(doc, docTitle) {
   doc.setFillColor(...BRAND.yellow);
   doc.rect(0, 42, w, 3, 'F');
 
-  // Logo zone – left side
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(...BRAND.yellow);
-  doc.text('IFTL', 14, 17);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...BRAND.white);
-  doc.text('Institut de Formation dans les métiers', 14, 24);
-  doc.text('Transport & Logistique', 14, 30);
-  doc.setFontSize(6.5);
-  doc.text('Pôle Urbain Nouaceur LOT P\'41 | +212 66 04 71 53 | www.iftl.ma', 14, 36);
+  // IFTL logo
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(10, 3, 48, 36, 2, 2, 'F');
+  doc.addImage(IFTL_LOGO, 'PNG', 11, 4, 46, 32);
 
   // Document type – right side
   doc.setFont('helvetica', 'bold');

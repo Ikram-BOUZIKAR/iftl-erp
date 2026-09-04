@@ -223,9 +223,8 @@ export default function RegisterPage() {
         <div className="max-w-lg w-full">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center"
-                 style={{ background: BRAND.yellow }}>
-              <span className="font-black text-sm" style={{ color: BRAND.blue }}>IF</span>
+            <div className="mx-auto mb-4">
+              <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 140, height: 'auto', display: 'block' }} />
             </div>
             <h1 className="text-2xl font-bold text-slate-800">Créer un compte</h1>
             <p className="text-slate-500 text-sm mt-1">Qui êtes-vous ?</p>
