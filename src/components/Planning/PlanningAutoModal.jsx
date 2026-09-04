@@ -57,6 +57,35 @@ const TYPES = [
 
 const ANNEE = '2026-2027';
 
+// ── Jours fériés et vacances 2026-2027 (hardcodés — même source que CalendrierAcademique) ──
+const JOURS_FERIES_SET = new Set([
+  '2026-08-14','2026-08-20','2026-08-21','2026-11-06','2026-11-18',
+  '2027-01-01','2027-01-12','2027-05-01','2027-07-30',
+]);
+
+const VACANCES_RANGES = [
+  { debut: '2026-12-06', fin: '2026-12-13' },
+  { debut: '2027-01-24', fin: '2027-01-31' },
+  { debut: '2027-02-17', fin: '2027-03-18' }, // Ramadan
+  { debut: '2027-03-21', fin: '2027-03-28' },
+  { debut: '2027-05-09', fin: '2027-05-16' },
+];
+
+function buildBlockedDates() {
+  const blocked = new Set(JOURS_FERIES_SET);
+  for (const v of VACANCES_RANGES) {
+    let cur = new Date(v.debut + 'T00:00:00');
+    const end = new Date(v.fin + 'T00:00:00');
+    while (cur <= end) {
+      blocked.add(format(cur, 'yyyy-MM-dd'));
+      cur = addDays(cur, 1);
+    }
+  }
+  return blocked;
+}
+
+const BLOCKED_DATES_2026_2027 = buildBlockedDates();
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function toMin(time) {
   if (!time) return 0;
@@ -271,8 +300,18 @@ function Step1({ modules, groupes, intervenants, onNext, onClose }) {
       {/* List */}
       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
         {loading && <div className="py-8 text-center text-slate-400 text-sm">Chargement…</div>}
-        {!loading && filtered.length === 0 && (
-          <div className="py-8 text-center text-slate-400 text-sm">Aucune affectation trouvée</div>
+        {!loading && enriched.length === 0 && (
+          <div className="py-8 text-center space-y-2">
+            <div className="text-3xl">📋</div>
+            <p className="text-slate-600 font-medium text-sm">Aucune affectation pour {ANNEE}</p>
+            <p className="text-slate-400 text-xs max-w-xs mx-auto">
+              Créez d'abord les affectations Module → Intervenant → Groupe → Masse Horaire dans la page{' '}
+              <strong className="text-[#005989]">Masse Horaire</strong>, puis revenez ici.
+            </p>
+          </div>
+        )}
+        {!loading && enriched.length > 0 && filtered.length === 0 && (
+          <div className="py-8 text-center text-slate-400 text-sm">Aucun résultat pour "{searchQ}"</div>
         )}
         {filtered.map(a => {
           const isSelected = selected?.id === a.id;
@@ -372,7 +411,12 @@ function Step1({ modules, groupes, intervenants, onNext, onClose }) {
 function Step2({ affectation, allGroupeIds, allSessions, modules, groupes, intervenants, onNext, onBack }) {
   // availKeys: Set of "dayIndex|slotIndex"
   const [availKeys, setAvailKeys] = useState(() => new Set());
-  const [startDate,  setStartDate]  = useState(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  const [startDate,  setStartDate]  = useState(() => {
+    // Default to rentrée week if before it, otherwise current week
+    const rentree = new Date('2026-09-14T00:00:00');
+    const base = new Date() < rentree ? rentree : new Date();
+    return format(startOfWeek(base, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  });
   const [salle,      setSalle]      = useState('');
   const [salleCustom, setSalleCustom] = useState('');
   const [salleMode,  setSalleMode]  = useState('preset'); // 'preset' | 'custom'
@@ -628,11 +672,6 @@ function Step3({ preview, setPreview, affectation, allGroupeIds, modules, groupe
   const mod  = modules.find(m => m.id === affectation.moduleId);
   const intv = intervenants.find(i => i.id === affectation.intervenantId);
 
-  const totalH = preview.reduce((acc, s) => {
-    // count per unique date+slot (not per group)
-    return acc;
-  }, null);
-
   // Unique sessions (1 slot = N groups = N docs, but count hours once)
   const uniqueSlots = useMemo(() => {
     const seen = new Set();
@@ -785,42 +824,34 @@ export default function PlanningAutoModal({ modules, groupes, intervenants, onCl
       } catch { /* ignore */ }
     }
 
-    // Also load vacances if skipVac
-    let vacanceKeys = new Set();
+    // Use hardcoded 2026-2027 blocked dates (jours fériés + vacances)
+    // Falls back to also checking Firestore vacances collection if present
+    let extraBlocked = new Set();
     if (skipVac) {
+      extraBlocked = new Set(BLOCKED_DATES_2026_2027);
       try {
         const snap = await getDocs(collection(db, 'vacances'));
         snap.forEach(d => {
           const { debut, fin } = d.data();
           let cur = new Date(debut + 'T00:00:00');
           const end = new Date(fin + 'T00:00:00');
-          while (cur <= end) {
-            vacanceKeys.add(format(cur, 'yyyy-MM-dd'));
-            cur = addDays(cur, 1);
-          }
+          while (cur <= end) { extraBlocked.add(format(cur, 'yyyy-MM-dd')); cur = addDays(cur, 1); }
         });
       } catch { /* ignore */ }
     }
 
-    // Build availKeys that also excludes vacances
-    const filteredAvailKeys = skipVac
-      ? new Set([...availKeys]) // we'll check vacances per date in algo
-      : availKeys;
-
     const generated = generateSessions({
-      moduleId:     affectation.moduleId,
+      moduleId:      affectation.moduleId,
       intervenantId: affectation.intervenantId,
-      groupeIds:    allGroupeIds,
-      masseHoraire: affectation.masseHoraire,
-      heuresFaites: affectation.heuresFaites,
-      availableKeys: filteredAvailKeys,
+      groupeIds:     allGroupeIds,
+      masseHoraire:  affectation.masseHoraire,
+      heuresFaites:  affectation.heuresFaites,
+      availableKeys: availKeys,
       startDate,
       salle,
       type,
-      existingSessions: skipVac
-        ? existingSessions  // vacances handled below
-        : existingSessions,
-    }).filter(s => !skipVac || !vacanceKeys.has(s.date));
+      existingSessions,
+    }).filter(s => !skipVac || !extraBlocked.has(s.date));
 
     setPreview(generated);
     setStep(3);
