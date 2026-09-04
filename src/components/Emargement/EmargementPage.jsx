@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { sessionsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
-import { useConfirm } from '../UI/ConfirmDialog';
+import { useConfirm } from '../UI/ConfirmDialog'; // still used by handleDeleteSession
 import EmargementLibreModal from './EmargementLibreModal';
 
 const GRANDES_SALLES = ['Grande Salle 01', 'Grande Salle 02', 'Amphi'];
@@ -44,11 +44,58 @@ export default function EmargementPage() {
   const [filterDate, setFilterDate] = useState('');
   const [search, setSearch] = useState('');
   const [showLibreModal, setShowLibreModal] = useState(false);
+  const sessionsRef = useRef([]);
 
   useEffect(() => {
     getDocs(query(collection(db, 'modules'), orderBy('code', 'asc')))
       .then(snap => setModules(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
       .catch(() => {});
+  }, []);
+
+  // Keep a ref so the interval can read fresh sessions without re-binding
+  useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
+
+  // Auto-transition session status based on current time
+  useEffect(() => {
+    const autoUpdateStatuts = async () => {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const pending = sessionsRef.current;
+      if (!pending.length) return;
+
+      const toClose = [];
+      const toOpen = [];
+
+      for (const s of pending) {
+        if (s.statut === 'terminee' || s.statut === 'annulee') continue;
+        const d = toJsDate(s.date);
+        if (!d) continue;
+        const dateStr = d.toISOString().split('T')[0];
+        const [eh, em] = (s.heureFin || '00:00').split(':').map(Number);
+        const [sh, sm] = (s.heureDebut || '00:00').split(':').map(Number);
+        const endMin = eh * 60 + em;
+        const startMin = sh * 60 + sm;
+
+        if (dateStr < todayStr || (dateStr === todayStr && nowMin >= endMin)) {
+          toClose.push(s.id);
+        } else if (dateStr === todayStr && nowMin >= startMin && s.statut === 'planifiee') {
+          toOpen.push(s.id);
+        }
+      }
+
+      if (toClose.length + toOpen.length === 0) return;
+      await Promise.all([
+        ...toClose.map(id => sessionsService.closeEmargement(id)),
+        ...toOpen.map(id => sessionsService.openEmargement(id)),
+      ]);
+      refetch();
+    };
+
+    autoUpdateStatuts();
+    const interval = setInterval(autoUpdateStatuts, 60_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getGroupeName = (id) => groupes.find(g => g.id === id)?.nom || '—';
@@ -90,32 +137,6 @@ export default function EmargementPage() {
     const db_ = toJsDate(b.date) || new Date(0);
     return db_ - da;
   });
-
-  const handleOpenEmargement = async (id, module) => {
-    try {
-      await sessionsService.openEmargement(id);
-      refetch();
-      toast.success(`Émargement ouvert pour "${module}"`);
-    } catch (err) {
-      toast.error('Erreur : ' + err.message);
-    }
-  };
-
-  const handleCloseEmargement = async (id, module) => {
-    const ok = await confirm({
-      title: 'Clôturer cet émargement ?',
-      message: `La feuille de présence de "${module}" sera clôturée. Les apprenants ne pourront plus signer.`,
-      confirmLabel: 'Clôturer',
-    });
-    if (!ok) return;
-    try {
-      await sessionsService.closeEmargement(id);
-      refetch();
-      toast.success('Émargement clôturé avec succès');
-    } catch (err) {
-      toast.error('Erreur : ' + err.message);
-    }
-  };
 
   const handleDeleteSession = async (s) => {
     const ok = await confirm({
@@ -256,18 +277,6 @@ export default function EmargementPage() {
                           className="text-xs font-medium px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
                           Feuille
                         </Link>
-                        {s.statut === 'planifiee' && (
-                          <button onClick={() => handleOpenEmargement(s.id, s.module)}
-                            className="text-xs font-medium px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors">
-                            Ouvrir
-                          </button>
-                        )}
-                        {s.statut === 'en_cours' && (
-                          <button onClick={() => handleCloseEmargement(s.id, s.module)}
-                            className="text-xs font-medium px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                            Clôturer
-                          </button>
-                        )}
                         <button onClick={() => handleDeleteSession(s)}
                           className="text-xs font-medium px-3 py-1.5 text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300 rounded-lg transition-colors">
                           Supprimer

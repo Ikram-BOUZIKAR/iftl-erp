@@ -5,7 +5,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 
 const ANNEE = '2026-2027';
-const ACADEMIC_START_2026 = new Date(2026, 8, 21); // 2026-09-21 (Monday)
+const ACADEMIC_START_2026 = new Date(2026, 8, 14); // 2026-09-14 (Monday — rentrée 15 sept.)
 const ACADEMIC_START_2025 = new Date(2025, 8, 22); // 2025-09-22 reference
 
 // Jours fériés 2026-2027 (civils + religieux prévisionnels)
@@ -359,7 +359,7 @@ export default function EDTImportPage() {
             <p className="text-xs font-semibold text-blue-700 mb-1">ℹ️ Ce que cet outil fait :</p>
             <ul className="text-xs text-blue-600 space-y-0.5 list-disc list-inside">
               <li>Lit l'EDT 2025-2026 et décale les dates à 2026-2027</li>
-              <li>Année académique démarre le <strong>21 sept. 2026</strong></li>
+              <li>Année académique démarre le <strong>15 sept. 2026</strong> (semaine du 14)</li>
               <li>Crée une session Firestore par créneau/groupe</li>
               <li>Statut initial : Planifiée</li>
             </ul>
