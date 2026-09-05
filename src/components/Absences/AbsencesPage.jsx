@@ -6,6 +6,7 @@ import {
   doc,
   query,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useStudents, useSessions, useGroupes } from '../../hooks/useData';
@@ -308,7 +309,27 @@ export default function AbsencesPage() {
   };
 
   const handleExport = () => {
-    toast.info('Export en cours de préparation… (fonctionnalité à venir)');
+    const headers = ['Apprenant', 'Groupe', 'Date', 'Module', 'Type', 'Justifiée', 'Motif', 'Réf. document'];
+    const rows = filtered.map(row => [
+      `${row.student?.prenom || ''} ${row.student?.nom || ''}`.trim(),
+      row.groupe?.nom || '',
+      row.sessionDate ? row.sessionDate.toLocaleDateString('fr-FR') : '',
+      row.session?.module || '',
+      row.isRetard ? 'Retard' : 'Absence',
+      row.isJustifie ? 'Oui' : 'Non',
+      row.motif || '',
+      row.docRef || '',
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `absences_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const [showNotify, setShowNotify] = useState(false);
@@ -327,11 +348,21 @@ export default function AbsencesPage() {
       const targets = Object.values(scoreMap).filter(({ score }) => score >= 3);
       if (targets.length === 0) { toast.info('Aucun apprenant au-dessus du seuil.'); return; }
       let sent = 0, skipped = 0;
+      const alertedAt = new Date();
       for (const { score, student } of targets) {
         if (!student?.email) { skipped++; continue; }
         const threshold = score >= 5 ? 5 : 3;
         const name = `${student.prenom || ''} ${student.nom || ''}`.trim();
         await sendAlertAbsenceEmail(db, { toEmail: student.email, toName: name, score, threshold });
+        // Write traceability back to all presences for this student
+        const studentPresences = enriched.filter(r => r.studentId === student.id);
+        if (studentPresences.length > 0) {
+          const batch = writeBatch(db);
+          for (const p of studentPresences) {
+            batch.update(doc(db, 'presences', p.id), { alertSentAt: alertedAt, alertScore: score });
+          }
+          await batch.commit();
+        }
         sent++;
       }
       toast.success(`${sent} alerte${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} sans email` : ''}`);
