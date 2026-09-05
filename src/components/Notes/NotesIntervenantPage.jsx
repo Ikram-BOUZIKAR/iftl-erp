@@ -6,7 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { EVAL_TYPES, NOTE_DEADLINES, deadlineInfo } from '../../utils/notesUtils';
 
-const ANNEE = '2025-2026';
+const ANNEE = '2026-2027';
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 function IcoUpload() {

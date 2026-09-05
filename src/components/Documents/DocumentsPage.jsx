@@ -7,6 +7,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useGroupes } from '../../hooks/useData';
+import { generateDocumentAdministratif } from '../../services/pdfService';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -281,7 +282,11 @@ export default function DocumentsPage() {
   };
 
   const handleImprimer = (doc_) => {
-    toast.info(`Document ${doc_.reference} envoyé vers l'imprimante`);
+    try {
+      generateDocumentAdministratif(doc_);
+    } catch (err) {
+      toast.error('Erreur lors de la génération du PDF : ' + err.message);
+    }
   };
 
   const handleDelete = async (doc_) => {

@@ -1502,3 +1502,101 @@ function drawSignatureBlock(doc, y, dateFait) {
   doc.setTextColor(...BRAND.grey);
   doc.text('Signature et cachet de la Direction', w - 14 - 30, y + 4, { align: 'center' });
 }
+
+// ─── Document administratif générique ────────────────────────────────────────
+
+export function generateDocumentAdministratif(doc_) {
+  const TYPE_LABELS = {
+    attestation_scolarite: 'ATTESTATION DE SCOLARITÉ',
+    attestation_stage: 'ATTESTATION DE STAGE',
+    releve_notes: 'RELEVÉ DE NOTES',
+    convention_stage: 'CONVENTION DE STAGE',
+    diplome: 'DIPLÔME',
+    certificat_formation: 'CERTIFICAT DE FORMATION',
+  };
+
+  const BODY_TEXTS = {
+    attestation_scolarite: (d) => `est bien inscrit(e) à l'IFTL pour l'année académique 2026-2027${d.filiereCode ? `, dans la filière ${d.filiereCode}` : ''}.`,
+    attestation_stage: () => `a effectué un stage dans le cadre de sa formation à l'IFTL au titre de l'année académique 2026-2027.`,
+    convention_stage: () => `fait l'objet d'une convention de stage établie conformément à la réglementation en vigueur.`,
+    diplome: (d) => `a obtenu le diplôme sanctionnant la filière ${d.filiereCode || 'de formation'} à l'issue de sa formation à l'IFTL.`,
+    certificat_formation: (d) => `a suivi et validé la formation dispensée à l'IFTL${d.filiereCode ? ` dans la filière ${d.filiereCode}` : ''}.`,
+    releve_notes: () => `a obtenu les notes consignées dans le présent relevé, établi conformément aux délibérations du Conseil de gestion de l'IFTL.`,
+  };
+
+  const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  drawPageBorder(pdfDoc);
+  const w = pdfDoc.internal.pageSize.getWidth();
+  const typeLabel = TYPE_LABELS[doc_.type] || 'DOCUMENT ADMINISTRATIF';
+
+  let y = drawIftlHeaderAttestation(pdfDoc, typeLabel);
+
+  // Reference + emission date
+  y += 8;
+  pdfDoc.setFont('helvetica', 'normal');
+  pdfDoc.setFontSize(9);
+  pdfDoc.setTextColor(...BRAND.grey);
+  pdfDoc.text(`Référence : ${doc_.reference || '—'}`, 14, y);
+  if (doc_.dateEmission) {
+    const emissionStr = new Date(doc_.dateEmission).toLocaleDateString('fr-FR');
+    pdfDoc.text(`Date d'émission : ${emissionStr}`, w - 14, y, { align: 'right' });
+  }
+
+  // Centered type title
+  y += 12;
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.setFontSize(13);
+  pdfDoc.setTextColor(...BRAND.blue);
+  pdfDoc.text(typeLabel, w / 2, y, { align: 'center' });
+
+  // Intro
+  y += 12;
+  pdfDoc.setFont('helvetica', 'normal');
+  pdfDoc.setFontSize(11);
+  pdfDoc.setTextColor(30, 41, 59);
+  const intro = 'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport et de la Logistique « IFTL », atteste que :';
+  const introLines = pdfDoc.splitTextToSize(intro, w - 28);
+  pdfDoc.text(introLines, 14, y);
+  y += introLines.length * 6 + 8;
+
+  // Student name
+  const nomPrenom = `${(doc_.studentPrenom || '').trim()} ${(doc_.studentNom || '').toUpperCase().trim()}`.trim();
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.setFontSize(13);
+  pdfDoc.setTextColor(...BRAND.blue);
+  pdfDoc.text(nomPrenom, w / 2, y, { align: 'center' });
+  y += 10;
+
+  // Body
+  pdfDoc.setFont('helvetica', 'normal');
+  pdfDoc.setFontSize(11);
+  pdfDoc.setTextColor(30, 41, 59);
+  const bodyFn = BODY_TEXTS[doc_.type] || (() => 'est titulaire du présent document administratif émis par l\'IFTL.');
+  const bodyLines = pdfDoc.splitTextToSize(bodyFn(doc_), w - 28);
+  pdfDoc.text(bodyLines, 14, y);
+  y += bodyLines.length * 6 + 6;
+
+  if (doc_.observations) {
+    pdfDoc.setFont('helvetica', 'italic');
+    pdfDoc.setFontSize(9.5);
+    pdfDoc.setTextColor(...BRAND.grey);
+    const obsLines = pdfDoc.splitTextToSize(`Observations : ${doc_.observations}`, w - 28);
+    pdfDoc.text(obsLines, 14, y);
+    y += obsLines.length * 5 + 6;
+  }
+
+  y += 6;
+  pdfDoc.setFont('helvetica', 'italic');
+  pdfDoc.setFontSize(8.5);
+  pdfDoc.setTextColor(...BRAND.grey);
+  const noteLines = pdfDoc.splitTextToSize('La présente attestation est délivrée à l\'intéressé(e) pour faire valoir ce que de droit.', w - 28);
+  pdfDoc.text(noteLines, 14, y);
+  y += noteLines.length * 5 + 8;
+
+  const dateFait = format(new Date(), "d MMMM yyyy", { locale: fr });
+  drawSignatureBlock(pdfDoc, y, dateFait);
+  drawFooter(pdfDoc);
+
+  const safe = nomPrenom.replace(/\s+/g, '_') || 'document';
+  pdfDoc.save(`${doc_.reference || typeLabel.replace(/\s+/g, '_')}_${safe}.pdf`);
+}

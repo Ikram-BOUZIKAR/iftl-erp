@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useIntervenants } from '../../hooks/useData';
 import { intervenantsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
+import { useConfirm } from '../UI/ConfirmDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { createCompteERP } from '../../services/accountService';
 
@@ -344,9 +345,27 @@ function ListeTab({ intervenants, loading, refetch }) {
   const [compteStatus, setCompteStatus] = useState({});
   const { userProfile } = useAuth();
   const { showSuccess, showError } = useToast();
+  const confirm = useConfirm();
 
   const openAdd = () => { setEditing(null); setShowForm(true); };
   const openEdit = (i) => { setEditing(i); setShowForm(true); };
+
+  const handleDelete = async (i) => {
+    const ok = await confirm({
+      title: 'Supprimer cet intervenant ?',
+      message: `${i.prenom} ${i.nom} sera définitivement supprimé(e). Les séances liées ne seront pas affectées.`,
+      danger: true,
+      confirmLabel: 'Supprimer',
+    });
+    if (!ok) return;
+    try {
+      await deleteDoc(doc(db, 'intervenants', i.id));
+      showSuccess('Intervenant supprimé');
+      refetch();
+    } catch (err) {
+      showError('Erreur : ' + err.message);
+    }
+  };
 
   const handleCreateCompte = async (intervenant) => {
     if (!intervenant.email) {
@@ -464,6 +483,14 @@ function ListeTab({ intervenants, loading, refetch }) {
                       >
                         Modifier
                       </button>
+                      {['admin', 'direction', 'scolarite'].includes(userProfile?.role) && (
+                        <button
+                          onClick={() => handleDelete(i)}
+                          className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          Supprimer
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

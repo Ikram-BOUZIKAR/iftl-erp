@@ -206,7 +206,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
     description: 'Frais de scolarité',
     referencePaiement: '',
     dateEcheance: '',
-    anneeAcademique: '2025-2026',
+    anneeAcademique: '2026-2027',
     filiere: '',
   });
   const [saving, setSaving] = useState(false);

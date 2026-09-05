@@ -4,8 +4,8 @@ import { db } from '../../services/firebase';
 import { generateReleve1A, generateReleve2A } from '../../services/pdfService';
 import { useToast } from '../UI/Toast';
 
-const ANNEE_1A = '2025-2026';
-const ANNEE_2A = '2025-2026';
+const ANNEE_1A = '2026-2027';
+const ANNEE_2A = '2026-2027';
 
 const FILIERE_LABELS = {
   OTM:  'Transport Multimodal et Logistique Internationale',
