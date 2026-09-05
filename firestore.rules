@@ -1,61 +1,306 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read: if request.auth.uid == userId || isAdmin(request.auth.uid);
-      allow create: if request.auth.uid != null;
-      allow update, delete: if request.auth.uid == userId || isAdmin(request.auth.uid);
+
+    // ── Fonctions utilitaires ──────────────────────────────────────────────────
+    function isAdmin(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+        get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
+    }
+    function hasRole(roles) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles;
+    }
+    function isAuth() {
+      return request.auth != null;
     }
 
+    // ── Utilisateurs ───────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin(request.auth.uid));
+      // Self-create only allowed with role='apprenant' to prevent privilege escalation
+      allow create: if hasRole(['admin', 'direction', 'scolarite']) ||
+        (request.auth.uid == userId && request.resource.data.role == 'apprenant');
+      allow update: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      allow delete: if isAdmin(request.auth.uid);
+    }
+
+    // ── Apprenants ─────────────────────────────────────────────────────────────
     match /students/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isAuth();
       allow create, update: if hasRole(['admin', 'scolarite', 'direction']);
       allow delete: if hasRole(['admin', 'direction']);
     }
 
+    // ── Groupes ────────────────────────────────────────────────────────────────
+    match /groupes/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'scolarite', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Modules ────────────────────────────────────────────────────────────────
+    match /modules/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Intervenants ───────────────────────────────────────────────────────────
+    match /intervenants/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Sessions / Planning ────────────────────────────────────────────────────
+    match /sessions/{docId} {
+      allow read: if isAuth();
+      // Intervenants can create their own last-minute sessions for emargement
+      allow create: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /planning/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Présences / Émargement ─────────────────────────────────────────────────
+    match /presences/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Candidatures ───────────────────────────────────────────────────────────
     match /candidatures/{docId} {
       allow read: if hasRole(['admin', 'scolarite', 'direction']);
-      allow create: if request.auth == null;
+      allow create: if true;  // formulaire public
       allow update: if hasRole(['admin', 'scolarite']);
       allow delete: if hasRole(['admin']);
     }
 
-    match /edt/{docId} {
-      allow read: if request.auth != null;
-      allow create, update: if hasRole(['admin', 'direction']);
-      allow delete: if hasRole(['admin']);
+    // ── Paramètres ─────────────────────────────────────────────────────────────
+    match /settings/{docId} {
+      // Brevo API key stored here — restrict to admin/direction only
+      allow read: if hasRole(['admin', 'direction']);
+      allow write: if hasRole(['admin', 'direction']);
     }
 
-    match /intervenants/{docId} {
-      allow read: if request.auth != null;
-      allow create, update: if hasRole(['admin', 'direction']);
-      allow delete: if hasRole(['admin']);
-    }
-
-    match /modules/{docId} {
-      allow read: if request.auth != null;
-      allow create, update, delete: if hasRole(['admin', 'direction']);
-    }
-
-    match /planning/{docId} {
-      allow read: if request.auth != null;
+    // ── Rapports & journaux ────────────────────────────────────────────────────
+    match /rapports/{docId} {
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
       allow create, update: if hasRole(['admin', 'direction']);
       allow delete: if hasRole(['admin']);
     }
 
     match /logs_audit/{docId} {
       allow read: if hasRole(['admin']);
-      allow create: if request.auth != null;
+      // Restrict to staff roles to prevent audit log injection by apprenants/intervenants
+      allow create: if hasRole(['admin', 'scolarite', 'direction', 'intervenant']);
       allow delete: if hasRole(['admin']);
     }
 
-    function isAdmin(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    // ── Formation continue ─────────────────────────────────────────────────────
+    match /formations/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
     }
 
-    function hasRole(roles) {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles;
+    match /conventions/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    match /attestations/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Notes & Évaluations ────────────────────────────────────────────────────
+    match /evaluations/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /notes/{docId} {
+      // Staff can read all notes; apprenants can only read their own (matched via studentId in their users doc)
+      allow read: if hasRole(['admin', 'direction', 'scolarite', 'intervenant'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentId == resource.data.studentId);
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /bulletins/{docId} {
+      // Staff can read all bulletins; apprenants can only read their own
+      allow read: if hasRole(['admin', 'direction', 'scolarite'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentId == resource.data.studentId);
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Inscriptions ───────────────────────────────────────────────────────────
+    match /inscriptions/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Facturation & Paiements ────────────────────────────────────────────────
+    match /factures/{docId} {
+      // Financial data: apprenants/intervenants must not access all invoices
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /paiements/{docId} {
+      // Financial data: restrict to staff only
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Stages ────────────────────────────────────────────────────────────────
+    match /stages/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Documents & Attestations ───────────────────────────────────────────────
+    match /documents/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Annonces & Communication ───────────────────────────────────────────────
+    match /annonces/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────────────
+    match /notifications/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if request.auth.uid == resource.data.userId || hasRole(['admin']);
+      allow delete: if request.auth.uid == resource.data.userId || hasRole(['admin']);
+    }
+
+    // ── Calendrier académique ─────────────────────────────────────────────────
+    match /calendrier/{docId} {
+      allow read: if isAuth();
+      allow write: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
+    // ── Abonnements transport ─────────────────────────────────────────────────
+    match /transport_abonnements/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Demandes abonnement transport (soumises par les apprenants) ───────────
+    match /transport_demandes/{docId} {
+      allow read: if hasRole(['admin', 'direction', 'scolarite'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentId == resource.data.studentId);
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAll(['studentId', 'pointRassemblement', 'statut'])
+                    && request.resource.data.statut == 'en_attente';
+      allow update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
+    // ── Formation continue ─────────────────────────────────────────────────────
+    match /sessions_fc/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /devis_fc/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Entreprises & Personnel ────────────────────────────────────────────────
+    match /entreprises/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /personnel/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Ressources pédagogiques ────────────────────────────────────────────────
+    match /ressources/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite', 'intervenant']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Tâches & Suivi ────────────────────────────────────────────────────────
+    match /taches/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      // Only the creator or an admin can modify/delete their own task
+      allow update: if isAuth() && (request.auth.uid == resource.data.createdBy || isAdmin(request.auth.uid));
+      allow delete: if isAuth() && (request.auth.uid == resource.data.createdBy || isAdmin(request.auth.uid));
+    }
+
+    // ── Véhicules ─────────────────────────────────────────────────────────────
+    match /vehicules/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Emails & Logs ─────────────────────────────────────────────────────────
+    match /emails_log/{docId} {
+      allow read: if hasRole(['admin', 'direction', 'scolarite']);
+      allow create: if isAuth();
+      allow delete: if hasRole(['admin']);
+    }
+
+    // ── Concours & Admissions ─────────────────────────────────────────────────
+    match /concours/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    // ── Affectations (Masse Horaire) ──────────────────────────────────────────
+    match /affectations/{docId} {
+      allow read: if isAuth();
+      allow create, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction', 'scolarite']);
+    }
+
+    // ── Historique notes (PV importés) ────────────────────────────────────────
+    match /historique_notes/{docId} {
+      // Staff can read all; apprenants can read their own via studentCode on their users doc
+      allow read: if hasRole(['admin', 'direction', 'scolarite', 'intervenant'])
+                  || (request.auth != null &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentCode == resource.data.studentCode);
+      allow write: if hasRole(['admin', 'direction']);
     }
   }
 }

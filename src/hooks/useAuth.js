@@ -8,6 +8,7 @@ export function useAuth() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pendingAccount, setPendingAccount] = useState(false);
 
   useEffect(() => {
     setPersistence(auth, browserSessionPersistence);
@@ -15,22 +16,37 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true); // block PrivateRoute while we load the profile
       try {
         if (!firebaseUser) {
           setUser(null);
           setUserProfile(null);
+          setPendingAccount(false);
           setLoading(false);
           return;
         }
 
-        setUser(firebaseUser);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
-          setUserProfile(userDocSnap.data());
+          const profile = userDocSnap.data();
+          // Block pending accounts — sign out immediately
+          if (profile.statut === 'pending') {
+            setPendingAccount(true);
+            await signOut(auth);
+            setUser(null);
+            setUserProfile(null);
+            setLoading(false);
+            return;
+          }
+          setUser(firebaseUser);
+          setUserProfile(profile);
+          setPendingAccount(false);
         } else {
+          setUser(firebaseUser);
           setUserProfile({ uid: firebaseUser.uid, email: firebaseUser.email, role: 'apprenant' });
+          setPendingAccount(false);
         }
       } catch (err) {
         console.error('Error loading user profile:', err);
@@ -44,6 +60,7 @@ export function useAuth() {
 
   const login = async (email, password) => {
     setError(null);
+    setPendingAccount(false);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
@@ -59,6 +76,7 @@ export function useAuth() {
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
+      setPendingAccount(false);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -70,86 +88,14 @@ export function useAuth() {
     userProfile,
     loading,
     error,
+    pendingAccount,
     login,
     logout,
     isAuthenticated: !!user,
     hasRole: (role) => userProfile?.role === role,
-    hasAnyRole: (roles) => roles?.includes(userProfile?.role)
+    hasAnyRole: (roles) => roles?.includes(userProfile?.role),
   };
 }
 
-export function useStudents() {
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const fetchStudents = async () => {
-    try {
-      setLoading(true);
-      const { studentsService } = await import('../services/firestore');
-      const data = await studentsService.getAll();
-      setStudents(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  return { students, loading, error, refetch: fetchStudents };
-}
-
-export function useIntervenants() {
-  const [intervenants, setIntervenants] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchIntervenants = async () => {
-    try {
-      setLoading(true);
-      const { intervenantsService } = await import('../services/firestore');
-      const data = await intervenantsService.getAll();
-      setIntervenants(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchIntervenants();
-  }, []);
-
-  return { intervenants, loading, error, refetch: fetchIntervenants };
-}
-
-export function useEDT(startDate = new Date()) {
-  const [edt, setEDT] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchEDT = async () => {
-    try {
-      setLoading(true);
-      const { edtService } = await import('../services/firestore');
-      const data = await edtService.getWeek(startDate);
-      setEDT(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEDT();
-  }, [startDate]);
-
-  return { edt, loading, error, refetch: fetchEDT };
-}
 
