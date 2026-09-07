@@ -475,70 +475,249 @@ export function generateBulletin(student, groupeNom, bulletin, anneeAcad = '2025
 
 // ─── generatePlanningPDF ──────────────────────────────────────────────────────
 
-/**
- * Generates a weekly planning PDF.
- *
- * @param {Array}  sessions     - Array of session objects
- * @param {Array}  groupes      - Array of groupe objects { id, nom }
- * @param {Array}  intervenants - Array of intervenant objects { id, prenom, nom }
- * @param {string} weekLabel    - e.g. "Semaine du 19 au 25 mai 2025"
- */
-export function generatePlanningPDF(sessions, groupes, intervenants, weekLabel) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+const SESSION_COLORS = {
+  CM: { fill: [0, 89, 137],    text: [255, 255, 255], bar: [0, 58, 90] },
+  TD: { fill: [0, 150, 136],   text: [255, 255, 255], bar: [0, 100, 90] },
+  TP: { fill: [124, 58, 237],  text: [255, 255, 255], bar: [91, 33, 182] },
+  DS: { fill: [220, 38, 38],   text: [255, 255, 255], bar: [185, 20, 20] },
+  _default: { fill: [71, 85, 105], text: [255, 255, 255], bar: [51, 65, 85] },
+};
 
-  const subtitle = weekLabel || `Semaine du ${format(new Date(), 'dd MMMM yyyy', { locale: fr })}`;
-  let y = drawIftlHeader(doc, 'PLANNING HEBDOMADAIRE', subtitle);
-  y += 4;
+function toMinutes(hhmm) {
+  if (!hhmm) return 0;
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+/**
+ * Generates a visual weekly timetable grid PDF — matches the on-screen layout.
+ *
+ * @param {Array}  sessions     - Session objects with date, heureDebut, heureFin, module/moduleId, intervenantId, salle, type
+ * @param {Array}  groupes      - { id, nom }
+ * @param {Array}  intervenants - { id, prenom, nom }
+ * @param {Array}  modules      - { id, nom } (optional, for moduleId lookup)
+ * @param {string} weekLabel    - e.g. "Semaine du 19 au 25 mai 2025"
+ * @param {Date[]} weekDays     - Array of 6 Date objects (Mon–Sat)
+ * @param {string} groupeNom   - Active group name for title
+ */
+export function generatePlanningPDF(sessions, groupes, intervenants, modules, weekLabel, weekDays, groupeNom) {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const PW = 297; const PH = 210;
 
   const groupeMap = Object.fromEntries((groupes || []).map(g => [g.id, g.nom]));
-  const intMap = Object.fromEntries((intervenants || []).map(i => [i.id, `${i.prenom} ${i.nom}`]));
+  const intMap    = Object.fromEntries((intervenants || []).map(i => [i.id, `${i.prenom?.[0] || ''}. ${i.nom || ''}`]));
+  const modMap    = Object.fromEntries((modules || []).map(m => [m.id, m.nom]));
 
-  const rows = (sessions || [])
-    .sort((a, b) => {
-      const da = new Date(a.date + 'T' + (a.heureDebut || '00:00'));
-      const db = new Date(b.date + 'T' + (b.heureDebut || '00:00'));
-      return da - db;
-    })
-    .map((s, i) => [
-      i + 1,
-      s.date ? format(new Date(s.date), 'EEEE dd/MM', { locale: fr }) : '—',
-      `${s.heureDebut || '—'} — ${s.heureFin || '—'}`,
-      s.module || '—',
-      groupeMap[s.groupeId] || s.groupeId || '—',
-      intMap[s.intervenantId] || '—',
-      s.salle || '—',
-      (s.type || '—').toUpperCase(),
-    ]);
+  // ── Header ──────────────────────────────────────────────────────────────────
+  doc.setFillColor(...BRAND.blue);
+  doc.rect(0, 0, PW, 22, 'F');
+  doc.setFillColor(...BRAND.yellow);
+  doc.rect(0, 22, PW, 2, 'F');
 
-  autoTable(doc, {
-    startY: y,
-    margin: { left: 10, right: 10 },
-    head: [['#', 'Jour', 'Horaire', 'Module', 'Groupe', 'Intervenant', 'Salle', 'Type']],
-    body: rows,
-    styles: { fontSize: 8.5, cellPadding: 3 },
-    headStyles: {
-      fillColor: BRAND.blue,
-      textColor: BRAND.white,
-      fontStyle: 'bold',
-      fontSize: 8,
-    },
-    alternateRowStyles: { fillColor: BRAND.lightBlue },
-    columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 36 },
-      2: { cellWidth: 34 },
-      3: { cellWidth: 'auto' },
-      4: { cellWidth: 38 },
-      5: { cellWidth: 48 },
-      6: { cellWidth: 22, halign: 'center' },
-      7: { cellWidth: 20, halign: 'center' },
-    },
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(6, 1, 32, 20, 1, 1, 'F');
+  doc.addImage(IFTL_LOGO, 'PNG', 7, 2, 30, 18);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text('EMPLOI DU TEMPS', PW - 10, 10, { align: 'right' });
+
+  if (groupeNom) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(groupeNom, PW - 10, 16, { align: 'right' });
+  }
+  if (weekLabel) {
+    doc.setFontSize(7);
+    doc.setTextColor(BRAND.yellow[0], BRAND.yellow[1], BRAND.yellow[2]);
+    doc.text(weekLabel, PW - 10, 21, { align: 'right' });
+  }
+
+  // ── Grid geometry ────────────────────────────────────────────────────────────
+  const ML = 8; const MR = 8; const MT = 27; const MB = 12;
+  const GRID_W = PW - ML - MR;
+  const GRID_H = PH - MT - MB;
+
+  const TIME_COL_W = 14;
+  const DAY_COUNT  = 6;
+  const DAY_W = (GRID_W - TIME_COL_W) / DAY_COUNT;
+
+  const START = 8 * 60;   // 08:00
+  const END   = 17 * 60 + 30; // 17:30
+  const RANGE = END - START;
+  const SCALE = GRID_H / RANGE; // mm per minute
+
+  // Day names
+  const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+  // ── Day header row (within grid) ─────────────────────────────────────────────
+  const HDR_H = 8;
+
+  // Time axis header cell
+  doc.setFillColor(...BRAND.darkBlue);
+  doc.rect(ML, MT, TIME_COL_W, HDR_H, 'F');
+
+  // Day header cells
+  for (let di = 0; di < DAY_COUNT; di++) {
+    const x = ML + TIME_COL_W + di * DAY_W;
+    doc.setFillColor(...BRAND.blue);
+    doc.rect(x, MT, DAY_W, HDR_H, 'F');
+    if (di > 0) {
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.2);
+      doc.line(x, MT, x, MT + HDR_H);
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(255, 255, 255);
+    doc.text(DAY_LABELS[di], x + DAY_W / 2, MT + 4, { align: 'center' });
+
+    if (weekDays?.[di]) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(BRAND.yellow[0], BRAND.yellow[1], BRAND.yellow[2]);
+      doc.text(format(weekDays[di], 'dd/MM'), x + DAY_W / 2, MT + 7, { align: 'center' });
+    }
+  }
+
+  // ── Grid body ─────────────────────────────────────────────────────────────────
+  const bodyTop = MT + HDR_H;
+  const bodyH   = GRID_H - HDR_H;
+
+  // Background
+  doc.setFillColor(248, 250, 252);
+  doc.rect(ML, bodyTop, GRID_W, bodyH, 'F');
+
+  // Hour grid lines + time labels
+  for (let m = START; m <= END; m += 30) {
+    const y = bodyTop + (m - START) * SCALE;
+    const isHour = m % 60 === 0;
+    doc.setDrawColor(isHour ? 190 : 220, isHour ? 200 : 228, isHour ? 215 : 240);
+    doc.setLineWidth(isHour ? 0.25 : 0.1);
+    doc.line(ML + TIME_COL_W, y, ML + GRID_W, y);
+
+    if (isHour) {
+      const hh = Math.floor(m / 60);
+      doc.setFont('helvetica', isHour ? 'bold' : 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 100, 120);
+      doc.text(`${hh}h`, ML + TIME_COL_W - 2, y + 0.5, { align: 'right' });
+    }
+  }
+
+  // Day separators
+  for (let di = 1; di < DAY_COUNT; di++) {
+    const x = ML + TIME_COL_W + di * DAY_W;
+    doc.setDrawColor(200, 215, 230);
+    doc.setLineWidth(0.2);
+    doc.line(x, bodyTop, x, bodyTop + bodyH);
+  }
+
+  // ── Session blocks ───────────────────────────────────────────────────────────
+  const PAD = 0.8;
+
+  // Build date→dayIndex map from weekDays
+  const dayIndexMap = {};
+  if (weekDays) {
+    weekDays.forEach((d, i) => {
+      dayIndexMap[format(d, 'yyyy-MM-dd')] = i;
+    });
+  }
+
+  (sessions || []).forEach(s => {
+    const di = dayIndexMap[s.date];
+    if (di === undefined || di < 0 || di >= DAY_COUNT) return;
+
+    const startMin = toMinutes(s.heureDebut);
+    const endMin   = toMinutes(s.heureFin);
+    if (!startMin || !endMin || endMin <= startMin) return;
+    if (startMin < START || endMin > END + 60) return;
+
+    const top    = bodyTop + (Math.max(startMin, START) - START) * SCALE;
+    const height = (Math.min(endMin, END) - Math.max(startMin, START)) * SCALE;
+    const left   = ML + TIME_COL_W + di * DAY_W + PAD;
+    const width  = DAY_W - PAD * 2;
+    if (height < 1) return;
+
+    const type = (s.type || '').toUpperCase();
+    const col  = SESSION_COLORS[type] || SESSION_COLORS._default;
+
+    // Block background
+    doc.setFillColor(...col.fill);
+    doc.roundedRect(left, top, width, height, 0.8, 0.8, 'F');
+
+    // Left accent bar
+    doc.setFillColor(...col.bar);
+    doc.rect(left, top, 1.5, height, 'F');
+
+    // Text content
+    const txtX = left + 2.5;
+    const maxW  = width - 3;
+    let txtY   = top + 3;
+
+    const moduleName = modMap[s.moduleId] || s.module || '';
+    if (moduleName) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(height > 12 ? 6 : 5.5);
+      doc.setTextColor(...col.text);
+      const lines = doc.splitTextToSize(moduleName, maxW);
+      const show  = height > 16 ? lines.slice(0, 2) : lines.slice(0, 1);
+      doc.text(show, txtX, txtY);
+      txtY += show.length * (height > 12 ? 4 : 3.5);
+    }
+
+    if (height > 10) {
+      const intNom = intMap[s.intervenantId] || '';
+      if (intNom) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(5);
+        doc.setTextColor(col.text[0], col.text[1], col.text[2]);
+        doc.text(doc.splitTextToSize(intNom, maxW)[0], txtX, txtY);
+        txtY += 3;
+      }
+      if (s.salle && height > 14) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.text(`Salle ${s.salle}`, txtX, txtY);
+      }
+    }
+
+    // Type badge (top-right corner)
+    if (type && height > 8) {
+      doc.setFontSize(4.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(col.text[0], col.text[1], col.text[2]);
+      doc.text(type, left + width - 1.5, top + 3, { align: 'right' });
+    }
   });
 
-  drawFooter(doc);
+  // ── Legend ───────────────────────────────────────────────────────────────────
+  const legendY = bodyTop + bodyH + 3;
+  const typesInUse = [...new Set((sessions || []).map(s => (s.type || '').toUpperCase()).filter(Boolean))];
+  let lx = ML + TIME_COL_W;
+  typesInUse.forEach(type => {
+    const col = SESSION_COLORS[type] || SESSION_COLORS._default;
+    doc.setFillColor(...col.fill);
+    doc.rect(lx, legendY, 3, 3, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5.5);
+    doc.setTextColor(60, 70, 90);
+    doc.text(type === 'CM' ? 'Cours Magistral' : type === 'TD' ? 'Travaux Dirigés' : type === 'TP' ? 'Travaux Pratiques' : type === 'DS' ? 'Devoir Surveillé' : type, lx + 4, legendY + 2.2);
+    lx += 40;
+  });
 
+  // ── Footer ────────────────────────────────────────────────────────────────────
+  doc.setFillColor(...BRAND.green);
+  doc.rect(0, PH - 8, PW, 8, 'F');
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(255, 255, 255);
+  doc.text('Document généré automatiquement — IFTL · Institut de Formation dans les métiers Transport & Logistique', PW / 2, PH - 3, { align: 'center' });
   const dateStr = format(new Date(), 'yyyyMMdd');
-  doc.save(`planning_${dateStr}.pdf`);
+  doc.text(`Imprimé le ${format(new Date(), 'dd/MM/yyyy')}`, PW - 10, PH - 3, { align: 'right' });
+
+  doc.save(`EDT_${(groupeNom || 'groupe').replace(/[^a-z0-9]/gi, '_')}_${dateStr}.pdf`);
 }
 
 // ─── Legacy exports (kept intact) ────────────────────────────────────────────

@@ -11,6 +11,7 @@ import PlanningNotificationModal from '../Notifications/PlanningNotificationModa
 import CalendrierAcademique from './CalendrierAcademique';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { generatePlanningPDF } from '../../services/pdfService';
 
 // ── Créneaux horaires par jour (0=Lun … 6=Dim) ───────────────────────────────
 export const DAY_SLOTS = [
@@ -368,6 +369,16 @@ export default function PlanningPage() {
           <button onClick={handleDuplicateWeek}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors">
             ⧉ Dupliquer S+1
+          </button>
+          <button onClick={() => {
+            const groupe = groupes.find(g => g.id === activeGroupId);
+            const weekLabel = `Semaine du ${format(weekStart, 'dd MMMM', { locale: fr })} au ${format(addDays(weekStart, 5), 'dd MMMM yyyy', { locale: fr })}`;
+            generatePlanningPDF(sessions, groupes, intervenants, modules, weekLabel, weekDays.slice(0, 6), groupe?.nom || '');
+          }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors"
+            title="Exporter l'emploi du temps en PDF">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            PDF
           </button>
           <button onClick={() => setShowNotify(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-[#005989] text-[#005989] hover:bg-[#005989]/5 rounded-xl text-xs font-semibold transition-colors">

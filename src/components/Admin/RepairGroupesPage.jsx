@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
+
+function normalizeDash(str) {
+  return (str || '').replace(/[–—]/g, '-').trim().toLowerCase();
+}
 
 /**
  * Outil de réparation des affectations de groupes.
@@ -134,6 +138,56 @@ export default function RepairGroupesPage() {
   const notFound = analysis?.filter(r => r.status === 'notfound') || [];
   const noMatch = analysis?.filter(r => r.status === 'nomatch') || [];
 
+  // ── Deduplication: find groups with same normalized name ──────────────────────
+  const [merging, setMerging] = useState(false);
+  const [mergedGroups, setMergedGroups] = useState(new Set());
+
+  const duplicatePairs = useMemo(() => {
+    const byNorm = {};
+    for (const g of groups) {
+      const key = normalizeDash(g.nom);
+      if (!byNorm[key]) byNorm[key] = [];
+      byNorm[key].push(g);
+    }
+    return Object.values(byNorm).filter(arr => arr.length > 1);
+  }, [groups]);
+
+  const handleMergePair = async (canonical, duplicates) => {
+    setMerging(true);
+    try {
+      for (const dup of duplicates) {
+        // Move students
+        const sSnap = await getDocs(collection(db, 'students'));
+        const batch = writeBatch(db);
+        let count = 0;
+        sSnap.docs.forEach(d => {
+          if (d.data().groupeId === dup.id) {
+            batch.update(doc(db, 'students', d.id), { groupeId: canonical.id });
+            count++;
+          }
+        });
+        // Move sessions
+        const sesSnap = await getDocs(collection(db, 'sessions'));
+        sesSnap.docs.forEach(d => {
+          if (d.data().groupeId === dup.id) {
+            batch.update(doc(db, 'sessions', d.id), { groupeId: canonical.id });
+          }
+        });
+        await batch.commit();
+        await deleteDoc(doc(db, 'groupes', dup.id));
+        toast.success(`Groupe "${dup.nom}" fusionné dans "${canonical.nom}" (${count} apprenant(s) mis à jour)`);
+      }
+      // Reload groups
+      const gSnap = await getDocs(collection(db, 'groupes'));
+      setGroups(gSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setMergedGroups(prev => new Set([...prev, canonical.id]));
+    } catch (err) {
+      toast.error('Erreur fusion : ' + err.message);
+    } finally {
+      setMerging(false);
+    }
+  };
+
   const handleApply = async () => {
     if (!mismatches.length) return;
     setApplying(true);
@@ -207,6 +261,59 @@ export default function RepairGroupesPage() {
               ))}
             </div>
           </div>
+
+          {/* Deduplication section */}
+          {duplicatePairs.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="font-bold text-red-800 flex items-center gap-2">
+                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                  {duplicatePairs.length} groupe{duplicatePairs.length > 1 ? 's' : ''} en doublon détecté{duplicatePairs.length > 1 ? 's' : ''}
+                </p>
+                <p className="text-sm text-red-700 mt-1">
+                  Ces groupes ont des noms identiques (différence de tirets). Fusionnez les doublons pour nettoyer la base.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {duplicatePairs.map((pair, pi) => {
+                  const canonical = pair[0];
+                  const dups = pair.slice(1);
+                  const studentsInDups = students.filter(s => dups.some(d => d.id === s.groupeId)).length;
+                  return (
+                    <div key={pi} className="bg-white border border-red-200 rounded-xl p-4 flex items-center gap-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Doublons à fusionner</p>
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {dups.map(d => (
+                            <span key={d.id} className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-lg font-mono font-medium line-through">{d.nom}</span>
+                          ))}
+                          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg font-mono font-medium">{canonical.nom}</span>
+                        </div>
+                        {studentsInDups > 0 && (
+                          <p className="text-xs text-amber-700 mt-1.5">⚠ {studentsInDups} apprenant{studentsInDups > 1 ? 's' : ''} à migrer vers le groupe canonique</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleMergePair(canonical, dups)}
+                        disabled={merging}
+                        className="shrink-0 px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition disabled:opacity-50"
+                      >
+                        {merging ? 'Fusion…' : 'Fusionner'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {duplicatePairs.length === 0 && !loading && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+              <p className="text-sm text-emerald-700 font-medium">Aucun doublon de groupe détecté.</p>
+            </div>
+          )}
 
           {/* Step 2: Upload CSV */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
