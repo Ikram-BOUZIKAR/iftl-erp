@@ -51,7 +51,17 @@ function DetailDrawer({ rec, onClose, onValidate, onRefuse }) {
             <p className="text-xs text-slate-400">Reçu le {fmtDate(rec.createdAt)}</p>
           </div>
 
-          {/* Montant */}
+          {/* Niveau + Montant */}
+          {rec.niveauReinscription && (
+            <div className="bg-[#005989]/5 border border-[#005989]/20 rounded-xl px-4 py-3 flex items-center gap-3">
+              <svg className="w-4 h-4 text-[#005989] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+              <div>
+                <p className="text-xs text-[#005989] font-semibold">{rec.niveauReinscription}</p>
+                {rec.filiere && <p className="text-xs text-slate-500">{rec.filiere}</p>}
+              </div>
+            </div>
+          )}
+
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
             <p className="text-sm font-medium text-amber-800">Frais de réinscription</p>
             <p className="text-lg font-black text-amber-700">{(rec.montantPaye || 8500).toLocaleString('fr-MA')} DH</p>
@@ -176,6 +186,7 @@ export default function ReinscriptionAdminPage() {
   const [selected, setSelected] = useState(null);
   const [filterStatut, setFilterStatut] = useState('');
   const [filterAnnee, setFilterAnnee] = useState('');
+  const [filterNiveau, setFilterNiveau] = useState('');
   const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
@@ -237,13 +248,15 @@ export default function ReinscriptionAdminPage() {
   };
 
   const annees = [...new Set(records.map(r => r.anneeAcademique).filter(Boolean))].sort().reverse();
+  const niveaux = [...new Set(records.map(r => r.niveauReinscription).filter(Boolean))].sort();
 
   const filtered = records.filter(r => {
     const q = search.toLowerCase();
     const matchQ = !q || `${r.prenom} ${r.nom}`.toLowerCase().includes(q) || r.cin?.toLowerCase().includes(q);
     const matchS = !filterStatut || r.statut === filterStatut;
     const matchA = !filterAnnee || r.anneeAcademique === filterAnnee;
-    return matchQ && matchS && matchA;
+    const matchN = !filterNiveau || r.niveauReinscription === filterNiveau;
+    return matchQ && matchS && matchA && matchN;
   });
 
   const kpis = {
@@ -373,6 +386,13 @@ export default function ReinscriptionAdminPage() {
           <option value="">Tous les statuts</option>
           {Object.entries(STATUTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
+        {niveaux.length > 0 && (
+          <select value={filterNiveau} onChange={e => setFilterNiveau(e.target.value)}
+            className="text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
+            <option value="">Tous les niveaux</option>
+            {niveaux.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        )}
         {annees.length > 0 && (
           <select value={filterAnnee} onChange={e => setFilterAnnee(e.target.value)}
             className="text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
@@ -400,7 +420,7 @@ export default function ReinscriptionAdminPage() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Apprenant</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Filière</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Niveau / Filière</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Année</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Date demande</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
@@ -422,7 +442,11 @@ export default function ReinscriptionAdminPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 hidden sm:table-cell text-slate-500 text-xs max-w-xs truncate">{r.filiere || '—'}</td>
+                  <td className="px-4 py-3 hidden sm:table-cell max-w-xs">
+                    {r.niveauReinscription
+                      ? <div><p className="text-xs font-semibold text-[#005989]">{r.niveauReinscription}</p>{r.filiere && <p className="text-xs text-slate-400">{r.filiere}</p>}</div>
+                      : <span className="text-slate-300 text-xs">—</span>}
+                  </td>
                   <td className="px-4 py-3 text-slate-600 text-xs font-medium">{r.anneeAcademique}</td>
                   <td className="px-4 py-3 hidden md:table-cell text-slate-500 text-xs">{fmtDate(r.createdAt)}</td>
                   <td className="px-4 py-3"><StatutBadge statut={r.statut} /></td>

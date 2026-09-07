@@ -12,6 +12,20 @@ const DEFAULT_CONFIG = {
 
 const LIENS_URGENCE = ['Parent', 'Tuteur', 'Conjoint(e)', 'Frère / Sœur', 'Ami(e)', 'Autre'];
 
+const NIVEAUX = [
+  '2ème Année TS',
+  'Mastère 1ère Année',
+  'Mastère 2ème Année',
+];
+
+const FILIERES = [
+  'Logistique et Transport',
+  'Supply Chain',
+  'Commerce International',
+  'Transit et Douane',
+  'Autre',
+];
+
 function StepDot({ n, active, done }) {
   return (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
@@ -77,6 +91,7 @@ export default function ReinscriptionPortail() {
   const [form, setForm] = useState({
     nom: '', prenom: '', telephone: '', email: '',
     adresse: '', ville: '',
+    niveauReinscription: '', filiere: '',
     contactUrgenceNom: '', contactUrgenceTel: '', contactUrgenceLien: '',
   });
 
@@ -132,6 +147,8 @@ export default function ReinscriptionPortail() {
         nom: form.nom.trim().toUpperCase(),
         prenom: form.prenom.trim(),
         anneeAcademique: config.anneeReinscription,
+        niveauReinscription: form.niveauReinscription,
+        filiere: form.filiere,
         montantPaye: config.montant,
         telephone: form.telephone,
         email: form.email,
@@ -256,10 +273,10 @@ export default function ReinscriptionPortail() {
 
           {/* ── Step 2: Fill info ───────────────────────────────────────────── */}
           {step === 2 && (
-            <form onSubmit={e => { e.preventDefault(); setStep(3); }} className="space-y-6">
+            <form onSubmit={e => { e.preventDefault(); if (!form.niveauReinscription) { setError('Veuillez sélectionner votre niveau de réinscription.'); return; } setError(''); setStep(3); }} className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-slate-800 mb-1">Vos informations</h2>
-                <p className="text-slate-500 text-sm">Renseignez vos coordonnées pour l'année <strong>{ANNEE_REINSCRIPTION}</strong>.</p>
+                <p className="text-slate-500 text-sm">Renseignez vos coordonnées pour l'année <strong>{config.anneeReinscription}</strong>.</p>
               </div>
 
               {/* CIN recap */}
@@ -273,6 +290,27 @@ export default function ReinscriptionPortail() {
                   className="ml-auto text-xs text-slate-400 hover:text-[#005989] transition underline">
                   Modifier
                 </button>
+              </div>
+
+              {/* Niveau & filière */}
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Réinscription en</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="Niveau" required>
+                    <select value={form.niveauReinscription} onChange={e => set('niveauReinscription', e.target.value)}
+                      required className={inputCls}>
+                      <option value="">— Sélectionner —</option>
+                      {NIVEAUX.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Filière">
+                    <select value={form.filiere} onChange={e => set('filiere', e.target.value)}
+                      className={inputCls}>
+                      <option value="">— Sélectionner —</option>
+                      {FILIERES.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </Field>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -414,10 +452,20 @@ export default function ReinscriptionPortail() {
                   <span className="font-medium">{form.prenom} {form.nom.toUpperCase()}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Année de réinscription</span>
+                  <span>Niveau</span>
+                  <span className="font-medium text-[#005989]">{form.niveauReinscription}</span>
+                </div>
+                {form.filiere && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Filière</span>
+                    <span className="font-medium">{form.filiere}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-600">
+                  <span>Année académique</span>
                   <span className="font-medium">{config.anneeReinscription}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-200">
                   <span>Montant</span>
                   <span className="font-bold text-[#005989]">{config.montant.toLocaleString('fr-MA')} DH</span>
                 </div>
