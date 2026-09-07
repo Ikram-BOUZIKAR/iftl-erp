@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, addDoc, getDoc, doc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { db } from '../../services/firebase';
 
 const DEFAULT_CONFIG = {
   anneeReinscription: '2026-2027',
@@ -227,7 +226,6 @@ export default function ReinscriptionPortail() {
   const [error, setError]           = useState('');
   const [success, setSuccess]       = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const fileRef                     = useRef(null);
 
   const [form, setForm] = useState({
     nom: '', prenom: '', telephone: '', email: '',
@@ -235,9 +233,6 @@ export default function ReinscriptionPortail() {
     niveauReinscription: '', filiere: '',
     contactUrgenceNom: '', contactUrgenceTel: '', contactUrgenceLien: '',
   });
-
-  const [file, setFile]             = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -273,22 +268,10 @@ export default function ReinscriptionPortail() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) { setError('Veuillez joindre le justificatif de paiement.'); return; }
     setError('');
     setSubmitting(true);
-
-    // Safety timeout — unblock the button if Firebase hangs (e.g. rules not deployed)
-    const timeoutId = setTimeout(() => {
-      setSubmitting(false);
-      setError("L'envoi a expiré. Vérifiez votre connexion et réessayez. Si le problème persiste, contactez la scolarité.");
-    }, 30000);
-
     try {
       const cinNorm = cin.trim().toUpperCase();
-      const ext = file.name.split('.').pop();
-      const sRef = ref(storage, `reinscriptions/${cinNorm}/${Date.now()}.${ext}`);
-      await uploadBytes(sRef, file);
-      const justificatifUrl = await getDownloadURL(sRef);
       await addDoc(collection(db, 'reinscriptions'), {
         cin: cinNorm,
         nom: form.nom.trim().toUpperCase(),
@@ -304,21 +287,14 @@ export default function ReinscriptionPortail() {
         contactUrgenceNom: form.contactUrgenceNom,
         contactUrgenceTel: form.contactUrgenceTel,
         contactUrgenceLien: form.contactUrgenceLien,
-        justificatifUrl,
-        justificatifNom: file.name,
+        justificatifStatut: 'a_fournir',
         statut: 'en_attente',
         createdAt: new Date(),
       });
-      clearTimeout(timeoutId);
       setSuccess(true);
     } catch (err) {
-      clearTimeout(timeoutId);
-      const msg = err.code === 'storage/unauthorized' || err.code === 'permission-denied'
-        ? "Envoi impossible : les règles Firebase ne sont pas encore déployées. Contactez l'administrateur."
-        : "Erreur lors de l'envoi : " + err.message;
-      setError(msg);
+      setError("Erreur lors de l'envoi : " + err.message);
     } finally {
-      clearTimeout(timeoutId);
       setSubmitting(false);
     }
   };
@@ -365,7 +341,14 @@ export default function ReinscriptionPortail() {
         <p style={{ margin: '0 0 8px', fontSize: 15, color: tok.muted, lineHeight: 1.7 }}>
           Votre demande de réinscription pour <strong style={{ color: tok.ink }}>{form.niveauReinscription}</strong> — année <strong style={{ color: tok.ink }}>{config.anneeReinscription}</strong> a été reçue.
         </p>
-        <p style={{ margin: '0 0 32px', fontSize: 14, color: tok.muted, lineHeight: 1.6 }}>La scolarité vous contactera sous <strong>48 h</strong> pour confirmation. Conservez votre justificatif de paiement jusqu'à cette confirmation.</p>
+        <p style={{ margin: '0 0 20px', fontSize: 14, color: tok.muted, lineHeight: 1.6 }}>
+          La scolarité vous contactera sous <strong>48 h</strong> pour confirmation.
+        </p>
+        <div style={{ background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '14px 18px', marginBottom: 32, textAlign: 'left' }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
+            <strong>Important :</strong> apportez votre reçu de virement bancaire ou chèque à la scolarité IFTL pour finaliser votre dossier.
+          </p>
+        </div>
         <div style={{ padding: '16px 20px', background: tok.blueTint, borderRadius: 12, display: 'inline-block', width: '100%', boxSizing: 'border-box' }}>
           <p style={{ margin: 0, fontSize: 13, color: tok.muted }}>Référence · <strong style={{ color: tok.ink, fontFamily: 'monospace' }}>{cin.trim().toUpperCase()}</strong> — {form.prenom} {form.nom.toUpperCase()}</p>
         </div>
@@ -596,29 +579,24 @@ export default function ReinscriptionPortail() {
               </form>
             )}
 
-            {/* ── Step 3: Payment ── */}
+            {/* ── Step 3: Payment confirmation ── */}
             {step === 3 && (
               <form className="form-step" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
                 <div>
                   <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: tok.blue, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Étape 3</p>
                   <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 800, color: tok.ink, fontFamily: "'Plus Jakarta Sans', sans-serif", textWrap: 'balance' }}>Paiement</h2>
-                  <p style={{ margin: 0, fontSize: 15, color: tok.muted, lineHeight: 1.6 }}>Joignez le justificatif de votre versement pour finaliser votre demande.</p>
+                  <p style={{ margin: 0, fontSize: 15, color: tok.muted, lineHeight: 1.6 }}>Effectuez votre versement selon les informations ci-dessous, puis soumettez votre demande.</p>
                 </div>
 
                 {/* Receipt-style payment box */}
-                <div style={{
-                  background: tok.surface, borderRadius: 16, overflow: 'hidden',
-                  border: `1.5px solid ${tok.border}`, boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-                }}>
-                  {/* Header stripe */}
+                <div style={{ background: tok.surface, borderRadius: 16, overflow: 'hidden', border: `1.5px solid ${tok.border}`, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
                   <div style={{ background: tok.blue, padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Frais de réinscription</p>
                     <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
                       {config.montant.toLocaleString('fr-MA')} <span style={{ fontSize: 14 }}>DH</span>
                     </p>
                   </div>
-                  {/* Body */}
-                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {[
                       { k: 'Bénéficiaire', v: config.beneficiaire },
                       { k: 'Mode de paiement', v: 'Virement bancaire ou chèque' },
@@ -632,60 +610,26 @@ export default function ReinscriptionPortail() {
                   </div>
                 </div>
 
-                {/* File upload */}
-                <div>
-                  <Field label="Justificatif de paiement" required>
-                    <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleFile} style={{ display: 'none' }} />
-                    <div
-                      onClick={() => fileRef.current?.click()}
-                      role="button" tabIndex={0}
-                      onKeyDown={e => e.key === 'Enter' && fileRef.current?.click()}
-                      style={{
-                        border: `2px dashed ${file ? '#6ee7b7' : tok.border}`,
-                        borderRadius: 14, padding: '28px 24px', cursor: 'pointer',
-                        background: file ? '#f0fdf4' : tok.surface,
-                        textAlign: 'center', transition: 'all .2s',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-                      }}
-                    >
-                      {file ? (
-                        <>
-                          {filePreview
-                            ? <img src={filePreview} alt="Aperçu" style={{ maxHeight: 140, borderRadius: 8, objectFit: 'contain' }} />
-                            : (
-                              <div style={{ width: 48, height: 48, borderRadius: 12, background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={tok.success} strokeWidth="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                              </div>
-                            )
-                          }
-                          <div>
-                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: tok.success }}>{file.name}</p>
-                            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>Cliquez pour changer le fichier</p>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ width: 48, height: 48, borderRadius: 12, background: tok.blueTint, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={tok.blue} strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                          </div>
-                          <div>
-                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: tok.ink }}>Joindre le reçu de paiement</p>
-                            <p style={{ margin: '4px 0 0', fontSize: 13, color: tok.muted }}>Photo, scan ou PDF — 5 Mo max</p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </Field>
+                {/* Physical receipt notice */}
+                <div style={{ display: 'flex', gap: 14, background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 14, padding: '16px 18px' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <div>
+                    <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#92400e' }}>Conservez votre reçu de paiement</p>
+                    <p style={{ margin: 0, fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
+                      Apportez le justificatif original (reçu de virement ou chèque remis) à la <strong>scolarité IFTL</strong> lors de votre prochaine visite pour valider votre inscription.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Summary recap */}
                 <div style={{ background: tok.surface, borderRadius: 14, border: `1.5px solid ${tok.border}`, overflow: 'hidden' }}>
                   <div style={{ padding: '12px 20px', borderBottom: `1px solid ${tok.border}`, background: tok.blueTint }}>
-                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: tok.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Récapitulatif</p>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: tok.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Récapitulatif de votre demande</p>
                   </div>
                   <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {[
                       { k: 'Apprenant', v: `${form.prenom} ${form.nom.toUpperCase()}` },
+                      { k: 'CIN', v: cinNorm },
                       { k: 'Niveau', v: form.niveauReinscription, accent: true },
                       form.filiere && { k: 'Filière', v: form.filiere },
                       { k: 'Année académique', v: config.anneeReinscription },
@@ -696,7 +640,7 @@ export default function ReinscriptionPortail() {
                       </div>
                     ))}
                     <div style={{ borderTop: `1px solid ${tok.border}`, paddingTop: 10, marginTop: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <span style={{ fontSize: 13, color: tok.muted }}>Montant versé</span>
+                      <span style={{ fontSize: 13, color: tok.muted }}>Montant à verser</span>
                       <span style={{ fontSize: 18, fontWeight: 800, color: tok.blue, fontFamily: "'Plus Jakarta Sans', sans-serif", fontVariantNumeric: 'tabular-nums' }}>{config.montant.toLocaleString('fr-MA')} DH</span>
                     </div>
                   </div>
@@ -707,10 +651,10 @@ export default function ReinscriptionPortail() {
                 <div style={{ display: 'flex', gap: 12 }}>
                   <Btn variant="ghost" onClick={() => { setStep(2); setError(''); }}>← Retour</Btn>
                   <div style={{ flex: 1 }}>
-                    <Btn type="submit" variant="primary" disabled={submitting || !file}>
+                    <Btn type="submit" variant="primary" disabled={submitting}>
                       {submitting
                         ? <><span style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Envoi en cours…</>
-                        : 'Soumettre ma demande de réinscription'
+                        : 'Soumettre ma demande'
                       }
                     </Btn>
                   </div>

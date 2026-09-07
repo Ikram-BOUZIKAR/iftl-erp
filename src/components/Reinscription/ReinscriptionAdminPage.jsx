@@ -453,10 +453,12 @@ export default function ReinscriptionAdminPage() {
                   <td className="px-4 py-3 hidden lg:table-cell">
                     {r.justificatifUrl ? (
                       <a href={r.justificatifUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                        className="text-xs text-[#005989] hover:underline">
+                        className="text-xs text-[#005989] hover:underline font-medium">
                         Voir
                       </a>
-                    ) : <span className="text-xs text-slate-300">—</span>}
+                    ) : (
+                      <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">À fournir</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                     {r.statut === 'en_attente' && (
