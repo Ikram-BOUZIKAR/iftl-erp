@@ -16,6 +16,45 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateBulletin, generatePV } from '../../services/pdfService';
 
+// ── Helpers: group deduplication (hyphen vs en-dash) ─────────────────────────
+function normalizeDash(str) {
+  return (str || '').replace(/[–—]/g, '-').trim().toLowerCase();
+}
+
+// Returns all Firestore group IDs whose normalized name matches the given groupeId
+function getAliasGroupIds(groupes, groupeId) {
+  if (!groupeId || !groupes?.length) return [groupeId];
+  const canon = groupes.find(g => g.id === groupeId);
+  if (!canon) return [groupeId];
+  const norm = normalizeDash(canon.nom);
+  return groupes.filter(g => normalizeDash(g.nom) === norm).map(g => g.id);
+}
+
+// Deduplicated group list (one entry per normalized name, keeps first)
+function uniqueByNorm(groupes) {
+  const seen = new Map();
+  (groupes || []).forEach(g => {
+    const key = normalizeDash(g.nom);
+    if (!seen.has(key)) seen.set(key, g);
+  });
+  return Array.from(seen.values());
+}
+
+// Fetch students from multiple group IDs, merging and deduplicating by id
+async function fetchStudentsByGroupIds(groupIds) {
+  const seen = new Set();
+  const all = [];
+  await Promise.all(
+    [...new Set(groupIds)].map(async gId => {
+      const snap = await getDocs(query(collection(db, 'students'), where('groupeId', '==', gId)));
+      snap.forEach(d => {
+        if (!seen.has(d.id)) { seen.add(d.id); all.push({ id: d.id, ...d.data() }); }
+      });
+    })
+  );
+  return all.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+}
+
 const TYPE_EVAL_STYLES = {
   controle: { cls: 'bg-sky-100 text-sky-700', label: 'Contrôle' },
   examen_session: { cls: 'bg-violet-100 text-violet-700', label: 'Examen Fin Module' },
@@ -189,7 +228,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
         >
           <option value="">Tous les groupes</option>
-          {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+          {uniqueByNorm(groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select
           value={filterModule}
@@ -329,7 +368,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
                   <select value={form.groupeId} onChange={e => setField('groupeId', e.target.value)}
                     className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
                     <option value="">— Sélectionner —</option>
-                    {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+                    {uniqueByNorm(groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
                   </select>
                 </div>
               </div>
@@ -453,11 +492,7 @@ function SaisieTab({ evaluations, modules, groupes }) {
     if (!selectedEval?.groupeId) return;
     setLoadingStudents(true);
     try {
-      const sq = query(collection(db, 'students'), where('groupeId', '==', selectedEval.groupeId));
-      const snap = await getDocs(sq);
-      const grpStudents = [];
-      snap.forEach(d => grpStudents.push({ id: d.id, ...d.data() }));
-      grpStudents.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+      const grpStudents = await fetchStudentsByGroupIds(getAliasGroupIds(groupes, selectedEval.groupeId));
       setStudents(grpStudents);
 
       // Fetch existing notes
@@ -693,11 +728,7 @@ function BulletinsTab({ evaluations, modules, groupes }) {
     setLoadingStudents(true);
     const fetchStudents = async () => {
       try {
-        const sq = query(collection(db, 'students'), where('groupeId', '==', selectedGroupeId));
-        const snap = await getDocs(sq);
-        const all = [];
-        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-        all.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+        const all = await fetchStudentsByGroupIds(getAliasGroupIds(groupes, selectedGroupeId));
         setStudents(all);
         setSelectedStudentId('');
         setBulletin([]);
@@ -793,7 +824,7 @@ function BulletinsTab({ evaluations, modules, groupes }) {
             className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
           >
             <option value="">— Sélectionner un groupe —</option>
-            {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+            {uniqueByNorm(groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
           </select>
         </div>
         {selectedGroupeId && (
@@ -965,15 +996,13 @@ function PvTab({ evaluations, modules, groupes }) {
     const load = async () => {
       setLoading(true);
       try {
-        // Load students
-        const snap = await getDocs(query(collection(db, 'students'), where('groupeId', '==', selectedGroupeId)));
-        const sts = [];
-        snap.forEach(d => sts.push({ id: d.id, ...d.data() }));
-        sts.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+        // Load students (resolving alias group IDs for hyphen/en-dash duplicates)
+        const aliasIds = getAliasGroupIds(groupes, selectedGroupeId);
+        const sts = await fetchStudentsByGroupIds(aliasIds);
         setStudents(sts);
 
-        // Evaluations for this groupe
-        const grpEvals = evaluations.filter(e => e.groupeId === selectedGroupeId && e.source === 'intervenant');
+        // Evaluations for this groupe (all alias IDs, no source filter)
+        const grpEvals = evaluations.filter(e => aliasIds.includes(e.groupeId));
         const usedModuleIds = [...new Set(grpEvals.map(e => e.moduleId).filter(Boolean))];
         const usedMods = modules.filter(m => usedModuleIds.includes(m.id));
         setGroupeModules(usedMods);
@@ -1049,7 +1078,7 @@ function PvTab({ evaluations, modules, groupes }) {
             className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
           >
             <option value="">— Sélectionner un groupe —</option>
-            {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+            {uniqueByNorm(groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
           </select>
         </div>
         {selectedGroupeId && students.length > 0 && groupeModules.length > 0 && (
@@ -1173,8 +1202,8 @@ function PvTab({ evaluations, modules, groupes }) {
       )}
 
       {!loading && selectedGroupeId && students.length > 0 && groupeModules.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center text-amber-700 text-sm">
-          Aucune note saisie par intervenant pour ce groupe. Les notes doivent être saisies avec <strong>source = intervenant</strong>.
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-slate-500 text-sm">
+          Aucune évaluation avec notes saisies pour ce groupe.
         </div>
       )}
     </div>
