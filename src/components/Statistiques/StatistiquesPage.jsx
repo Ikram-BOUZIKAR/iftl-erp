@@ -705,7 +705,9 @@ export default function StatistiquesPage() {
       ]);
 
       setStudents(s);
-      setGroupes(g);
+      const gSeen = new Map();
+      g.forEach(gr => { const k = (gr.nom||'').replace(/[–—]/g,'-').trim().toLowerCase(); if (!gSeen.has(k)) gSeen.set(k, gr); });
+      setGroupes(Array.from(gSeen.values()));
       setModules(mo);
       setEvaluations(ev);
       setNotes(no);

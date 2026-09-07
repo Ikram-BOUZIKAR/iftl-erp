@@ -388,8 +388,9 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
 
   const groupesNiveau = useMemo(() => {
     const ids = new Set(niveauStudents.filter(s => s.groupeId).map(s => s.groupeId));
-    return groupes.filter(g => ids.has(g.id));
-  }, [niveauStudents, groupes]);
+    // Use uniqueGroupes to avoid duplicates from hyphen/en-dash Firestore variants
+    return uniqueGroupes.filter(g => ids.has(g.id));
+  }, [niveauStudents, uniqueGroupes]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -537,7 +538,7 @@ export default function ApprenantsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { data: students, loading, refetch } = useStudents();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const [selectedNiveau, setSelectedNiveau] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);

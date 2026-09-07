@@ -292,7 +292,7 @@ export default function EmargementPage() {
       </div>
       {showLibreModal && (
         <EmargementLibreModal
-          groupes={groupes}
+          groupes={uniqueGroupes}
           intervenants={intervenants}
           onClose={() => setShowLibreModal(false)}
         />
