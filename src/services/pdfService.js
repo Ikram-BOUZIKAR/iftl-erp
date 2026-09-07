@@ -58,7 +58,8 @@ function drawIftlHeader(doc, title, subtitle) {
   doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
   doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
 
-  // Document title (right-aligned)
+  // Document title (right-aligned, white on blue)
+  doc.setTextColor(...BRAND.white);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.text(title, w - 14, 16, { align: 'right' });
@@ -66,8 +67,12 @@ function drawIftlHeader(doc, title, subtitle) {
   if (subtitle) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255, 0.75);
     doc.text(subtitle, w - 14, 23, { align: 'right' });
   }
+
+  // Reset text color
+  doc.setTextColor(...BRAND.black);
 
   return 48; // y position after header
 }

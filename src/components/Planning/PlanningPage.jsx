@@ -24,8 +24,24 @@ export const DAY_SLOTS = [
   [{ start: '09:00', end: '13:00' }],
 ];
 
-const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAYS      = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAYS_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MAX_SLOTS = Math.max(...DAY_SLOTS.map(d => d.length));
+
+// Subtle per-day color identity (header accent + column tint)
+const DAY_PALETTE = [
+  { header: '#1d4ed8', tint: 'rgba(29,78,216,0.035)' },  // Lun — blue
+  { header: '#7c3aed', tint: 'rgba(124,58,237,0.035)' }, // Mar — violet
+  { header: '#0d9488', tint: 'rgba(13,148,136,0.035)' }, // Mer — teal
+  { header: '#b45309', tint: 'rgba(180,83,9,0.035)'   }, // Jeu — amber
+  { header: '#be185d', tint: 'rgba(190,24,93,0.035)'  }, // Ven — pink
+  { header: '#374151', tint: 'rgba(55,65,81,0.04)'    }, // Sam — slate
+  { header: '#6b7280', tint: 'rgba(107,114,128,0.03)' }, // Dim
+];
+
+function normalizeDash(str) {
+  return (str || '').replace(/[–—]/g, '-').trim().toLowerCase();
+}
 
 export const TYPE_STYLES = {
   cours:     { bar: '#005989', bg: 'rgba(0,89,137,0.09)',   border: 'rgba(0,89,137,0.22)',  text: '#005989', label: 'Cours'     },
@@ -76,11 +92,24 @@ export default function PlanningPage() {
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
-  // Deduplicate groupes by id (guard against duplicate Firestore docs)
+  // Deduplicate groupes by normalized name (hyphen vs en-dash variants → show once)
   const uniqueGroupes = useMemo(() => {
-    const seen = new Set();
-    return groupes.filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
+    const seen = new Map();
+    groupes.forEach(g => {
+      const key = normalizeDash(g.nom);
+      if (!seen.has(key)) seen.set(key, g);
+    });
+    return Array.from(seen.values());
   }, [groupes]);
+
+  // All Firestore IDs for the active group (includes both dash variants)
+  const activeGroupIds = useMemo(() => {
+    if (!activeGroupId) return [];
+    const active = groupes.find(g => g.id === activeGroupId);
+    if (!active) return [activeGroupId];
+    const norm = normalizeDash(active.nom);
+    return groupes.filter(g => normalizeDash(g.nom) === norm).map(g => g.id);
+  }, [activeGroupId, groupes]);
 
   // Init: pick first group
   useEffect(() => {
@@ -164,9 +193,18 @@ export default function PlanningPage() {
       push(snap2);
 
       setAllSessions(all);
-      setSessions(all.filter(s => s.groupeId === activeGroupId));
+      // Include sessions from all Firestore IDs with same normalized group name
+      const ids = groupes.length > 0 && activeGroupId
+        ? (() => {
+            const active = groupes.find(g => g.id === activeGroupId);
+            if (!active) return [activeGroupId];
+            const norm = normalizeDash(active.nom);
+            return groupes.filter(g => normalizeDash(g.nom) === norm).map(g => g.id);
+          })()
+        : [activeGroupId];
+      setSessions(all.filter(s => ids.includes(s.groupeId)));
     } catch { /* silent */ }
-  }, [weekStart, activeGroupId]);
+  }, [weekStart, activeGroupId, groupes]);
 
   useEffect(() => { fetchWeekSessions(); }, [fetchWeekSessions]);
 
@@ -397,25 +435,12 @@ export default function PlanningPage() {
       </div>
 
       {/* ── Group selector ── */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex-shrink-0 mr-1">Groupe</span>
-        {uniqueGroupes.map(g => (
-          <button key={g.id} onClick={() => setActiveGroupId(g.id)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-              activeGroupId === g.id
-                ? 'bg-[#001829] border-[#001829] text-white'
-                : 'border-slate-200 text-slate-500 hover:border-[#005989] hover:text-[#005989] bg-white'
-            }`}>
-            {g.nom}
-            {g.filiere && <span className={`text-[10px] font-normal ${activeGroupId === g.id ? 'opacity-50' : 'text-slate-400'}`}>{g.filiere}</span>}
-          </button>
-        ))}
-        {conflictsThisGroup > 0 && (
-          <div className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
-            ⚠ {conflictsThisGroup} conflit{conflictsThisGroup > 1 ? 's' : ''} intervenant
-          </div>
-        )}
-      </div>
+      <GroupSelector
+        groupes={uniqueGroupes}
+        activeGroupId={activeGroupId}
+        onSelect={setActiveGroupId}
+        conflictsCount={conflictsThisGroup}
+      />
 
       {/* ── Main content ── */}
       {activeTab === 'calendrier' ? (
@@ -493,6 +518,107 @@ export default function PlanningPage() {
   );
 }
 
+// ── Group Selector ────────────────────────────────────────────────────────────
+function GroupSelector({ groupes, activeGroupId, onSelect, conflictsCount }) {
+  const [filter, setFilter] = useState('');
+
+  // Detect category from name prefix
+  function getCategory(nom) {
+    const n = normalizeDash(nom).toUpperCase();
+    if (n.startsWith('1A TS') || n.startsWith('TS.') || n.includes('1ERE ANNEE') || n.includes('1A ')) return '1A TS';
+    if (n.startsWith('2A TS') || n.startsWith('TS 2A') || n.includes('2EME ANNEE') || n.includes('2A ')) return '2A TS';
+    if (n.startsWith('LICENCE') || n.startsWith('MASTER') || n.startsWith('LIC ')) return 'Licences';
+    return 'Autres';
+  }
+
+  const categories = ['1A TS', '2A TS', 'Licences', 'Autres'];
+  const byCategory = {};
+  groupes.forEach(g => {
+    const cat = getCategory(g.nom);
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(g);
+  });
+
+  const CAT_COLORS = {
+    '1A TS':    { active: '#1d4ed8', hover: '#1d4ed820', dot: '#93c5fd' },
+    '2A TS':    { active: '#7c3aed', hover: '#7c3aed20', dot: '#c4b5fd' },
+    'Licences': { active: '#0d9488', hover: '#0d948820', dot: '#5eead4' },
+    'Autres':   { active: '#374151', hover: '#37415120', dot: '#9ca3af' },
+  };
+
+  const displayed = filter
+    ? groupes.filter(g => normalizeDash(g.nom).includes(normalizeDash(filter)))
+    : null;
+
+  return (
+    <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+      {/* Search + conflict row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px 0' }}>
+        <input
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          placeholder="Filtrer groupes…"
+          style={{ flex: '0 0 180px', fontSize: 11, padding: '4px 10px', border: '1px solid #e2e8f0', borderRadius: 20, outline: 'none', color: '#334155', background: '#f8fafc' }}
+          onFocus={e => { e.target.style.borderColor = '#005989'; e.target.style.background = '#fff'; }}
+          onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; }}
+        />
+        {conflictsCount > 0 && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: 10.5, fontWeight: 600 }}>
+            ⚠ {conflictsCount} conflit{conflictsCount > 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
+      {/* Group pills */}
+      <div style={{ padding: '6px 14px 8px', overflowX: 'auto' }}>
+        {displayed ? (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            {displayed.map(g => {
+              const cat = g.nom ? Object.keys(CAT_COLORS).find(c => getCategory(g.nom) === c) || 'Autres' : 'Autres';
+              const colors = CAT_COLORS[cat];
+              const isActive = activeGroupId === g.id;
+              return (
+                <button key={g.id} onClick={() => onSelect(g.id)}
+                  style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20, border: `1px solid ${isActive ? colors.active : '#e2e8f0'}`, background: isActive ? colors.active : '#f8fafc', color: isActive ? '#fff' : '#475569', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif' }}>
+                  {g.nom}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 12 }}>
+            {categories.filter(cat => byCategory[cat]?.length).map(cat => {
+              const colors = CAT_COLORS[cat];
+              return (
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: colors.active, textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{cat}</span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {byCategory[cat].map(g => {
+                      const isActive = activeGroupId === g.id;
+                      // Extract short label: "Gr. A", "Gr. 1", etc.
+                      const short = g.nom.match(/[Gg]r(?:oupe)?\.?\s*(\w+)/)?.[1]
+                        || g.nom.match(/[Gg]roupe\s+(\w+)/)?.[1]
+                        || g.nom.match(/[–\-]\s*(.{1,8})$/)?.[1]?.trim()
+                        || g.nom.slice(-4);
+                      return (
+                        <button key={g.id} onClick={() => onSelect(g.id)}
+                          title={g.nom}
+                          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20, border: `1.5px solid ${isActive ? colors.active : '#e2e8f0'}`, background: isActive ? colors.active : '#fff', color: isActive ? '#fff' : '#64748b', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif', whiteSpace: 'nowrap' }}>
+                          {short}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Timeline Grid (Option A — axe horaire vertical) ───────────────────────────
 function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, conflictedIds, onAdd, onEdit, onMove, onDelete }) {
   const [dragId,    setDragId]    = useState(null);
@@ -553,27 +679,32 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
       <div style={{ minWidth: 620, width: '100%' }}>
 
         {/* ── Header row ── */}
-        <div style={{ display: 'flex', borderRadius: '10px 10px 0 0', overflow: 'hidden' }}>
-          <div style={{ width: 54, flexShrink: 0, background: '#001829', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 4px', borderRight: '1px solid rgba(255,255,255,0.07)' }}>
-            <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.6px', textTransform: 'uppercase', fontFamily: 'Outfit,sans-serif' }}>H</span>
+        <div style={{ display: 'flex', borderRadius: '12px 12px 0 0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+          <div style={{ width: 54, flexShrink: 0, background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 4px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
-            const vac   = isVacance(day, vacances);
-            const today = day.toDateString() === new Date().toDateString();
+            const vac     = isVacance(day, vacances);
+            const isToday = day.toDateString() === new Date().toDateString();
+            const pal     = DAY_PALETTE[di];
+            const bg      = vac ? '#374151' : isToday ? pal.header : '#1e293b';
+            const accent  = isToday ? '#f5c845' : pal.dot;
             return (
               <div key={di} style={{
-                flex: 1, padding: '10px 6px', textAlign: 'center',
-                background: vac ? '#3a3a3a' : today ? '#005989' : '#001829',
-                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                flex: 1, padding: '10px 6px 8px', textAlign: 'center',
+                background: bg,
+                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                borderBottom: isToday ? `3px solid ${accent}` : '3px solid transparent',
+                transition: 'background 0.2s',
               }}>
-                <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 11, fontWeight: 700, color: vac ? 'rgba(255,255,255,0.35)' : '#fff', letterSpacing: '0.3px' }}>
+                <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 11.5, fontWeight: 800, color: vac ? 'rgba(255,255,255,0.3)' : '#fff', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
                   {DAYS[di]}
                 </div>
-                <div style={{ fontSize: 10, color: today ? 'rgba(245,200,69,0.75)' : 'rgba(255,255,255,0.4)', marginTop: 1 }}>
-                  {format(day, 'dd/MM')}
+                <div style={{ fontSize: 11, color: isToday ? accent : 'rgba(255,255,255,0.45)', marginTop: 2, fontWeight: isToday ? 700 : 400, fontVariantNumeric: 'tabular-nums' }}>
+                  {format(day, 'dd MMM', { locale: fr })}
                 </div>
-                {vac && <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)', marginTop: 2, fontStyle: 'italic', lineHeight: 1.2 }}>{vac.label?.replace('⚠ prévisionnel', '').trim()}</div>}
-                {today && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#f5c845', margin: '3px auto 0' }} />}
+                {vac && <div style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.25)', marginTop: 2, fontStyle: 'italic', lineHeight: 1.2 }}>{vac.label?.replace('⚠ prévisionnel', '').trim()}</div>}
+                {isToday && <div style={{ width: 6, height: 6, borderRadius: '50%', background: accent, margin: '4px auto 0', boxShadow: `0 0 6px ${accent}80` }} />}
               </div>
             );
           })}
@@ -605,14 +736,20 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
 
           {/* Day columns */}
           {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
-            const vac   = isVacance(day, vacances);
-            const slots = DAY_SLOTS[di] || [];
+            const vac     = isVacance(day, vacances);
+            const slots   = DAY_SLOTS[di] || [];
+            const isToday = day.toDateString() === new Date().toDateString();
+            const pal     = DAY_PALETTE[di];
 
             return (
               <div key={di} style={{
                 flex: 1, position: 'relative', height: TOTAL_H,
-                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e2e8f0' : 'none',
-                background: vac ? 'repeating-linear-gradient(-45deg,#f1f5f9,#f1f5f9 4px,#e8edf4 4px,#e8edf4 8px)' : '#fff',
+                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e9eef4' : 'none',
+                background: vac
+                  ? 'repeating-linear-gradient(-45deg,#f1f5f9,#f1f5f9 4px,#e8edf4 4px,#e8edf4 8px)'
+                  : isToday
+                    ? `linear-gradient(to bottom, ${pal.tint.replace('0.035', '0.06')}, ${pal.tint})`
+                    : pal.tint,
               }}>
                 {/* Hour grid lines */}
                 {timeMarkers.map(m => (
