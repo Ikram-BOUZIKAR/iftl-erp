@@ -1779,3 +1779,153 @@ export function generateDocumentAdministratif(doc_) {
   const safe = nomPrenom.replace(/\s+/g, '_') || 'document';
   pdfDoc.save(`${doc_.reference || typeLabel.replace(/\s+/g, '_')}_${safe}.pdf`);
 }
+
+// ─── generateFicheApprenant ───────────────────────────────────────────────────
+
+/**
+ * Generates an official "Fiche Apprenant" PDF for a student.
+ *
+ * @param {object} student   - Firestore `students` document fields
+ * @param {object} userProfile - Firestore `users` document fields
+ * @param {object} groupe    - { nom } — group name
+ */
+export function generateFicheApprenant(student, userProfile, groupe) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+  const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  let y = drawIftlHeader(doc, 'FICHE APPRENANT', `Année académique ${student?.anneeAcademique || new Date().getFullYear() + '–' + (new Date().getFullYear() + 1)}`);
+
+  // Yellow sub-band with document label
+  doc.setFillColor(...BRAND.yellow);
+  doc.rect(0, y, w, 9, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text('DOCUMENT OFFICIEL — SCOLARITÉ', w / 2, y + 6, { align: 'center' });
+  y += 15;
+
+  const fullName = `${(student?.prenom || userProfile?.prenom || '').trim()} ${(student?.nom || userProfile?.nom || '').toUpperCase().trim()}`.trim();
+  const codeApprenant = userProfile?.studentCode || userProfile?.codeApprenant || student?.id || '—';
+
+  // ── Photo placeholder + Identity header ─────────────────────────────────────
+  // Photo box (right side)
+  const photoX = w - 14 - 35;
+  const photoY = y;
+  doc.setFillColor(230, 242, 250);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.4);
+  doc.rect(photoX, photoY, 35, 42, 'FD');
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Photo', photoX + 17.5, photoY + 20, { align: 'center' });
+  doc.text("d'identité", photoX + 17.5, photoY + 26, { align: 'center' });
+
+  // Name block (left side)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...BRAND.blue);
+  doc.text(fullName || '—', 14, y + 10);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.grey);
+  doc.text(`Code apprenant : ${codeApprenant}`, 14, y + 18);
+
+  const groupeNom = groupe?.nom || student?.groupeId || '—';
+  doc.text(`Groupe : ${groupeNom}`, 14, y + 25);
+
+  const filiere = student?.filiere || userProfile?.filiere || '—';
+  doc.text(`Filière : ${filiere}`, 14, y + 32);
+
+  y += 50;
+
+  // ── Section 1 : Informations personnelles ────────────────────────────────────
+  y = sectionTitle(doc, 'Informations personnelles', y);
+  y = infoBox(doc, [
+    { label: 'Nom',            value: (student?.nom || userProfile?.nom || '—').toUpperCase() },
+    { label: 'Prénom',         value: student?.prenom || userProfile?.prenom || '—' },
+    { label: 'CIN',            value: student?.cin || '—' },
+    { label: 'Date naissance', value: student?.dateNaissance || '—' },
+    { label: 'Sexe',           value: student?.sexe || '—' },
+    { label: 'Nationalité',    value: student?.nationalite || 'Marocaine' },
+    { label: 'Téléphone',      value: student?.telephone || userProfile?.telephone || '—' },
+    { label: 'Email',          value: userProfile?.email || student?.email || '—' },
+    { label: 'Adresse',        value: student?.adresse || '—' },
+    { label: 'Ville',          value: student?.ville || '—' },
+  ], y);
+
+  // ── Section 2 : Informations de formation ────────────────────────────────────
+  y = sectionTitle(doc, 'Formation', y);
+  y = infoBox(doc, [
+    { label: 'Code',           value: codeApprenant },
+    { label: 'Filière',        value: filiere },
+    { label: 'Groupe',         value: groupeNom },
+    { label: 'Niveau',         value: student?.niveau || student?.anneeFormation || '—' },
+    { label: 'Année acad.',    value: student?.anneeAcademique || '—' },
+    { label: 'Statut',         value: student?.statut || '—' },
+  ], y);
+
+  // ── Section 3 : Contact d'urgence ────────────────────────────────────────────
+  y = sectionTitle(doc, "Contact d'urgence", y);
+  y = infoBox(doc, [
+    { label: 'Nom contact',    value: student?.contactUrgenceNom || '—' },
+    { label: 'Téléphone',      value: student?.contactUrgenceTel || '—' },
+    { label: 'Lien',           value: student?.contactUrgenceLien || '—' },
+    { label: '',               value: '' },
+  ], y);
+
+  // ── Signature block ──────────────────────────────────────────────────────────
+  y += 4;
+  const sigY = y;
+  const sigW = 70;
+  const sigX = w - 14 - sigW;
+
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(sigX, sigY, sigW, 32, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text('Le Directeur Général', sigX + sigW / 2, sigY + 7, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('M. KARAOUANE Mohamed', sigX + sigW / 2, sigY + 14, { align: 'center' });
+
+  // Cachet placeholder
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineDashPattern([1, 1], 0);
+  doc.circle(14 + 18, sigY + 16, 14);
+  doc.setLineDashPattern([], 0);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(180, 180, 180);
+  doc.text('Cachet', 14 + 18, sigY + 15, { align: 'center' });
+  doc.text('IFTL', 14 + 18, sigY + 20, { align: 'center' });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.grey);
+  doc.text(`Fait à Casablanca, le ${today}`, 14, sigY + 28);
+
+  // ── Notice footer ────────────────────────────────────────────────────────────
+  const noticeY = sigY + 38;
+  doc.setFillColor(245, 200, 69, 40);
+  doc.setDrawColor(245, 200, 69);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, noticeY, w - 28, 10, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text('Document officiel IFTL — Ne pas modifier — Valable pour l\'année académique en cours', w / 2, noticeY + 6.5, { align: 'center' });
+
+  drawPageBorder(doc);
+  drawFooter(doc);
+
+  const safeName = fullName.replace(/\s+/g, '_') || 'Apprenant';
+  doc.save(`Fiche_Apprenant_${safeName}_${codeApprenant}.pdf`);
+}

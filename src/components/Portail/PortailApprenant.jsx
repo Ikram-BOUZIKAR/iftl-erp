@@ -5,7 +5,7 @@ import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
-import { generateAttestationSoutenance, generateAttestationReussite } from '../../services/pdfService';
+import { generateAttestationSoutenance, generateAttestationReussite, generateFicheApprenant } from '../../services/pdfService';
 import { badgesService, getBadge, BADGE_CATALOGUE } from '../../services/badgesService';
 
 const BLUE = '#005989';
@@ -107,9 +107,14 @@ async function fetchByMultipleKeys(collName, keys) {
 // ── Mon Profil ─────────────────────────────────────────────────────────────────
 function ProfilTab({ student, userProfile, userId }) {
   const [form, setForm] = useState({
-    telephone: student?.telephone || userProfile?.telephone || '',
-    ville:     student?.ville     || '',
-    adresse:   student?.adresse   || '',
+    telephone:           student?.telephone            || userProfile?.telephone || '',
+    ville:               student?.ville                || '',
+    adresse:             student?.adresse              || '',
+    sexe:                student?.sexe                 || '',
+    nationalite:         student?.nationalite          || '',
+    contactUrgenceNom:   student?.contactUrgenceNom    || '',
+    contactUrgenceTel:   student?.contactUrgenceTel    || '',
+    contactUrgenceLien:  student?.contactUrgenceLien   || '',
   });
   const [photoURL,    setPhotoURL]    = useState(student?.photo || userProfile?.photo || '');
   const [uploading,   setUploading]   = useState(false);
@@ -121,12 +126,15 @@ function ProfilTab({ student, userProfile, userId }) {
 
   // Detect missing editable fields
   const missingFields = [
-    !form.telephone && 'Téléphone',
-    !form.ville     && 'Ville',
-    !form.adresse   && 'Adresse',
-    !photoURL       && 'Photo de profil',
+    !form.telephone          && 'Téléphone',
+    !form.ville              && 'Ville',
+    !form.adresse            && 'Adresse',
+    !form.sexe               && 'Sexe',
+    !form.nationalite        && 'Nationalité',
+    !form.contactUrgenceNom  && "Contact d'urgence",
+    !photoURL                && 'Photo de profil',
   ].filter(Boolean);
-  const completionPct = Math.round(((4 - missingFields.length) / 4) * 100);
+  const completionPct = Math.round(((7 - missingFields.length) / 7) * 100);
 
   const handlePhotoUpload = async (file) => {
     if (!file || !userId) return;
@@ -152,7 +160,17 @@ function ProfilTab({ student, userProfile, userId }) {
     try {
       if (userId) await updateDoc(doc(db, 'users', userId), { telephone: form.telephone, updatedAt: new Date() });
       const studentRef = student?.id ? doc(db, 'students', student.id) : studentCode ? doc(db, 'students', studentCode) : null;
-      if (studentRef) await updateDoc(studentRef, { telephone: form.telephone, ville: form.ville, adresse: form.adresse, updatedAt: new Date() });
+      if (studentRef) await updateDoc(studentRef, {
+        telephone:          form.telephone,
+        ville:              form.ville,
+        adresse:            form.adresse,
+        sexe:               form.sexe,
+        nationalite:        form.nationalite,
+        contactUrgenceNom:  form.contactUrgenceNom,
+        contactUrgenceTel:  form.contactUrgenceTel,
+        contactUrgenceLien: form.contactUrgenceLien,
+        updatedAt:          new Date(),
+      });
       setSaved(true); setTimeout(() => setSaved(false), 3000);
     } catch (err) { setError('Erreur : ' + err.message); }
     finally { setSaving(false); }
@@ -256,9 +274,10 @@ function ProfilTab({ student, userProfile, userId }) {
         </div>
         <div className="p-5 space-y-4">
           {[
-            { label: 'Téléphone', key: 'telephone', type: 'tel',  ph: '+212 6XX XXX XXX' },
-            { label: 'Ville',     key: 'ville',     type: 'text', ph: 'Votre ville de résidence' },
-            { label: 'Adresse',   key: 'adresse',   type: 'text', ph: 'Votre adresse complète' },
+            { label: 'Téléphone',  key: 'telephone',  type: 'tel',  ph: '+212 6XX XXX XXX' },
+            { label: 'Ville',      key: 'ville',      type: 'text', ph: 'Votre ville de résidence' },
+            { label: 'Adresse',    key: 'adresse',    type: 'text', ph: 'Votre adresse complète' },
+            { label: 'Nationalité',key: 'nationalite',type: 'text', ph: 'Ex : Marocaine' },
           ].map(({ label, key, type, ph }) => {
             const isEmpty = !form[key];
             return (
@@ -278,6 +297,52 @@ function ProfilTab({ student, userProfile, userId }) {
               </div>
             );
           })}
+
+          {/* Sexe */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              Sexe
+              {!form.sexe && <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">Manquant</span>}
+            </label>
+            <select value={form.sexe} onChange={e => setForm(f => ({ ...f, sexe: e.target.value }))}
+              className="w-full px-3.5 py-2.5 border rounded-xl text-sm text-slate-800 focus:outline-none transition-all bg-white"
+              style={{ borderColor: !form.sexe ? '#fcd34d' : '#e2e8f0' }}>
+              <option value="">— Sélectionner —</option>
+              <option value="Masculin">Masculin</option>
+              <option value="Féminin">Féminin</option>
+            </select>
+          </div>
+
+          {/* Contact d'urgence */}
+          <div className="pt-2 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Contact d'urgence</p>
+            <div className="space-y-3">
+              {[
+                { label: 'Nom',      key: 'contactUrgenceNom',  ph: 'Nom du contact' },
+                { label: 'Téléphone',key: 'contactUrgenceTel',  ph: '+212 6XX XXX XXX' },
+                { label: 'Lien',     key: 'contactUrgenceLien', ph: 'Ex : Mère, Père, Tuteur' },
+              ].map(({ label, key, ph }) => {
+                const isEmpty = !form[key];
+                return (
+                  <div key={key}>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                      {label}
+                      {key === 'contactUrgenceNom' && isEmpty && <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">Manquant</span>}
+                    </label>
+                    <input type="text" value={form[key]}
+                      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={ph}
+                      className="w-full px-3.5 py-2.5 border rounded-xl text-sm text-slate-800 focus:outline-none transition-all"
+                      style={{ borderColor: key === 'contactUrgenceNom' && isEmpty ? '#fcd34d' : '#e2e8f0' }}
+                      onFocus={e => { e.target.style.borderColor = BLUE; e.target.style.boxShadow = `0 0 0 3px ${BLUE}18`; }}
+                      onBlur={e => { e.target.style.borderColor = key === 'contactUrgenceNom' && !form[key] ? '#fcd34d' : '#e2e8f0'; e.target.style.boxShadow = ''; }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {error && <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">{error}</p>}
           <button onClick={handleSave} disabled={saving}
             className="w-full py-3 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-60"
@@ -291,7 +356,7 @@ function ProfilTab({ student, userProfile, userId }) {
       <BadgesSection studentId={student?.id} studentCode={studentCode} />
 
       {/* Documents téléchargeables */}
-      <AttestationsSection student={student} userProfile={userProfile} />
+      <AttestationsSection student={student} userProfile={userProfile} groupe={null} />
     </div>
   );
 }
@@ -386,7 +451,7 @@ function BadgesSection({ studentId, studentCode }) {
   );
 }
 
-function AttestationsSection({ student, userProfile }) {
+function AttestationsSection({ student, userProfile, groupe }) {
   const [downloading, setDownloading] = useState(null);
 
   const handleSoutenance = async () => {
@@ -418,6 +483,17 @@ function AttestationsSection({ student, userProfile }) {
       });
     } catch (e) {
       console.error('Attestation réussite error:', e);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleFiche = () => {
+    setDownloading('fiche');
+    try {
+      generateFicheApprenant(student, userProfile, groupe);
+    } catch (e) {
+      console.error('Fiche apprenant error:', e);
     } finally {
       setDownloading(null);
     }
@@ -475,6 +551,27 @@ function AttestationsSection({ student, userProfile }) {
           {downloading === 'reussite'
             ? <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin shrink-0" />
             : <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          }
+        </button>
+
+        <button
+          onClick={handleFiche}
+          disabled={downloading === 'fiche'}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-all disabled:opacity-50 hover:shadow-sm"
+          style={{ borderColor: '#fed7aa', background: '#fff7ed' }}
+        >
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#ea580c' }}>
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0M9 14h6m-3-3v6"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-800">Fiche Apprenant</p>
+            <p className="text-xs text-slate-500 mt-0.5">Document officiel de scolarité avec vos informations complètes</p>
+          </div>
+          {downloading === 'fiche'
+            ? <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin shrink-0" />
+            : <svg className="w-4 h-4 text-orange-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           }
         </button>
       </div>
