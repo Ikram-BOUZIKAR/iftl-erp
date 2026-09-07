@@ -446,3 +446,130 @@ export async function sendAbsenceEmail(db, { toEmail, toName, moduleNom, dateSea
     textContent: `Bonjour ${toName},\n\nUne absence a été enregistrée pour :\nModule : ${moduleNom}\nDate : ${dateSeance}\nHoraire : ${heureDebut}–${heureFin}\nGroupe : ${groupeNom}\n${messageCustom ? '\n' + messageCustom : ''}\n\nMerci de la justifier auprès du secrétariat.\n\nCordialement,\nL'administration IFTL`,
   });
 }
+
+// ─── Réinscription ─────────────────────────────────────────────────────────────
+
+function reinscriptionValideeHtml({ prenom, nom, annee, niveau, filiere }) {
+  return baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${prenom} ${nom}</strong>,</p>
+    <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #059669;border-radius:8px;padding:24px;margin:20px 0;text-align:center">
+      <div style="font-size:36px;margin-bottom:10px">✅</div>
+      <h2 style="margin:0 0 6px;color:#065f46;font-size:20px">Réinscription confirmée !</h2>
+      <p style="color:#047857;margin:0;font-size:14px">${niveau}${filiere ? ` — ${filiere}` : ''}</p>
+    </div>
+    <p style="line-height:1.7">Nous avons le plaisir de vous confirmer votre réinscription pour l'année académique <strong style="color:#005989">${annee}</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      <tr style="background:#f8fafc">
+        <td style="padding:11px 16px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Année académique</td>
+        <td style="padding:11px 16px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${annee}</td>
+      </tr>
+      <tr>
+        <td style="padding:11px 16px;font-size:13px;color:#64748b;font-weight:600">Niveau</td>
+        <td style="padding:11px 16px;font-size:13px;font-weight:700">${niveau}${filiere ? ` — ${filiere}` : ''}</td>
+      </tr>
+    </table>
+    <p style="line-height:1.7">N'oubliez pas d'apporter votre <strong>justificatif de paiement original</strong> (reçu de virement ou chèque remis) à la scolarité pour finaliser votre dossier.</p>
+    <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+    </div>
+    <p style="margin-top:28px;line-height:1.7">Nous vous souhaitons une excellente année académique.<br><strong>La scolarité IFTL</strong></p>
+  `);
+}
+
+function reinscriptionRefuseeHtml({ prenom, nom, annee, niveau }) {
+  return baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${prenom} ${nom}</strong>,</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:8px;padding:20px 24px;margin:20px 0">
+      <h2 style="margin:0 0 8px;color:#991b1b;font-size:17px">Demande de réinscription non retenue</h2>
+      <p style="color:#b91c1c;margin:0;font-size:14px">${niveau} — Année ${annee}</p>
+    </div>
+    <p style="line-height:1.7">Nous avons examiné votre demande de réinscription pour l'année académique <strong>${annee}</strong> et nous ne sommes malheureusement pas en mesure de la valider en l'état.</p>
+    <p style="line-height:1.7">Nous vous invitons à <strong>contacter la scolarité</strong> pour obtenir plus d'informations et discuter des démarches à suivre.</p>
+    <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+    </div>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité IFTL</strong></p>
+  `);
+}
+
+/** Sends a confirmation email when an admin validates a reinscription. */
+export async function sendReinscriptionValidee(db, { email, prenom, nom, annee, niveau, filiere }) {
+  return sendEmail(db, {
+    to: email,
+    toName: `${prenom} ${nom}`,
+    subject: `Réinscription confirmée — ${annee} — IFTL`,
+    htmlContent: reinscriptionValideeHtml({ prenom, nom, annee, niveau, filiere }),
+    textContent: `Bonjour ${prenom} ${nom},\n\nVotre réinscription pour ${niveau} — année ${annee} est confirmée.\n\nN'oubliez pas d'apporter votre justificatif de paiement à la scolarité.\n\nCordialement,\nLa scolarité IFTL`,
+  });
+}
+
+/** Sends an email when an admin refuses a reinscription. */
+export async function sendReinscriptionRefusee(db, { email, prenom, nom, annee, niveau }) {
+  return sendEmail(db, {
+    to: email,
+    toName: `${prenom} ${nom}`,
+    subject: `Réinscription — Demande non retenue — IFTL ${annee}`,
+    htmlContent: reinscriptionRefuseeHtml({ prenom, nom, annee, niveau }),
+    textContent: `Bonjour ${prenom} ${nom},\n\nNous ne sommes pas en mesure de valider votre demande de réinscription (${niveau} — ${annee}).\nContactez la scolarité pour plus d'informations : scolarite@iftl.ma\n\nCordialement,\nLa scolarité IFTL`,
+  });
+}
+
+// ─── Candidatures ──────────────────────────────────────────────────────────────
+
+const CANDIDATURE_STATUT_META = {
+  accepte:       { label: 'Admis(e)',        color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', borderLeft: '#059669', icon: '🎉', titre: 'Félicitations — Vous êtes admis(e) !' },
+  liste_attente: { label: 'Liste d\'attente',color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', borderLeft: '#7c3aed', icon: '⏳', titre: 'Votre dossier est en liste d\'attente' },
+  refuse:        { label: 'Non retenu(e)',   color: '#dc2626', bg: '#fef2f2', border: '#fecaca', borderLeft: '#dc2626', icon: '📋', titre: 'Suite donnée à votre candidature' },
+  en_cours:      { label: 'En traitement',   color: '#d97706', bg: '#fffbeb', border: '#fde68a', borderLeft: '#d97706', icon: '🔍', titre: 'Votre dossier est en cours d\'examen' },
+};
+
+function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
+  const meta = CANDIDATURE_STATUT_META[statut];
+  if (!meta) return null;
+  return baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${prenom} ${nom}</strong>,</p>
+    <div style="background:${meta.bg};border:1px solid ${meta.border};border-left:4px solid ${meta.borderLeft};border-radius:8px;padding:24px;margin:20px 0;text-align:center">
+      <div style="font-size:36px;margin-bottom:10px">${meta.icon}</div>
+      <h2 style="margin:0 0 6px;color:${meta.color};font-size:19px">${meta.titre}</h2>
+      ${ref ? `<p style="color:${meta.color};margin:4px 0 0;font-size:13px;opacity:0.8">Réf. dossier : ${ref}</p>` : ''}
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      ${ref ? `<tr style="background:#f8fafc"><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Référence</td><td style="padding:10px 16px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${ref}</td></tr>` : ''}
+      ${filiere ? `<tr><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600">Filière</td><td style="padding:10px 16px;font-size:13px;font-weight:700">${filiere}</td></tr>` : ''}
+    </table>
+    ${statut === 'accepte' ? `
+      <p style="line-height:1.7">Votre dossier de candidature a été retenu. Vous serez contacté(e) prochainement par la scolarité pour les modalités d'inscription définitive.</p>
+      <p style="line-height:1.7">Bienvenue à l'IFTL !</p>
+    ` : statut === 'liste_attente' ? `
+      <p style="line-height:1.7">Votre dossier a été examiné avec attention. Vous êtes actuellement inscrit(e) sur notre liste d'attente. Nous vous contacterons dès qu'une place se libère.</p>
+    ` : statut === 'refuse' ? `
+      <p style="line-height:1.7">Nous avons examiné votre dossier de candidature et nous regrettons de ne pouvoir y donner suite favorablement cette année.</p>
+      ${motif ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin:12px 0"><p style="margin:0;font-size:13px;color:#475569"><strong>Motif :</strong> ${motif}</p></div>` : ''}
+      <p style="line-height:1.7">Nous vous encourageons à postuler de nouveau lors de la prochaine session.</p>
+    ` : `
+      <p style="line-height:1.7">Votre dossier de candidature est actuellement en cours d'examen par notre équipe pédagogique. Nous vous informerons de la suite dans les meilleurs délais.</p>
+    `}
+    <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+    </div>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité IFTL</strong></p>
+  `);
+}
+
+/**
+ * Sends a status-change email to a candidate.
+ * Call after updating statut to 'accepte', 'refuse', 'liste_attente', or 'en_cours'.
+ * Returns silently if statut has no template (e.g. 'recu', 'doublon').
+ */
+export async function sendCandidatureStatut(db, { email, prenom, nom, ref, filiere, statut, motif }) {
+  const html = candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif });
+  if (!html || !email) return;
+  const meta = CANDIDATURE_STATUT_META[statut];
+  return sendEmail(db, {
+    to: email,
+    toName: `${prenom} ${nom}`,
+    subject: `${meta.label} — Candidature IFTL${ref ? ' · ' + ref : ''}`,
+    htmlContent: html,
+    textContent: `Bonjour ${prenom} ${nom},\n\nStatut de votre candidature IFTL : ${meta.label}.\nRéf : ${ref || '—'}\n\nContactez-nous : scolarite@iftl.ma\n\nCordialement,\nLa scolarité IFTL`,
+  });
+}

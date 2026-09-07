@@ -539,7 +539,7 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <div style={{ minWidth: 620 }}>
+      <div style={{ minWidth: 620, width: '100%' }}>
 
         {/* ── Header row ── */}
         <div style={{ display: 'flex', borderRadius: '10px 10px 0 0', overflow: 'hidden' }}>

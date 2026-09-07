@@ -4,6 +4,7 @@ import { db } from '../../services/firebase';
 import { useCandidatures, useGroupes } from '../../hooks/useData';
 import { candidaturesService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
+import { sendCandidatureStatut } from '../../services/emailService';
 
 const BRAND = '#005989';
 
@@ -129,20 +130,43 @@ export default function CandidaturesAdminPage() {
       if (selected?.id === c.id) setSelected(s => ({ ...s, statut }));
       refetch();
       toast.success(`${c.prenom} ${c.nom} : ${STATUTS[statut]?.label}`);
+      if (c.email) {
+        sendCandidatureStatut(db, {
+          email: c.email,
+          prenom: c.prenom,
+          nom: c.nom,
+          ref: c.ref,
+          filiere: c.filiere || c.niveauFormation,
+          statut,
+        }).catch(() => {});
+      }
     } catch (err) { toast.error(err.message); }
   };
 
   const handleRefuser = async () => {
     if (!showRefusModal) return;
+    const c = showRefusModal;
+    const motif = motifRefus.trim() || null;
     try {
-      await updateDoc(doc(db, 'candidatures', showRefusModal.id), {
+      await updateDoc(doc(db, 'candidatures', c.id), {
         statut: 'refuse',
-        motifRefus: motifRefus.trim() || null,
+        motifRefus: motif,
         dateTraitement: new Date(),
       });
-      if (selected?.id === showRefusModal.id) setSelected(s => ({ ...s, statut: 'refuse' }));
+      if (selected?.id === c.id) setSelected(s => ({ ...s, statut: 'refuse' }));
       refetch();
       toast.success(`Candidature refusée.`);
+      if (c.email) {
+        sendCandidatureStatut(db, {
+          email: c.email,
+          prenom: c.prenom,
+          nom: c.nom,
+          ref: c.ref,
+          filiere: c.filiere || c.niveauFormation,
+          statut: 'refuse',
+          motif,
+        }).catch(() => {});
+      }
     } catch (err) { toast.error(err.message); }
     setShowRefusModal(null);
     setMotifRefus('');
@@ -153,6 +177,17 @@ export default function CandidaturesAdminPage() {
     try {
       for (const id of selectedIds) {
         await updateDoc(doc(db, 'candidatures', id), { statut: bulkAction, dateTraitement: new Date() });
+        const c = candidatures.find(x => x.id === id);
+        if (c?.email) {
+          sendCandidatureStatut(db, {
+            email: c.email,
+            prenom: c.prenom,
+            nom: c.nom,
+            ref: c.ref,
+            filiere: c.filiere || c.niveauFormation,
+            statut: bulkAction,
+          }).catch(() => {});
+        }
       }
       toast.success(`${selectedIds.size} dossier(s) : ${STATUTS[bulkAction]?.label}`);
       setSelectedIds(new Set());

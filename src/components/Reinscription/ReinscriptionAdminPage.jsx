@@ -3,6 +3,7 @@ import { collection, getDocs, updateDoc, doc, query, orderBy, getDoc, setDoc } f
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { sendReinscriptionValidee, sendReinscriptionRefusee } from '../../services/emailService';
 
 const STATUTS = {
   en_attente:  { label: 'En attente',   cls: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-500' },
@@ -221,6 +222,16 @@ export default function ReinscriptionAdminPage() {
       toast.success(`Réinscription de ${rec.prenom} ${rec.nom} validée`);
       setSelected(null);
       load();
+      if (rec.email) {
+        sendReinscriptionValidee(db, {
+          email: rec.email,
+          prenom: rec.prenom,
+          nom: rec.nom,
+          annee: rec.anneeAcademique,
+          niveau: rec.niveauReinscription,
+          filiere: rec.filiere,
+        }).catch(() => toast.warning('Email de confirmation non envoyé.'));
+      }
     } catch (err) {
       toast.error('Erreur : ' + err.message);
     }
@@ -242,6 +253,15 @@ export default function ReinscriptionAdminPage() {
       toast.success(`Demande de ${rec.prenom} ${rec.nom} refusée`);
       setSelected(null);
       load();
+      if (rec.email) {
+        sendReinscriptionRefusee(db, {
+          email: rec.email,
+          prenom: rec.prenom,
+          nom: rec.nom,
+          annee: rec.anneeAcademique,
+          niveau: rec.niveauReinscription,
+        }).catch(() => toast.warning('Email de notification non envoyé.'));
+      }
     } catch (err) {
       toast.error('Erreur : ' + err.message);
     }
