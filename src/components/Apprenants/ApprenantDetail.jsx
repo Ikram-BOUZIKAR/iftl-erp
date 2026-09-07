@@ -6,6 +6,7 @@ import { computeStudentAbsencesByModule } from '../../services/absenceService';
 import { db, auth } from '../../services/firebase';
 import { collection, query, where, getDocs, orderBy, setDoc, doc, getDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { generateFicheApprenant } from '../../services/pdfService';
 
 const STATUT_LABELS = {
   present: 'Présent',
@@ -379,6 +380,7 @@ export default function ApprenantDetail() {
   const [copied, setCopied] = useState(false);
   const [compteStatus, setCompteStatus] = useState(null); // null | 'loading' | 'done' | 'exists' | 'error'
   const [compteError, setCompteError] = useState('');
+  const [userProfile, setUserProfile] = useState(null);
 
   // Evaluations — eager
   const [notesData, setNotesData] = useState([]);
@@ -403,11 +405,17 @@ export default function ApprenantDetail() {
   const { data: sessions } = useSessions();
   const { data: groupes } = useGroupes();
 
-  // Load student
+  // Load student + linked userProfile (for photo and email)
   useEffect(() => {
-    studentsService.getById(id).then(s => {
+    studentsService.getById(id).then(async s => {
       setStudent(s);
       setLoading(false);
+      if (s?.code) {
+        try {
+          const snap = await getDocs(query(collection(db, 'users'), where('studentCode', '==', s.code)));
+          if (!snap.empty) setUserProfile({ id: snap.docs[0].id, ...snap.docs[0].data() });
+        } catch { /* ignore */ }
+      }
     });
   }, [id]);
 
@@ -650,7 +658,7 @@ export default function ApprenantDetail() {
                 )}
               </div>
 
-              {/* Right: status + meta */}
+              {/* Right: status + meta + fiche */}
               <div className="text-right space-y-1 shrink-0">
                 <div>
                   <span
@@ -671,6 +679,23 @@ export default function ApprenantDetail() {
                 {student.anneeAcademique && (
                   <div className="text-xs text-slate-400">{student.anneeAcademique}</div>
                 )}
+                <div className="pt-1">
+                  <button
+                    onClick={() => generateFicheApprenant(
+                      { ...student, photo: userProfile?.photo || student.photoURL },
+                      userProfile || {},
+                      groupe || null,
+                    )}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:shadow-sm"
+                    style={{ background: '#fff7ed', borderColor: '#fed7aa', color: '#ea580c' }}
+                    title="Télécharger la fiche apprenant PDF"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Fiche PDF
+                  </button>
+                </div>
               </div>
             </div>
           </div>

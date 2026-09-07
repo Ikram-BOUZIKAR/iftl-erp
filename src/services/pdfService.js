@@ -1789,10 +1789,25 @@ export function generateDocumentAdministratif(doc_) {
  * @param {object} userProfile - Firestore `users` document fields
  * @param {object} groupe    - { nom } — group name
  */
-export function generateFicheApprenant(student, userProfile, groupe) {
+export async function generateFicheApprenant(student, userProfile, groupe) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
+
+  // Pre-fetch profile photo if URL available
+  const photoURL = student?.photo || userProfile?.photo || student?.photoURL || null;
+  let photoDataUrl = null;
+  if (photoURL) {
+    try {
+      const resp = await fetch(photoURL);
+      const blob = await resp.blob();
+      photoDataUrl = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch { photoDataUrl = null; }
+  }
 
   // ── Header ──────────────────────────────────────────────────────────────────
   let y = drawIftlHeader(doc, 'FICHE APPRENANT', `Année académique ${student?.anneeAcademique || new Date().getFullYear() + '–' + (new Date().getFullYear() + 1)}`);
@@ -1817,11 +1832,15 @@ export function generateFicheApprenant(student, userProfile, groupe) {
   doc.setDrawColor(...BRAND.blue);
   doc.setLineWidth(0.4);
   doc.rect(photoX, photoY, 35, 42, 'FD');
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7);
-  doc.setTextColor(...BRAND.grey);
-  doc.text('Photo', photoX + 17.5, photoY + 20, { align: 'center' });
-  doc.text("d'identité", photoX + 17.5, photoY + 26, { align: 'center' });
+  if (photoDataUrl) {
+    doc.addImage(photoDataUrl, photoX + 0.5, photoY + 0.5, 34, 41);
+  } else {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(...BRAND.grey);
+    doc.text('Photo', photoX + 17.5, photoY + 20, { align: 'center' });
+    doc.text("d'identité", photoX + 17.5, photoY + 26, { align: 'center' });
+  }
 
   // Name block (left side)
   doc.setFont('helvetica', 'bold');

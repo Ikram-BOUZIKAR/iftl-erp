@@ -488,10 +488,10 @@ function AttestationsSection({ student, userProfile, groupe }) {
     }
   };
 
-  const handleFiche = () => {
+  const handleFiche = async () => {
     setDownloading('fiche');
     try {
-      generateFicheApprenant(student, userProfile, groupe);
+      await generateFicheApprenant(student, userProfile, groupe);
     } catch (e) {
       console.error('Fiche apprenant error:', e);
     } finally {
