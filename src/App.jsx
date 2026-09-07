@@ -46,6 +46,8 @@ import PassageNiveauPage    from './components/Admin/PassageNiveauPage';
 import DeduplicationPage    from './components/Admin/DeduplicationPage';
 import EDTImportPage        from './components/Admin/EDTImportPage';
 import RelevesPage          from './components/Releves/RelevesPage';
+import ReinscriptionPortail  from './components/Reinscription/ReinscriptionPortail';
+import ReinscriptionAdminPage from './components/Reinscription/ReinscriptionAdminPage';
 import './App.css';
 
 function App() {
@@ -74,6 +76,7 @@ function App() {
             {/* Public routes */}
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/candidature" element={<CandidaturePage />} />
+            <Route path="/reinscription" element={<ReinscriptionPortail />} />
             <Route path="/resultats" element={<PortailResultats />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/portail-apprenant" element={
@@ -129,6 +132,7 @@ function App() {
                         {/* Administratif */}
                         <Route path="/candidatures"  element={<CandidaturesAdminPage />} />
                         <Route path="/inscriptions"  element={<InscriptionsPage />} />
+                        <Route path="/reinscriptions" element={<ReinscriptionAdminPage />} />
                         <Route path="/facturation"   element={<FacturationPage />} />
                         <Route path="/stages"        element={<StagesPage />} />
                         <Route path="/documents"     element={<DocumentsPage />} />
