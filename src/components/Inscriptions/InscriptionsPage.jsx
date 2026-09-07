@@ -27,7 +27,7 @@ export default function InscriptionsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { data: students } = useStudents();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
 
   const [inscriptions, setInscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +201,7 @@ export default function InscriptionsPage() {
                 <select value={form.groupeId} onChange={e => set('groupeId', e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]">
                   <option value="">— Choisir un groupe —</option>
-                  {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+                  {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">

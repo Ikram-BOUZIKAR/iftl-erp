@@ -330,7 +330,7 @@ function AlertBanner({ alerts }) {
 export default function MasseHorairePage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const { data: intervenants } = useIntervenants();
 
   const [affectations, setAffectations] = useState([]);
@@ -475,7 +475,7 @@ export default function MasseHorairePage() {
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
           className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]">
           <option value="">Tous les groupes</option>
-          {[...groupes].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(g => (
+          {[...uniqueGroupes].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(g => (
             <option key={g.id} value={g.id}>{g.nom}</option>
           ))}
         </select>
@@ -591,7 +591,7 @@ export default function MasseHorairePage() {
       {showBulk && (
         <BulkAffectationModal
           modules={modules}
-          groupes={groupes}
+          groupes={uniqueGroupes}
           intervenants={intervenants}
           onSave={handleBulkSave}
           onClose={() => setShowBulk(false)}

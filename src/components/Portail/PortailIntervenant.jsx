@@ -1101,7 +1101,10 @@ export default function PortailIntervenant({ auth }) {
 
       const grpList = [];
       groupeSnap.forEach(d => grpList.push({ id: d.id, ...d.data() }));
-      setGroupes(grpList.filter(g => g.actif !== false).sort((a, b) => (a.nom || '').localeCompare(b.nom || '')));
+      const grpActive = grpList.filter(g => g.actif !== false).sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+      const grpSeen = new Map();
+      grpActive.forEach(g => { const k = (g.nom||'').replace(/[–—]/g,'-').trim().toLowerCase(); if (!grpSeen.has(k)) grpSeen.set(k, g); });
+      setGroupes(Array.from(grpSeen.values()));
     } catch (err) {
       toast.error('Erreur chargement : ' + err.message);
     } finally {

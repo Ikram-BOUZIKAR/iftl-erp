@@ -911,7 +911,10 @@ export default function EmailsPage() {
           getDocs(query(collection(db, 'intervenants'), orderBy('nom', 'asc'))),
         ]);
         setStudents(studSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-        setGroupes(grpSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const grpRaw = grpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const grpSeen = new Map();
+        grpRaw.forEach(g => { const k = (g.nom||'').replace(/[–—]/g,'-').trim().toLowerCase(); if (!grpSeen.has(k)) grpSeen.set(k, g); });
+        setGroupes(Array.from(grpSeen.values()));
         setIntervenants(intSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (err) {
         toast.error(`Erreur chargement données : ${err.message}`);

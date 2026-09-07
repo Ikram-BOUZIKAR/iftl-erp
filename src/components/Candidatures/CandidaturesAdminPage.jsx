@@ -51,7 +51,7 @@ function Row({ label, val, bold }) {
 export default function CandidaturesAdminPage() {
   const toast = useToast();
   const { data: candidatures, loading, refetch } = useCandidatures();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
 
   // Filters
   const [search, setSearch]             = useState('');
@@ -653,7 +653,7 @@ export default function CandidaturesAdminPage() {
             <select value={convertForm.groupeId} onChange={e => setConvertForm(f => ({ ...f, groupeId: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] mb-4">
               <option value="">— Sans groupe pour l'instant —</option>
-              {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+              {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
             </select>
             <div className="flex gap-3">
               <button onClick={() => setConverting(null)}

@@ -36,7 +36,7 @@ export default function EmargementPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { data: sessions, loading, refetch } = useSessions();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const { data: intervenants } = useIntervenants();
   const [modules, setModules] = useState([]);
   const [filterStatut, setFilterStatut] = useState('');
@@ -205,7 +205,7 @@ export default function EmargementPage() {
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
           <option value="">Tous les groupes</option>
-          {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+          {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
       </div>
 

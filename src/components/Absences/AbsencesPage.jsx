@@ -154,7 +154,7 @@ export default function AbsencesPage() {
 
   const { data: students } = useStudents();
   const { data: sessions } = useSessions();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
 
   const [presences, setPresences] = useState([]);
   const [loadingPresences, setLoadingPresences] = useState(true);
@@ -460,7 +460,7 @@ export default function AbsencesPage() {
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
         >
           <option value="">Tous les groupes</option>
-          {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+          {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select
           value={filterMois}

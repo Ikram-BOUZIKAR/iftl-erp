@@ -202,7 +202,7 @@ function ModalNouveauDocument({ groupes, totalDocuments, onClose, onSaved }) {
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
             >
               <option value="">— Sélectionner un groupe —</option>
-              {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+              {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
             </select>
           </div>
 
@@ -238,7 +238,7 @@ function ModalNouveauDocument({ groupes, totalDocuments, onClose, onSaved }) {
 export default function DocumentsPage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);

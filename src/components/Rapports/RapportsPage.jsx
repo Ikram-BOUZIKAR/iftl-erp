@@ -19,7 +19,7 @@ export default function RapportsPage() {
   const toast = useToast();
   const { data: students } = useStudents();
   const { data: sessions } = useSessions();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const academicYear = useAppStore(s => s.academicYear);
   const [presences, setPresences] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +132,7 @@ export default function RapportsPage() {
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
           <option value="">Tous les groupes</option>
-          {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+          {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select value={filterAlert} onChange={e => setFilterAlert(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   studentsService,
   groupesService,
@@ -33,7 +33,42 @@ function makeHook(fetchFn) {
 }
 
 export const useStudents = makeHook((filters) => studentsService.getAll(filters));
-export const useGroupes = makeHook((filters) => groupesService.getAll(filters));
+
+// useGroupes returns both:
+//   data   — full list including all Firestore IDs (needed for alias resolution)
+//   unique — deduplicated by normalized name (hyphen/en-dash) for dropdowns
+export function useGroupes(filters) {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await groupesService.getAll(filters);
+      setData(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [JSON.stringify(filters)]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const unique = useMemo(() => {
+    const seen = new Map();
+    data.forEach(g => {
+      const key = (g.nom || '').replace(/[–—]/g, '-').trim().toLowerCase();
+      if (!seen.has(key)) seen.set(key, g);
+    });
+    return Array.from(seen.values());
+  }, [data]);
+
+  return { data, unique, loading, error, refetch: fetch };
+}
+
 export const useIntervenants = makeHook(() => intervenantsService.getAll());
 export const useCandidatures = makeHook((filters) => candidaturesService.getAll(filters));
 

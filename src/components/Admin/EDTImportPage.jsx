@@ -216,7 +216,9 @@ export default function EDTImportPage() {
       ]);
       const gs = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const is = iSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setGroupes(gs);
+      const gsSeen = new Map();
+      gs.forEach(g => { const k = (g.nom||'').replace(/[–—]/g,'-').trim().toLowerCase(); if (!gsSeen.has(k)) gsSeen.set(k, g); });
+      setGroupes(Array.from(gsSeen.values()));
       setIntervenants(is);
     };
     loadData().catch(console.error);

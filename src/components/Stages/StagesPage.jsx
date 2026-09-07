@@ -230,7 +230,7 @@ function StageFormModal({ stage, groupes, intervenants, onClose, onSaved }) {
               <select value={form.groupeId} onChange={e => set('groupeId', e.target.value)}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
                 <option value="">— Sélectionner —</option>
-                {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+                {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
               </select>
             </div>
           </fieldset>
@@ -437,7 +437,7 @@ function ModalTerminer({ stage, onClose, onSaved }) {
 export default function StagesPage() {
   const toast = useToast();
   const confirm = useConfirm();
-  const { data: groupes } = useGroupes();
+  const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const { data: intervenants } = useIntervenants();
   const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(true);

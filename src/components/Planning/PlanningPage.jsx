@@ -483,7 +483,7 @@ export default function PlanningPage() {
       {showForm && (
         <SessionForm
           initial={editing || defaultSlot}
-          groupes={groupes}
+          groupes={uniqueGroupes}
           intervenants={intervenants}
           modules={modules}
           defaultDate={defaultSlot?.date ? new Date(defaultSlot.date) : weekStart}
