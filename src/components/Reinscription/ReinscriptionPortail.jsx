@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 
@@ -54,16 +54,15 @@ const readonlyCls = 'w-full text-sm border border-slate-100 rounded-xl px-3.5 py
 export default function ReinscriptionPortail() {
   const [step, setStep] = useState(1);
   const [cin, setCin] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [student, setStudent] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
 
-  // Step 2 — editable contact info
+  // Step 2 — contact info (rempli par l'apprenant lui-même)
   const [form, setForm] = useState({
-    telephone: '', email: '', adresse: '', ville: '',
+    nom: '', prenom: '', telephone: '', email: '',
+    adresse: '', ville: '',
     contactUrgenceNom: '', contactUrgenceTel: '', contactUrgenceLien: '',
   });
 
@@ -73,36 +72,14 @@ export default function ReinscriptionPortail() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // ── Step 1: find student by CIN ─────────────────────────────────────────────
-  const handleSearch = async (e) => {
+  // ── Step 1: validate CIN format and advance ─────────────────────────────────
+  const handleSearch = (e) => {
     e.preventDefault();
-    if (!cin.trim()) return;
+    const cinNorm = cin.trim().toUpperCase();
+    if (!cinNorm) { setError('Veuillez saisir votre numéro CIN.'); return; }
+    if (cinNorm.length < 4) { setError('CIN invalide — vérifiez la saisie.'); return; }
     setError('');
-    setSearching(true);
-    try {
-      const q = query(collection(db, 'students'), where('cin', '==', cin.trim().toUpperCase()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        setError('Aucun apprenant trouvé avec ce numéro CIN. Vérifiez la saisie ou contactez la scolarité.');
-        return;
-      }
-      const s = { id: snap.docs[0].id, ...snap.docs[0].data() };
-      setStudent(s);
-      setForm({
-        telephone: s.telephone || '',
-        email: s.email || '',
-        adresse: s.adresse || '',
-        ville: s.ville || '',
-        contactUrgenceNom: s.contactUrgenceNom || s.tuteurNom || '',
-        contactUrgenceTel: s.contactUrgenceTel || s.tuteurTel || '',
-        contactUrgenceLien: s.contactUrgenceLien || '',
-      });
-      setStep(2);
-    } catch (err) {
-      setError('Erreur de connexion : ' + err.message);
-    } finally {
-      setSearching(false);
-    }
+    setStep(2);
   };
 
   // ── Step 3: file selection ──────────────────────────────────────────────────
@@ -129,19 +106,17 @@ export default function ReinscriptionPortail() {
     setSubmitting(true);
     try {
       // Upload justificatif to Firebase Storage
+      const cinNorm = cin.trim().toUpperCase();
       const ext = file.name.split('.').pop();
-      const storageRef = ref(storage, `reinscriptions/${student.id}/${Date.now()}.${ext}`);
+      const storageRef = ref(storage, `reinscriptions/${cinNorm}/${Date.now()}.${ext}`);
       await uploadBytes(storageRef, file);
       const justificatifUrl = await getDownloadURL(storageRef);
 
       // Save to Firestore
       await addDoc(collection(db, 'reinscriptions'), {
-        studentId: student.id,
-        cin: student.cin,
-        nom: student.nom,
-        prenom: student.prenom,
-        groupeId: student.groupeId || '',
-        filiere: student.filiere || '',
+        cin: cinNorm,
+        nom: form.nom.trim().toUpperCase(),
+        prenom: form.prenom.trim(),
         anneeAcademique: ANNEE_REINSCRIPTION,
         montantPaye: MONTANT,
         telephone: form.telephone,
@@ -226,10 +201,10 @@ export default function ReinscriptionPortail() {
               )}
               <button
                 type="submit"
-                disabled={searching || !cin.trim()}
+                disabled={!cin.trim()}
                 className="w-full py-3 bg-[#005989] hover:bg-[#004a73] text-white font-semibold rounded-xl transition-colors disabled:opacity-50 text-sm"
               >
-                {searching ? 'Recherche en cours…' : 'Accéder à mon dossier →'}
+                Continuer →
               </button>
               <p className="text-center text-xs text-slate-400">
                 En difficulté ? Contactez la scolarité à <a href="mailto:scolarite@iftl.ma" className="text-[#005989] underline">scolarite@iftl.ma</a>
@@ -237,33 +212,36 @@ export default function ReinscriptionPortail() {
             </form>
           )}
 
-          {/* ── Step 2: Confirm info ─────────────────────────────────────────── */}
-          {step === 2 && student && (
+          {/* ── Step 2: Fill info ───────────────────────────────────────────── */}
+          {step === 2 && (
             <form onSubmit={e => { e.preventDefault(); setStep(3); }} className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-slate-800 mb-1">Vos informations</h2>
-                <p className="text-slate-500 text-sm">Vérifiez et mettez à jour vos coordonnées si nécessaire.</p>
+                <p className="text-slate-500 text-sm">Renseignez vos coordonnées pour l'année <strong>{ANNEE_REINSCRIPTION}</strong>.</p>
               </div>
 
-              {/* Read-only identity block */}
-              <div className="bg-[#005989]/5 border border-[#005989]/20 rounded-2xl p-4 grid grid-cols-2 gap-3">
+              {/* CIN recap */}
+              <div className="bg-[#005989]/5 border border-[#005989]/20 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <svg className="w-4 h-4 text-[#005989] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
                 <div>
-                  <p className="text-xs font-semibold text-[#005989] mb-0.5">Apprenant</p>
-                  <p className="font-bold text-slate-800">{student.prenom} {student.nom?.toUpperCase()}</p>
+                  <p className="text-xs text-[#005989] font-semibold">CIN</p>
+                  <p className="font-mono font-bold text-slate-800 tracking-wider">{cin.trim().toUpperCase()}</p>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-[#005989] mb-0.5">CIN</p>
-                  <p className="font-mono text-slate-700">{student.cin}</p>
-                </div>
-                {student.filiere && (
-                  <div className="col-span-2">
-                    <p className="text-xs font-semibold text-[#005989] mb-0.5">Filière</p>
-                    <p className="text-slate-700 text-sm">{student.filiere}</p>
-                  </div>
-                )}
+                <button type="button" onClick={() => setStep(1)}
+                  className="ml-auto text-xs text-slate-400 hover:text-[#005989] transition underline">
+                  Modifier
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Prénom" required>
+                  <input value={form.prenom} onChange={e => set('prenom', e.target.value)}
+                    placeholder="Votre prénom" required className={inputCls} />
+                </Field>
+                <Field label="Nom" required>
+                  <input value={form.nom} onChange={e => set('nom', e.target.value)}
+                    placeholder="Votre nom" required className={inputCls} />
+                </Field>
                 <Field label="Téléphone" required>
                   <input value={form.telephone} onChange={e => set('telephone', e.target.value)}
                     placeholder="06 00 00 00 00" required className={inputCls} />
@@ -335,7 +313,7 @@ export default function ReinscriptionPortail() {
                 <div className="text-xs text-amber-700 space-y-1">
                   <p><span className="font-semibold">Bénéficiaire :</span> IFTL — Institut de Formation aux Métiers du Transport et de la Logistique</p>
                   <p><span className="font-semibold">Mode de paiement :</span> Virement bancaire, chèque ou espèces à la caisse IFTL</p>
-                  <p><span className="font-semibold">Référence :</span> {student?.cin} — {student?.prenom} {student?.nom}</p>
+                  <p><span className="font-semibold">Référence :</span> {cin.trim().toUpperCase()} — {form.prenom} {form.nom.toUpperCase()}</p>
                 </div>
               </div>
 
@@ -391,7 +369,7 @@ export default function ReinscriptionPortail() {
                 <p className="font-semibold text-slate-700 mb-3">Récapitulatif</p>
                 <div className="flex justify-between text-slate-600">
                   <span>Apprenant</span>
-                  <span className="font-medium">{student?.prenom} {student?.nom?.toUpperCase()}</span>
+                  <span className="font-medium">{form.prenom} {form.nom.toUpperCase()}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Année de réinscription</span>

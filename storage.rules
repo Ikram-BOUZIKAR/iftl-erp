@@ -47,6 +47,22 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // ── Candidatures (portail public — dépôt de pièces) ──────────────────
+    match /candidatures/{ref}/{fileName} {
+      allow read:   if true;
+      allow create: if request.resource.size < 10 * 1024 * 1024
+                       && request.resource.contentType.matches('image/.*|application/pdf');
+      allow delete: if isAdmin();
+    }
+
+    // ── Réinscriptions (portail public — justificatif paiement) ──────────
+    match /reinscriptions/{cin}/{fileName} {
+      allow read:   if isAuth();
+      allow create: if request.resource.size < 5 * 1024 * 1024
+                       && request.resource.contentType.matches('image/.*|application/pdf');
+      allow delete: if isAdmin();
+    }
+
     // ── Par défaut : refuser tout accès non couvert ────────────────────────
     match /{allPaths=**} {
       allow read:  if isAuth();

@@ -78,7 +78,7 @@ export default function CandidaturesAdminPage() {
   const [bulkAction, setBulkAction]     = useState('');
 
   // ── Derived lists for filter dropdowns
-  const filieres   = [...new Set(candidatures.map(c => c.filiere).filter(Boolean))].sort();
+  const filieres   = [...new Set(candidatures.map(c => c.filiere || c.niveauFormation).filter(Boolean))].sort();
   const villes     = [...new Set(candidatures.map(c => c.ville).filter(Boolean))].sort();
   const annees     = [...new Set(candidatures.map(c => c.anneeEntree).filter(Boolean))].sort();
 
@@ -92,7 +92,7 @@ export default function CandidaturesAdminPage() {
       || c.telephone?.includes(q)
       || c.ref?.toLowerCase().includes(q);
     const matchS   = !filterStatut  || c.statut === filterStatut;
-    const matchF   = !filterFiliere || c.filiere === filterFiliere;
+    const matchF   = !filterFiliere || (c.filiere || c.niveauFormation) === filterFiliere;
     const matchV   = !filterVille   || c.ville === filterVille;
     const matchA   = !filterAnnee   || c.anneeEntree === filterAnnee;
     const cDate    = fmtDateISO(c.createdAt);
@@ -377,7 +377,7 @@ export default function CandidaturesAdminPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell max-w-[200px] cursor-pointer" onClick={() => handleOpenDetail(c)}>
-                          <span className="text-xs text-slate-600 leading-tight line-clamp-2">{c.filiere || '—'}</span>
+                          <span className="text-xs text-slate-600 leading-tight line-clamp-2">{c.filiere || c.niveauFormation || '—'}</span>
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-400 hidden md:table-cell cursor-pointer" onClick={() => handleOpenDetail(c)}>
                           {fmtDate(c.createdAt)}

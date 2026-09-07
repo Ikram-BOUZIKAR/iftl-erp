@@ -77,10 +77,18 @@ service cloud.firestore {
 
     // ── Candidatures ───────────────────────────────────────────────────────────
     match /candidatures/{docId} {
-      allow read: if hasRole(['admin', 'scolarite', 'direction']);
+      // Lecture publique : candidats accèdent à leur suivi via CIN (portail public)
+      allow read: if true;
       allow create: if true;  // formulaire public
       allow update: if hasRole(['admin', 'scolarite']);
       allow delete: if hasRole(['admin']);
+    }
+
+    // ── Réinscriptions ─────────────────────────────────────────────────────────
+    match /reinscriptions/{docId} {
+      allow create: if true;  // portail public
+      allow read, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
     }
 
     // ── Paramètres ─────────────────────────────────────────────────────────────
