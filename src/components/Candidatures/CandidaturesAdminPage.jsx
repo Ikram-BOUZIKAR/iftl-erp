@@ -449,27 +449,57 @@ export default function CandidaturesAdminPage() {
             </div>
 
             <div className="p-4 space-y-3 text-xs overflow-y-auto max-h-[70vh]">
-              {/* Identity */}
-              <Row label="Email"         val={selected.email} />
-              <Row label="Tél."          val={selected.telephone} />
-              <Row label="CIN"           val={selected.cin} />
-              <Row label="Date naissance"val={selected.dateNaissance} />
-              <Row label="Ville"         val={selected.ville} />
-              <Row label="Niveau bac"    val={selected.niveauScolaire || selected.niveau} />
-              <Row label="Spécialité bac"val={selected.specBac} />
-              <Row label="Moy. bac"      val={selected.moyenneBac ? `${selected.moyenneBac}/20` : null} />
+              {/* Identité */}
+              <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px]">Identité</p>
+              <Row label="Email"          val={selected.email} />
+              <Row label="Tél."           val={selected.telephone} />
+              <Row label="CIN"            val={selected.cin} />
+              <Row label="Date naissance" val={selected.dateNaissance} />
+              <Row label="Sexe"           val={selected.sexe} />
+              <Row label="Nationalité"    val={selected.nationalite} />
+              <Row label="Adresse"        val={selected.adresse} />
+              <Row label="Ville"          val={selected.ville} />
+              <Row label="Situation pro." val={selected.situationPro} />
+
+              {/* Baccalauréat */}
+              <div className="border-t border-slate-100 pt-2 mt-2">
+                <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-1">Baccalauréat</p>
+                <Row label="Niveau scolaire" val={selected.niveauScolaire || selected.niveau} />
+                <Row label="Spécialité"      val={selected.specBac} />
+                <Row label="Mention"         val={selected.mentionBac} />
+                <Row label="Moyenne"         val={selected.moyenneBac ? `${selected.moyenneBac}/20` : null} />
+                <Row label="Année bac"       val={selected.anneeBac} />
+                <Row label="Type lycée"      val={selected.typeLycee} />
+                <Row label="Établissement"   val={selected.etablissement} />
+                <Row label="Massar"          val={selected.massar} />
+              </div>
 
               {/* Formation */}
               <div className="border-t border-slate-100 pt-2 mt-2">
+                <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-1">Formation souhaitée</p>
                 <Row label="Programme"   val={selected.programType}   bold />
+                <Row label="Catégorie"   val={selected.categorie} />
                 <Row label="Filière"     val={selected.filiere}       bold />
                 <Row label="Année"       val={selected.anneeEntree} />
+                {selected.dateCourte1 && <Row label="Date courte 1" val={selected.dateCourte1} />}
+                {selected.dateCourte2 && <Row label="Date courte 2" val={selected.dateCourte2} />}
               </div>
 
-              {/* Files */}
+              {/* Compléments */}
+              {(selected.hebergement || selected.transport || selected.besoinsSpecifiques || selected.sourceInfo) && (
+                <div className="border-t border-slate-100 pt-2 mt-2">
+                  <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-1">Compléments</p>
+                  <Row label="Hébergement"        val={selected.hebergement} />
+                  <Row label="Transport"          val={selected.transport} />
+                  <Row label="Besoins spécifiques"val={selected.besoinsSpecifiques} />
+                  <Row label="Source d'info"      val={selected.sourceInfo} />
+                </div>
+              )}
+
+              {/* Fichiers */}
               {selected.fichierUrls && Object.keys(selected.fichierUrls).length > 0 && (
                 <div className="border-t border-slate-100 pt-2 mt-2">
-                  <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-2">Documents</p>
+                  <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-2">Documents ({Object.keys(selected.fichierUrls).length})</p>
                   <div className="space-y-1">
                     {Object.entries(selected.fichierUrls).map(([key, url]) => (
                       <a key={key} href={url} target="_blank" rel="noreferrer"
@@ -498,6 +528,14 @@ export default function CandidaturesAdminPage() {
                   <Row label="Nom"  val={selected.urgenceNom} />
                   <Row label="Tél." val={selected.urgenceTel} />
                   <Row label="Lien" val={selected.urgenceLien} />
+                </div>
+              )}
+
+              {/* Motif de refus */}
+              {selected.motifRefus && (
+                <div className="border-t border-slate-100 pt-2 mt-2">
+                  <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-1">Motif de refus</p>
+                  <p className="text-red-500 leading-relaxed">{selected.motifRefus}</p>
                 </div>
               )}
 
