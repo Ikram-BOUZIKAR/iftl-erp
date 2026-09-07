@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, updateDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
@@ -123,10 +123,54 @@ function DetailDrawer({ rec, onClose, onValidate, onRefuse }) {
   );
 }
 
+const DEFAULT_CONFIG = {
+  anneeReinscription: '2026-2027',
+  montant: 8500,
+  actif: true,
+  beneficiaire: 'Société de Gestion des Établissements de Formation Logistique (SGEFL)',
+};
+
 export default function ReinscriptionAdminPage() {
   const toast = useToast();
   const confirm = useConfirm();
 
+  // ── Config campagne ─────────────────────────────────────────────────────────
+  const [config, setConfig]         = useState(DEFAULT_CONFIG);
+  const [configDraft, setConfigDraft] = useState(DEFAULT_CONFIG);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configDirty, setConfigDirty] = useState(false);
+
+  const loadConfig = useCallback(async () => {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'reinscription_config'));
+      if (snap.exists()) {
+        const data = { ...DEFAULT_CONFIG, ...snap.data() };
+        setConfig(data);
+        setConfigDraft(data);
+      }
+    } catch {/* not yet created — use defaults */}
+  }, []);
+
+  const saveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      await setDoc(doc(db, 'settings', 'reinscription_config'), {
+        ...configDraft,
+        updatedAt: new Date(),
+      });
+      setConfig(configDraft);
+      setConfigDirty(false);
+      toast.success('Configuration de la campagne enregistrée.');
+    } catch (err) { toast.error('Erreur : ' + err.message); }
+    finally { setSavingConfig(false); }
+  };
+
+  const setDraft = (k, v) => {
+    setConfigDraft(d => ({ ...d, [k]: v }));
+    setConfigDirty(true);
+  };
+
+  // ── Records ─────────────────────────────────────────────────────────────────
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -149,7 +193,7 @@ export default function ReinscriptionAdminPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadConfig(); load(); }, [loadConfig, load]);
 
   const handleValidate = async (rec) => {
     const ok = await confirm({
@@ -232,19 +276,73 @@ export default function ReinscriptionAdminPage() {
         </div>
       </div>
 
-      {/* Portal link info */}
-      <div className="bg-[#005989]/5 border border-[#005989]/20 rounded-2xl px-4 py-3 flex items-center gap-3">
-        <svg className="w-5 h-5 text-[#005989] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-        </svg>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-[#005989]">Lien à envoyer aux apprenants</p>
-          <p className="text-xs text-slate-500 font-mono truncate">{portalUrl}</p>
+      {/* ── Config campagne ───────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#005989]/10 flex items-center justify-center">
+              <svg className="w-4 h-4 text-[#005989]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 115 19"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+            </div>
+            <h2 className="font-bold text-slate-800 text-sm">Configuration de la campagne</h2>
+          </div>
+          {configDirty && (
+            <button onClick={saveConfig} disabled={savingConfig}
+              className="text-xs px-4 py-2 bg-[#005989] text-white font-bold rounded-xl hover:bg-[#004a73] transition disabled:opacity-60">
+              {savingConfig ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          )}
         </div>
-        <a href="/reinscription" target="_blank" rel="noopener noreferrer"
-          className="text-xs text-[#005989] font-medium hover:underline shrink-0">
-          Voir →
-        </a>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Année */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Année de réinscription</label>
+            <input value={configDraft.anneeReinscription}
+              onChange={e => setDraft('anneeReinscription', e.target.value)}
+              placeholder="2026-2027"
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]" />
+          </div>
+          {/* Montant */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Montant (DH)</label>
+            <input type="number" value={configDraft.montant}
+              onChange={e => setDraft('montant', Number(e.target.value))}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]" />
+          </div>
+          {/* Bénéficiaire */}
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Bénéficiaire</label>
+            <input value={configDraft.beneficiaire}
+              onChange={e => setDraft('beneficiaire', e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]" />
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between flex-wrap gap-3">
+          {/* Actif/Inactif toggle */}
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <div
+              onClick={() => setDraft('actif', !configDraft.actif)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${configDraft.actif ? 'bg-[#005989]' : 'bg-slate-200'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${configDraft.actif ? 'translate-x-5' : ''}`} />
+            </div>
+            <span className="text-sm font-medium text-slate-700">
+              {configDraft.actif
+                ? <span className="text-[#005989]">Campagne active — portail ouvert</span>
+                : <span className="text-slate-400">Campagne fermée — portail inaccessible</span>}
+            </span>
+          </label>
+
+          {/* Lien portail */}
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.1-1.1m-.758-4.9a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            <span className="text-xs text-slate-500 font-mono">{portalUrl}</span>
+            <button onClick={() => { navigator.clipboard.writeText(portalUrl); toast.success('Lien copié !'); }}
+              className="text-xs text-[#005989] font-semibold hover:underline ml-1">Copier</button>
+            <a href="/reinscription" target="_blank" rel="noopener noreferrer"
+              className="text-xs text-[#005989] font-semibold hover:underline">Voir →</a>
+          </div>
+        </div>
       </div>
 
       {/* KPIs */}

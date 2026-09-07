@@ -1,10 +1,14 @@
-import { useState, useRef } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { useState, useRef, useEffect } from 'react';
+import { collection, addDoc, getDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 
-const MONTANT = 8500;
-const ANNEE_REINSCRIPTION = '2027-2028';
+const DEFAULT_CONFIG = {
+  anneeReinscription: '2026-2027',
+  montant: 8500,
+  actif: true,
+  beneficiaire: 'Société de Gestion des Établissements de Formation Logistique (SGEFL)',
+};
 
 const LIENS_URGENCE = ['Parent', 'Tuteur', 'Conjoint(e)', 'Frère / Sœur', 'Ami(e)', 'Autre'];
 
@@ -52,10 +56,20 @@ const inputCls = 'w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.
 const readonlyCls = 'w-full text-sm border border-slate-100 rounded-xl px-3.5 py-2.5 bg-slate-50 text-slate-600 cursor-default';
 
 export default function ReinscriptionPortail() {
-  const [step, setStep] = useState(1);
-  const [cin, setCin] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [config, setConfig]     = useState(DEFAULT_CONFIG);
+  const [configLoading, setConfigLoading] = useState(true);
+
+  useEffect(() => {
+    getDoc(doc(db, 'settings', 'reinscription_config'))
+      .then(snap => { if (snap.exists()) setConfig({ ...DEFAULT_CONFIG, ...snap.data() }); })
+      .catch(() => {/* use defaults */})
+      .finally(() => setConfigLoading(false));
+  }, []);
+
+  const [step, setStep]         = useState(1);
+  const [cin, setCin]           = useState('');
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
 
@@ -117,8 +131,8 @@ export default function ReinscriptionPortail() {
         cin: cinNorm,
         nom: form.nom.trim().toUpperCase(),
         prenom: form.prenom.trim(),
-        anneeAcademique: ANNEE_REINSCRIPTION,
-        montantPaye: MONTANT,
+        anneeAcademique: config.anneeReinscription,
+        montantPaye: config.montant,
         telephone: form.telephone,
         email: form.email,
         adresse: form.adresse,
@@ -140,6 +154,34 @@ export default function ReinscriptionPortail() {
     }
   };
 
+  if (configLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="w-8 h-8 border-4 border-[#005989] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!config.actif) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Campagne de réinscription fermée</h2>
+          <p className="text-slate-500 text-sm leading-relaxed">
+            Les réinscriptions pour l'année <strong>{config.anneeReinscription}</strong> ne sont pas encore ouvertes.<br/>
+            Contactez la scolarité pour plus d'informations.
+          </p>
+          <p className="text-xs text-slate-400 mt-4">
+            <a href="mailto:scolarite@iftl.ma" className="text-[#005989] font-semibold">scolarite@iftl.ma</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
@@ -151,11 +193,11 @@ export default function ReinscriptionPortail() {
           </div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">Demande envoyée !</h2>
           <p className="text-slate-500 text-sm leading-relaxed">
-            Votre demande de réinscription pour l'année <strong>{ANNEE_REINSCRIPTION}</strong> a été reçue.
+            Votre demande de réinscription pour l'année <strong>{config.anneeReinscription}</strong> a été reçue.
             La scolarité vous contactera sous 48 h pour confirmer votre inscription.
           </p>
           <p className="text-xs text-slate-400 mt-4">
-            Conservez votre reçu de paiement jusqu'à confirmation.
+            Conservez votre justificatif de paiement jusqu'à confirmation.
           </p>
         </div>
       </div>
@@ -170,7 +212,7 @@ export default function ReinscriptionPortail() {
           <img src="/Logo IFTL avec Signature.png" alt="IFTL" className="h-10 object-contain" />
           <div>
             <p className="font-bold text-sm leading-tight">Portail de réinscription</p>
-            <p className="text-xs text-white/70">Année académique {ANNEE_REINSCRIPTION}</p>
+            <p className="text-xs text-white/70">Année académique {config.anneeReinscription}</p>
           </div>
         </div>
       </header>
@@ -308,11 +350,11 @@ export default function ReinscriptionPortail() {
               <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <p className="font-bold text-amber-800">Frais de réinscription</p>
-                  <p className="text-2xl font-black text-amber-700">{MONTANT.toLocaleString('fr-MA')} DH</p>
+                  <p className="text-2xl font-black text-amber-700">{config.montant.toLocaleString('fr-MA')} DH</p>
                 </div>
                 <div className="text-xs text-amber-700 space-y-1">
-                  <p><span className="font-semibold">Bénéficiaire :</span> IFTL — Institut de Formation aux Métiers du Transport et de la Logistique</p>
-                  <p><span className="font-semibold">Mode de paiement :</span> Virement bancaire, chèque ou espèces à la caisse IFTL</p>
+                  <p><span className="font-semibold">Bénéficiaire :</span> {config.beneficiaire}</p>
+                  <p><span className="font-semibold">Mode de paiement :</span> Virement bancaire ou chèque</p>
                   <p><span className="font-semibold">Référence :</span> {cin.trim().toUpperCase()} — {form.prenom} {form.nom.toUpperCase()}</p>
                 </div>
               </div>
@@ -373,11 +415,11 @@ export default function ReinscriptionPortail() {
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Année de réinscription</span>
-                  <span className="font-medium">{ANNEE_REINSCRIPTION}</span>
+                  <span className="font-medium">{config.anneeReinscription}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Montant</span>
-                  <span className="font-bold text-[#005989]">{MONTANT.toLocaleString('fr-MA')} DH</span>
+                  <span className="font-bold text-[#005989]">{config.montant.toLocaleString('fr-MA')} DH</span>
                 </div>
               </div>
 
