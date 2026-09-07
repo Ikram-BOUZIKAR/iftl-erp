@@ -211,53 +211,76 @@ function ProgressBar({ done, total }) {
   );
 }
 
+// ── Normalize dash for groupeId matching ─────────────────────────────────────
+function normDash(s) { return (s || '').replace(/[–—]/g, '-').trim().toLowerCase(); }
+
 // ── Step 1: Sélection affectation ─────────────────────────────────────────────
 function Step1({ modules, groupes, intervenants, onNext, onClose }) {
-  const [affectations, setAffectations] = useState([]);
-  const [allSessions,  setAllSessions]  = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [selected,     setSelected]     = useState(null);   // affectation choisie
-  const [extraGroups,  setExtraGroups]  = useState([]);     // groupeIds supplémentaires
-  const [searchQ,      setSearchQ]      = useState('');
+  const [affectations,   setAffectations]   = useState([]);
+  const [allSessions,    setAllSessions]    = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(null);
+  const [yearFallback,   setYearFallback]   = useState(false); // true = showing another year's data
+  const [selected,       setSelected]       = useState(null);
+  const [extraGroups,    setExtraGroups]    = useState([]);
+  const [searchQ,        setSearchQ]        = useState('');
+  const [showCompleted,  setShowCompleted]  = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [affs, sessions] = await Promise.all([
-          affectationsService.getAll(ANNEE),
-          getDocs(collection(db, 'sessions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
-        ]);
-        setAffectations(affs);
-        setAllSessions(sessions.map(s => ({
-          ...s,
-          date: s.date?.toDate ? format(s.date.toDate(), 'yyyy-MM-dd') : (s.date || ''),
-        })));
-      } catch { /* ignore */ }
-      finally { setLoading(false); }
-    })();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setYearFallback(false);
+    try {
+      const [affs, sessSnap] = await Promise.all([
+        affectationsService.getAll(ANNEE),
+        getDocs(collection(db, 'sessions')),
+      ]);
+      let finalAffs = affs;
+      if (affs.length === 0) {
+        // Fallback: show affectations from any year (old data without anneeAcademique)
+        const allAffs = await affectationsService.getAll(null);
+        if (allAffs.length > 0) { finalAffs = allAffs; setYearFallback(true); }
+      }
+      setAffectations(finalAffs);
+      setAllSessions(sessSnap.docs.map(d => {
+        const data = d.data();
+        return { id: d.id, ...data, date: data.date?.toDate ? format(data.date.toDate(), 'yyyy-MM-dd') : (data.date || '') };
+      }));
+    } catch (err) {
+      setError(err.message || 'Erreur de chargement');
+    } finally { setLoading(false); }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const enriched = useMemo(() => affectations.map(a => {
     const mod  = modules.find(m => m.id === a.moduleId);
     const grp  = groupes.find(g => g.id === a.groupeId);
     const intv = intervenants.find(i => i.id === a.intervenantId);
-    const done = affectationsService.computeHeuresFaites(a, allSessions);
+    // Normalize dash variants when matching sessions to this affectation
+    const done = affectationsService.computeHeuresFaites(a, allSessions, true);
     const remaining = Math.max(0, (a.masseHoraire || 0) - done);
-    return { ...a, moduleName: mod?.nom || a.moduleId, groupeNom: grp?.nom || '—',
-             filiere: grp?.filiere || '', intervenantNom: intv ? `${intv.prenom} ${intv.nom}` : '—',
+    return { ...a, moduleName: mod?.nom || a.moduleId, moduleCode: mod?.code || '',
+             groupeNom: grp?.nom || '—', filiere: grp?.filiere || mod?.filiere || '',
+             intervenantNom: intv ? `${intv.prenom} ${intv.nom}` : '—',
              heuresFaites: done, remaining };
-  }), [affectations, allSessions, modules, groupes, intervenants]);
+  }).sort((a, b) => b.remaining - a.remaining), [affectations, allSessions, modules, groupes, intervenants]);
+
+  const activeCount    = enriched.filter(a => a.remaining > 0.05).length;
+  const completedCount = enriched.filter(a => a.remaining <= 0.05).length;
 
   const filtered = useMemo(() => {
-    if (!searchQ.trim()) return enriched;
+    const base = showCompleted ? enriched : enriched.filter(a => a.remaining > 0.05);
+    if (!searchQ.trim()) return base;
     const q = searchQ.toLowerCase();
-    return enriched.filter(a =>
+    return base.filter(a =>
       a.moduleName.toLowerCase().includes(q) ||
       a.groupeNom.toLowerCase().includes(q) ||
       a.intervenantNom.toLowerCase().includes(q) ||
-      a.filiere.toLowerCase().includes(q)
+      a.filiere.toLowerCase().includes(q) ||
+      (a.moduleCode || '').toLowerCase().includes(q)
     );
-  }, [enriched, searchQ]);
+  }, [enriched, searchQ, showCompleted]);
 
   // Groups that share the same module + intervenant (for multi-group)
   const compatibleGroups = useMemo(() => {
@@ -281,11 +304,31 @@ function Step1({ modules, groupes, intervenants, onNext, onClose }) {
   };
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <div>
-        <h2 className="text-base font-bold text-slate-800">Sélectionner l'affectation</h2>
-        <p className="text-xs text-slate-400 mt-0.5">Choisissez le module à planifier — seules les affectations avec des heures restantes sont présentées</p>
+    <div className="flex flex-col gap-3 h-full">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-base font-bold text-slate-800">Sélectionner l'affectation</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Module à planifier — affectations avec heures restantes</p>
+        </div>
+        {!loading && completedCount > 0 && (
+          <button
+            onClick={() => setShowCompleted(v => !v)}
+            className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium border transition-all ${
+              showCompleted ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            }`}
+          >
+            {showCompleted ? `Masquer terminées (${completedCount})` : `+ ${completedCount} terminée${completedCount > 1 ? 's' : ''}`}
+          </button>
+        )}
       </div>
+
+      {/* Year fallback notice */}
+      {yearFallback && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
+          <span>⚠️</span>
+          <span>Affichage des affectations sans année scolaire associée. Éditez-les dans la page <strong>Masse Horaire</strong> pour les assigner à {ANNEE}.</span>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -295,51 +338,115 @@ function Step1({ modules, groupes, intervenants, onNext, onClose }) {
           placeholder="Rechercher module, groupe, intervenant…"
           className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#005989] bg-white"
         />
+        {searchQ && (
+          <button onClick={() => setSearchQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600">✕</button>
+        )}
       </div>
 
       {/* List */}
       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-        {loading && <div className="py-8 text-center text-slate-400 text-sm">Chargement…</div>}
-        {!loading && enriched.length === 0 && (
-          <div className="py-8 text-center space-y-2">
-            <div className="text-3xl">📋</div>
-            <p className="text-slate-600 font-medium text-sm">Aucune affectation pour {ANNEE}</p>
-            <p className="text-slate-400 text-xs max-w-xs mx-auto">
-              Créez d'abord les affectations Module → Intervenant → Groupe → Masse Horaire dans la page{' '}
-              <strong className="text-[#005989]">Masse Horaire</strong>, puis revenez ici.
-            </p>
+        {loading && (
+          <div className="space-y-2">
+            {[1,2,3].map(i => (
+              <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
+            ))}
           </div>
         )}
-        {!loading && enriched.length > 0 && filtered.length === 0 && (
-          <div className="py-8 text-center text-slate-400 text-sm">Aucun résultat pour "{searchQ}"</div>
+
+        {/* Error state */}
+        {!loading && error && (
+          <div className="py-6 text-center space-y-3">
+            <div className="text-3xl">⚠️</div>
+            <p className="text-slate-700 font-medium text-sm">Erreur de chargement</p>
+            <p className="text-slate-400 text-xs max-w-xs mx-auto font-mono bg-slate-50 rounded px-2 py-1">{error}</p>
+            <button
+              onClick={load}
+              className="px-4 py-1.5 bg-[#005989] text-white text-xs font-semibold rounded-xl hover:bg-[#004a73] transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
         )}
+
+        {/* Empty state */}
+        {!loading && !error && enriched.length === 0 && (
+          <div className="py-8 text-center space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
+              <Ico path="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" size="w-7 h-7 text-slate-300" />
+            </div>
+            <div>
+              <p className="text-slate-700 font-semibold text-sm">Aucune affectation pour {ANNEE}</p>
+              <p className="text-slate-400 text-xs max-w-xs mx-auto mt-1">
+                Créez d'abord les affectations Module → Intervenant → Groupe → Masse Horaire dans la page{' '}
+                <strong className="text-[#005989]">Masse Horaire</strong>.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+
+        {/* No search results */}
+        {!loading && !error && enriched.length > 0 && filtered.length === 0 && (
+          <div className="py-8 text-center space-y-1">
+            <p className="text-slate-500 text-sm font-medium">Aucun résultat</p>
+            <p className="text-slate-400 text-xs">pour "{searchQ}"</p>
+          </div>
+        )}
+
+        {/* Affectation cards */}
         {filtered.map(a => {
           const isSelected = selected?.id === a.id;
           const finished = a.remaining <= 0.05;
+          const pct = a.masseHoraire > 0 ? Math.min(100, Math.round(100 * a.heuresFaites / a.masseHoraire)) : 0;
+          const urgency = a.remaining > 0 && a.remaining <= 4;
           return (
             <button
               key={a.id}
               onClick={() => { if (!finished) { setSelected(a); setExtraGroups([]); } }}
               disabled={finished}
-              className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
-                finished ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50' :
-                isSelected ? 'border-[#005989] bg-blue-50/60' : 'border-slate-200 bg-white hover:border-[#005989]/40'
+              className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all ${
+                finished ? 'opacity-50 cursor-default border-slate-100 bg-slate-50' :
+                isSelected ? 'border-[#005989] bg-blue-50/60 shadow-sm' :
+                'border-slate-200 bg-white hover:border-[#005989]/50 hover:shadow-sm'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-slate-800 text-sm truncate">{a.moduleName}</div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-500">
-                    <span className="font-medium text-[#005989]">{a.groupeNom}</span>
-                    {a.filiere && <span className="text-slate-400">{a.filiere}</span>}
-                    <span>👤 {a.intervenantNom}</span>
+                  {/* Module name + code */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-slate-800 text-sm">{a.moduleName}</span>
+                    {a.moduleCode && (
+                      <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{a.moduleCode}</span>
+                    )}
+                    {urgency && (
+                      <span className="text-[10px] font-semibold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">≤4h restantes</span>
+                    )}
                   </div>
+                  {/* Group + filière + intervenant */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-slate-500">
+                    <span className="font-semibold text-[#005989]">{a.groupeNom}</span>
+                    {a.filiere && <span className="text-slate-400 before:content-['·'] before:mr-1.5">{a.filiere}</span>}
+                    {a.intervenantNom !== '—' && <span className="before:content-['·'] before:mr-1.5">👤 {a.intervenantNom}</span>}
+                  </div>
+                  {/* Progress */}
                   <div className="mt-2">
-                    <ProgressBar done={a.heuresFaites} total={a.masseHoraire || 0} />
-                    <div className="flex justify-between text-xs text-slate-400 mt-0.5">
-                      <span>{a.heuresFaites}h / {a.masseHoraire}h</span>
-                      <span className={`font-semibold ${a.remaining <= 0 ? 'text-slate-400' : 'text-[#005989]'}`}>
-                        {a.remaining > 0 ? `${Math.round(a.remaining * 10) / 10}h restantes` : 'Terminé'}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: finished ? '#94a3b8' : pct >= 80 ? '#f59e0b' : '#005989' }} />
+                      </div>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                        {a.heuresFaites}h / {a.masseHoraire}h
+                      </span>
+                      <span className={`text-[10px] font-semibold whitespace-nowrap ${
+                        finished ? 'text-slate-400' : urgency ? 'text-orange-500' : 'text-[#005989]'
+                      }`}>
+                        {finished ? '✓ Terminé' : `${Math.round(a.remaining * 10) / 10}h restantes`}
                       </span>
                     </div>
                   </div>
@@ -354,6 +461,14 @@ function Step1({ modules, groupes, intervenants, onNext, onClose }) {
           );
         })}
       </div>
+
+      {/* Active count summary */}
+      {!loading && !error && activeCount > 0 && (
+        <div className="text-xs text-slate-400 text-center pb-0.5">
+          {activeCount} affectation{activeCount > 1 ? 's' : ''} avec heures restantes
+          {completedCount > 0 && !showCompleted ? ` · ${completedCount} terminée${completedCount > 1 ? 's' : ''} masquée${completedCount > 1 ? 's' : ''}` : ''}
+        </div>
+      )}
 
       {/* Multi-group option */}
       {selected && compatibleGroups.length > 0 && (
@@ -495,7 +610,30 @@ function Step2({ affectation, allGroupeIds, allSessions, modules, groupes, inter
       <div className="flex-1 overflow-y-auto space-y-5 pr-1">
         {/* Disponibilités grid */}
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Disponibilités de l'intervenant</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Créneaux disponibles</p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setAvailKeys(() => {
+                  const next = new Set();
+                  DAY_LABELS.forEach((_, di) => {
+                    const daySlots = DAY_SLOTS[di] || [];
+                    daySlots.forEach((_, si) => next.add(`${di}|${si}`));
+                  });
+                  return next;
+                })}
+                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-[#005989] text-white hover:bg-[#004a73] transition-colors"
+              >
+                Tout
+              </button>
+              <button
+                onClick={() => setAvailKeys(new Set())}
+                className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                Effacer
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-separate" style={{ borderSpacing: '4px' }}>
               <thead>

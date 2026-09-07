@@ -328,12 +328,15 @@ export const affectationsService = {
   async delete(id) {
     await deleteDoc(doc(db, 'affectations', id));
   },
-  // Compute heuresFaites per affectation from sessions list
-  computeHeuresFaites(affectation, sessions) {
+  // Compute heuresFaites per affectation from sessions list.
+  // Pass normalizeDash=true to match groupeId across hyphen/en-dash variants.
+  computeHeuresFaites(affectation, sessions, normalizeDash = false) {
+    const norm = s => normalizeDash ? (s || '').replace(/[–—]/g, '-').trim().toLowerCase() : s;
+    const affGroupNorm = norm(affectation.groupeId);
     const relevant = sessions.filter(s =>
       s.moduleId === affectation.moduleId &&
-      s.groupeId === affectation.groupeId &&
-      (s.intervenantId === affectation.intervenantId || !affectation.intervenantId)
+      norm(s.groupeId) === affGroupNorm &&
+      (!affectation.intervenantId || s.intervenantId === affectation.intervenantId)
     );
     let total = 0;
     for (const s of relevant) {
