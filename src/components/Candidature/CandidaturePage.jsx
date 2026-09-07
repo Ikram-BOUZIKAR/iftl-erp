@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZxdpunUpav7IO7fXNTnInbtGpV0lJGNlBjlsz9u3NP6t2QsQcCEt5cRcnTIU3dEIU/exec';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 
 // ── Données référentiels ───────────────────────────────────────────────────────
 const FILIERES_BY_CAT = {
@@ -90,13 +89,10 @@ const STEPS = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+function genRef() {
+  const year = new Date().getFullYear();
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `IFTL-${year}-${rand}`;
 }
 
 function Err({ msg }) {
@@ -243,36 +239,51 @@ export default function CandidaturePage() {
     if (Object.keys(e).length) { setErrors(e); return; }
     setSubmitting(true);
     try {
-      const fichiers = [];
-      for (const doc of DOCS) {
-        const file = files[doc.key];
+      const cinNorm = form.cin.trim().toUpperCase();
+      const emailNorm = form.email.trim().toLowerCase();
+
+      // Detect duplicates in Firestore
+      const cinSnap = await getDocs(query(collection(db, 'candidatures'), where('cin', '==', cinNorm)));
+      if (!cinSnap.empty) {
+        setResult({ doublon: true, ref: cinSnap.docs[0].data().ref || '' });
+        setStep(6);
+        return;
+      }
+      const emailSnap = await getDocs(query(collection(db, 'candidatures'), where('email', '==', emailNorm)));
+      if (!emailSnap.empty) {
+        setResult({ doublon: true, ref: emailSnap.docs[0].data().ref || '' });
+        setStep(6);
+        return;
+      }
+
+      // Upload files to Firebase Storage
+      const reference = genRef();
+      const fichierUrls = {};
+      for (const d of DOCS) {
+        const file = files[d.key];
         if (file) {
-          const data = await fileToBase64(file);
-          fichiers.push({ categorie: doc.key, data, type: file.type, name: file.name });
+          const sRef = storageRef(storage, `candidatures/${reference}/${d.key}_${file.name}`);
+          await uploadBytes(sRef, file);
+          fichierUrls[d.key] = await getDownloadURL(sRef);
         }
       }
-      const payload = { ...form, fichiers };
-      const resp = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(payload),
+
+      // Save to Firestore
+      await addDoc(collection(db, 'candidatures'), {
+        ...form,
+        cin: cinNorm,
+        email: emailNorm,
+        ref: reference,
+        statut: 'recu',
+        fichierUrls,
+        nbFichiers: Object.keys(fichierUrls).length,
+        createdAt: new Date(),
       });
-      const json = await resp.json();
-      // Mirror to Firestore (sans fichiers base64)
-      try {
-        const { fichiers: _f, ...meta } = payload;
-        await addDoc(collection(db, 'candidatures'), {
-          ...meta,
-          ref: json.ref || json.reference || '',
-          statut: json.doublon ? 'doublon' : 'recu',
-          nbFichiers: fichiers.length,
-          createdAt: new Date(),
-        });
-      } catch { /* non-bloquant */ }
-      setResult(json);
+
+      setResult({ ref: reference, doublon: false });
       setStep(6);
-    } catch {
-      alert('Erreur de connexion. Vérifiez votre réseau et réessayez.');
+    } catch (err) {
+      alert('Erreur : ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -331,6 +342,10 @@ export default function CandidaturePage() {
               >
                 Payer les frais d'inscription
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+              </a>
+              <a href={`/suivi-candidature?cin=${form.cin}`}
+                className="flex items-center justify-center gap-2 w-full py-3 border border-[#005989] text-[#005989] rounded-xl font-semibold hover:bg-blue-50 transition text-sm mb-3">
+                Suivre mon dossier
               </a>
               <button onClick={() => { setStep(1); setForm(INITIAL); setFiles({}); setResult(null); }}
                 className="text-xs text-slate-400 hover:text-slate-600 transition">

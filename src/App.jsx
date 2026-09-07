@@ -19,6 +19,7 @@ import IntervenantsPage from './components/Intervenants/IntervenantsPage';
 import CandidaturesAdminPage from './components/Candidatures/CandidaturesAdminPage';
 import RapportsPage from './components/Rapports/RapportsPage';
 import CandidaturePage from './components/Candidature/CandidaturePage';
+import SuiviCandidaturePage from './components/Candidature/SuiviCandidaturePage';
 import SettingsPage from './components/Settings/SettingsPage';
 import PortailResultats from './components/Portail/PortailResultats';
 import PortailApprenant from './components/Portail/PortailApprenant';
@@ -76,6 +77,7 @@ function App() {
             {/* Public routes */}
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/candidature" element={<CandidaturePage />} />
+            <Route path="/suivi-candidature" element={<SuiviCandidaturePage />} />
             <Route path="/reinscription" element={<ReinscriptionPortail />} />
             <Route path="/resultats" element={<PortailResultats />} />
             <Route path="/register" element={<RegisterPage />} />
