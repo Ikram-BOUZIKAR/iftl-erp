@@ -107,6 +107,7 @@ async function fetchByMultipleKeys(collName, keys) {
 // ── Mon Profil ─────────────────────────────────────────────────────────────────
 function ProfilTab({ student, userProfile, userId }) {
   const [form, setForm] = useState({
+    emailContact:        student?.emailContact         || '',
     telephone:           student?.telephone            || userProfile?.telephone || '',
     ville:               student?.ville                || '',
     adresse:             student?.adresse              || '',
@@ -161,6 +162,7 @@ function ProfilTab({ student, userProfile, userId }) {
       if (userId) await updateDoc(doc(db, 'users', userId), { telephone: form.telephone, updatedAt: new Date() });
       const studentRef = student?.id ? doc(db, 'students', student.id) : studentCode ? doc(db, 'students', studentCode) : null;
       if (studentRef) await updateDoc(studentRef, {
+        emailContact:       form.emailContact,
         telephone:          form.telephone,
         ville:              form.ville,
         adresse:            form.adresse,
@@ -274,6 +276,7 @@ function ProfilTab({ student, userProfile, userId }) {
         </div>
         <div className="p-5 space-y-4">
           {[
+            { label: 'Email de contact', key: 'emailContact', type: 'email', ph: 'votre.email@exemple.com' },
             { label: 'Téléphone',  key: 'telephone',  type: 'tel',  ph: '+212 6XX XXX XXX' },
             { label: 'Ville',      key: 'ville',      type: 'text', ph: 'Votre ville de résidence' },
             { label: 'Adresse',    key: 'adresse',    type: 'text', ph: 'Votre adresse complète' },
