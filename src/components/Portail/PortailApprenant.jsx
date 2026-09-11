@@ -5,6 +5,7 @@ import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
+import { RentreeSchedule } from '../Planning/PlanningRentreePage';
 import { generateAttestationSoutenance, generateAttestationReussite, generateFicheApprenant } from '../../services/pdfService';
 import { badgesService, getBadge, BADGE_CATALOGUE } from '../../services/badgesService';
 
@@ -20,6 +21,7 @@ function IcoBook()     { return <svg className="w-5 h-5" fill="none" stroke="cur
 function IcoBell()     { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>; }
 function IcoLogout()   { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>; }
 function IcoBus()      { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 6h8M6 10h12M6 14h12M8 18h8M4 6a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM8 18v2m8-2v2"/></svg>; }
+function IcoStar()     { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>; }
 
 const POINTS_RASSEMBLEMENT = [
   'Zaouia',
@@ -36,6 +38,7 @@ const TABS = [
   { id: 'ressources',    label: 'Ressources',     short: 'Ressources', Icon: IcoBook  },
   { id: 'notifications', label: 'Annonces',       short: 'Annonces',   Icon: IcoBell  },
   { id: 'transport',     label: 'Transport',      short: 'Transport',  Icon: IcoBus   },
+  { id: 'rentree',       label: 'Programme de rentrée', short: 'Rentrée', Icon: IcoStar },
 ];
 
 const TYPE_COLORS = {
@@ -1229,6 +1232,21 @@ function NotificationsTab({ groupeId, studentGroupe }) {
   );
 }
 
+// ── Programme de rentrée ──────────────────────────────────────────────────────
+function RentreeTab() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100" style={{ background: `${BLUE}07` }}>
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Programme de rentrée</p>
+        <p className="text-xs text-slate-400 mt-0.5">TS 1ère Année — Toutes filières · Septembre 2026</p>
+      </div>
+      <div className="p-4">
+        <RentreeSchedule />
+      </div>
+    </div>
+  );
+}
+
 // ── Sidebar nav link ───────────────────────────────────────────────────────────
 function SideNavLink({ tab, active, onClick }) {
   const { Icon, label } = tab;
@@ -1669,6 +1687,7 @@ export default function PortailApprenant({ auth }) {
                 {activeTab === 'ressources'    && <RessourcesTab />}
                 {activeTab === 'notifications' && <NotificationsTab groupeId={groupeId} />}
                 {activeTab === 'transport'     && <TransportTab studentId={studentId} studentNom={nom} studentPrenom={prenom} studentCode={studentCode} />}
+                {activeTab === 'rentree'       && <RentreeTab />}
               </>
             )}
           </div>

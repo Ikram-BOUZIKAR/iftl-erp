@@ -12,6 +12,7 @@ import ApprenantsPage from './components/Apprenants/ApprenantsPage';
 import ApprenantDetail from './components/Apprenants/ApprenantDetail';
 import PlanningPage from './components/Planning/PlanningPage';
 import MasseHorairePage from './components/Planning/MasseHorairePage';
+import PlanningRentreePage from './components/Planning/PlanningRentreePage';
 import EmargementPage from './components/Emargement/EmargementPage';
 import SessionAttendance from './components/Emargement/SessionAttendance';
 import GroupesPage from './components/Groupes/GroupesPage';
@@ -118,8 +119,9 @@ function App() {
                       <Routes>
                         <Route path="/"              element={<Dashboard auth={auth} />} />
                         {/* Pédagogie */}
-                        <Route path="/planning"      element={<PlanningPage />} />
-                        <Route path="/masse-horaire" element={<MasseHorairePage />} />
+                        <Route path="/planning"          element={<PlanningPage />} />
+                        <Route path="/planning-rentree" element={<PlanningRentreePage />} />
+                        <Route path="/masse-horaire"    element={<MasseHorairePage />} />
                         <Route path="/emargement"    element={<EmargementPage />} />
                         <Route path="/emargement/:id" element={<SessionAttendance />} />
                         <Route path="/modules"       element={<ModulesPage />} />
