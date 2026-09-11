@@ -17,8 +17,8 @@ const NAVY  = '#001829';
 const NAVY2 = '#001f36';
 const BLUE  = '#005989';
 const YELLOW = '#f5c845';
-const LIME   = '#c8d45d';
-const LIME_DK = '#141f0a';
+const LIME   = '#4ade80';
+const LIME_DK = '#14532d';
 
 // ── Shared input / button components ──────────────────────────────────────────
 const inputBase = {
@@ -120,7 +120,7 @@ export default function LoginPage({ auth }) {
             <Ico path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" size="w-6 h-6" stroke={LIME_DK} strokeWidth={1.75} />
           </div>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: `rgba(200,212,93,0.8)`, marginBottom: 4 }}>Candidature</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: `rgba(74,222,128,0.9)`, marginBottom: 4 }}>Candidature</div>
             <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>Candidater<br/>à une formation</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>Formation initiale · continue · apprentissage</div>
           </div>

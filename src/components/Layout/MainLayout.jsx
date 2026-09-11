@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -48,9 +48,16 @@ function Ico({ path, size = 'w-5 h-5' }) {
 }
 
 export default function MainLayout({ auth, children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
   const { user, userProfile } = auth;
   const location = useLocation();
+
+  // Close drawer on navigation (mobile)
+  useEffect(() => {
+    if (window.innerWidth < 1024) setSidebarOpen(false);
+  }, [location.pathname]);
 
   const pathParts   = location.pathname.split('/').filter(Boolean);
   const currentPage = BREADCRUMBS[location.pathname] || BREADCRUMBS['/' + pathParts[0]] || 'Page';
@@ -69,9 +76,19 @@ export default function MainLayout({ auth, children }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
+
+      {/* Backdrop overlay — mobile only */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <Sidebar open={sidebarOpen} role={userProfile?.role} auth={auth} />
 
-      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-60' : 'ml-[60px]'}`}>
+      {/* On mobile: no left margin (sidebar is overlay). On desktop: push content. */}
+      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'lg:ml-60' : 'lg:ml-[60px]'}`}>
 
         {/* ── Header ────────────────────────────────────────────────────── */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-5 h-14 shadow-sm">
@@ -145,7 +162,7 @@ export default function MainLayout({ auth, children }) {
         </header>
 
         {/* ── Contenu ───────────────────────────────────────────────────── */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6">
           {children}
         </main>
 
