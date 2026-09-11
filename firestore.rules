@@ -309,10 +309,8 @@ service cloud.firestore {
 
     // ── Historique notes (PV importés) ────────────────────────────────────────
     match /historique_notes/{docId} {
-      // Staff can read all; apprenants can read their own via studentCode on their users doc
-      allow read: if hasRole(['admin', 'direction', 'scolarite', 'intervenant'])
-                  || (request.auth != null &&
-                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentCode == resource.data.studentCode);
+      // Public read: portail résultats public (Licence CNAM + portail apprenant connecté)
+      allow read: if true;
       allow write: if hasRole(['admin', 'direction']);
     }
   }

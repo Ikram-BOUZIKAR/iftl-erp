@@ -303,9 +303,9 @@ export default function PortailResultats() {
       {/* Header */}
       <header style={{ background: `linear-gradient(135deg, #9e0f14 0%, ${BRAND.red} 60%, #d94f55 100%)` }}>
         <div className="max-w-2xl mx-auto px-5 py-8 text-center">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style={{ background: BRAND.yellow }}>
-            <span className="font-black text-base" style={{ color: BRAND.blue }}>IF</span>
+          <div className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center overflow-hidden"
+               style={{ background: '#fff' }}>
+            <img src="/iftl-logo.svg" alt="IFTL" className="w-full h-full object-contain p-1" />
           </div>
           <h1 className="text-white font-black text-2xl tracking-tight">Portail Résultats</h1>
           <p className="text-white/75 text-sm mt-1">Institut — Année académique 2025-2026</p>
