@@ -158,40 +158,27 @@ function ResultCard({ student }) {
 const CNAM_COLOR = '#4A148C';
 
 function LicenceResultCard({ nom, prenom, groupe, modules }) {
-  const validMods = modules.filter(m => m.moy !== null && m.moy !== undefined);
-  const totalCoeff = validMods.reduce((s, m) => s + (Number(m.coeff) || 1), 0);
-  const moyGen = totalCoeff > 0
-    ? validMods.reduce((s, m) => s + Number(m.moy) * (Number(m.coeff) || 1), 0) / totalCoeff
-    : null;
-
   const moyColor = (v) => v >= 10 ? '#166534' : v >= 8 ? '#92400e' : '#991b1b';
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden mt-6 max-w-2xl mx-auto">
       <div className="px-6 py-5" style={{ background: `linear-gradient(135deg, ${CNAM_COLOR}, #7B1FA2)` }}>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-              <span className="text-white text-lg font-bold">{prenom?.[0]}{nom?.[0]}</span>
-            </div>
-            <div>
-              <p className="text-white font-bold text-lg leading-tight">{prenom} {nom}</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white"
-                      style={{ background: 'rgba(255,255,255,0.2)' }}>Licence CNAM</span>
-                <span className="text-white/70 text-xs">{groupe}</span>
-              </div>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <span className="text-white text-lg font-bold">{prenom?.[0]}{nom?.[0]}</span>
+          </div>
+          <div>
+            <p className="text-white font-bold text-lg leading-tight">{prenom} {nom}</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white"
+                    style={{ background: 'rgba(255,255,255,0.2)' }}>Licence CNAM</span>
+              <span className="text-white/70 text-xs">{groupe}</span>
             </div>
           </div>
-          {moyGen !== null && (
-            <div className="text-right shrink-0">
-              <p className="text-2xl font-black text-white leading-none">
-                {moyGen.toFixed(2)}<span className="text-xs font-normal text-white/60 ml-1">/20</span>
-              </p>
-              <p className="text-white/60 text-xs mt-0.5">Moy. pondérée</p>
-            </div>
-          )}
         </div>
+        <p className="text-white/50 text-xs mt-3">
+          Résultats partiels — moyenne disponible en fin d'année
+        </p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
