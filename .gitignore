@@ -40,3 +40,5 @@ android/local.properties
 ios/App/Pods/
 ios/App/App.xcworkspace/
 
+.env.demo
+dist-demo/
