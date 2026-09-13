@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const STATUTS = {
@@ -57,11 +57,14 @@ export default function SuiviCandidaturePage() {
     setCandidature(null);
     setSearched(true);
     try {
-      const snap = await getDocs(query(collection(db, 'candidatures'), where('cin', '==', cinNorm)));
-      if (snap.empty) {
+      // Lookup via index first (O(1) get, no collection listing)
+      const indexSnap = await getDoc(doc(db, 'candidature_index', cinNorm));
+      const candidatureId = indexSnap.exists() ? indexSnap.data().candidatureId : cinNorm;
+      const candidatureSnap = await getDoc(doc(db, 'candidatures', candidatureId));
+      if (!candidatureSnap.exists()) {
         setError('Aucune candidature trouvée pour ce CIN. Vérifiez votre saisie ou contactez l\'établissement.');
       } else {
-        setCandidature({ id: snap.docs[0].id, ...snap.docs[0].data() });
+        setCandidature({ id: candidatureSnap.id, ...candidatureSnap.data() });
       }
     } catch {
       setError('Erreur de connexion. Veuillez réessayer.');
@@ -82,12 +85,8 @@ export default function SuiviCandidaturePage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md"
-              style={{ background: 'linear-gradient(135deg, #005989, #0077b6)' }}>
-              <span className="font-black text-sm text-white tracking-tight">IF</span>
-            </div>
-            <div className="text-left">
-              <p className="font-black text-slate-800 text-lg leading-none">Institut</p>
-              <p className="text-xs text-slate-500 mt-0.5">Institut de Formation · Transport & Logistique</p>
+              style={{ background: 'linear-gradient(135deg, var(--brand-primary, #005989), var(--brand-primary-dark, #003d63))' }}>
+              <span className="font-black text-sm text-white tracking-tight">EP</span>
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900">{t('candidaturePublic.track_title')}</h1>
@@ -238,10 +237,7 @@ export default function SuiviCandidaturePage() {
             </div>
 
             <p className="text-center text-xs text-slate-400 mt-5">
-              Une question ?{' '}
-              <a href="tel:+212522078705" className="text-[#005989] font-semibold">+212 5220-78705</a>
-              {' · '}
-              <a href="mailto:contact@iftl.ma" className="text-[#005989] font-semibold">contact@iftl.ma</a>
+              Une question ? Contactez l&apos;établissement.
             </p>
           </>
         )}

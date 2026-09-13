@@ -6,11 +6,17 @@ service firebase.storage {
     function isAuth() {
       return request.auth != null;
     }
+    // P0.3 fix: use Firestore roles (not custom claims which are never set)
+    function userRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
     function isStaff() {
-      return request.auth.token.role in ['admin', 'direction', 'scolarite', 'intervenant'];
+      return request.auth != null &&
+        userRole() in ['admin', 'direction', 'scolarite', 'intervenant'];
     }
     function isAdmin() {
-      return request.auth.token.role in ['admin', 'direction'];
+      return request.auth != null &&
+        userRole() in ['admin', 'direction'];
     }
 
     // ── Documents pédagogiques (syllabus, fiches de séance) ────────────────
@@ -49,7 +55,8 @@ service firebase.storage {
 
     // ── Candidatures (portail public — dépôt de pièces) ──────────────────
     match /candidatures/{ref}/{fileName} {
-      allow read:   if true;
+      // P0.3 fix: pièces d'identité non accessibles publiquement
+      allow read:   if isStaff();
       allow create: if request.resource.size < 10 * 1024 * 1024
                        && request.resource.contentType.matches('image/.*|application/pdf');
       allow delete: if isAdmin();

@@ -22,7 +22,10 @@ service cloud.firestore {
       // Self-create only allowed with role='apprenant' to prevent privilege escalation
       allow create: if hasRole(['admin', 'direction', 'scolarite']) ||
         (request.auth.uid == userId && request.resource.data.role == 'apprenant');
-      allow update: if request.auth.uid == userId || isAdmin(request.auth.uid);
+      // P0.1 fix: users can update own profile but NOT change their role (admin only)
+      allow update: if isAdmin(request.auth.uid)
+        || (request.auth.uid == userId
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
       allow delete: if isAdmin(request.auth.uid);
     }
 
@@ -77,9 +80,19 @@ service cloud.firestore {
 
     // ── Candidatures ───────────────────────────────────────────────────────────
     match /candidatures/{docId} {
-      // Lecture publique : candidats accèdent à leur suivi via CIN (portail public)
-      allow read: if true;
+      // P0.2 fix: get by ID is public (suivi par token), list only for staff
+      allow get: if true;
+      allow list: if hasRole(['admin', 'scolarite', 'direction']);
       allow create: if true;  // formulaire public
+      allow update: if hasRole(['admin', 'scolarite']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    // Index CIN→docId pour le portail suivi sans exposer la collection entière
+    match /candidature_index/{cin} {
+      allow get: if true;   // public: lookup par CIN pour le portail suivi
+      allow list: if hasRole(['admin', 'scolarite', 'direction']);
+      allow create: if true;  // formulaire public (créé avec la candidature)
       allow update: if hasRole(['admin', 'scolarite']);
       allow delete: if hasRole(['admin']);
     }

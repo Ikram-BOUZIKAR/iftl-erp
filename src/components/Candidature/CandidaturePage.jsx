@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 
@@ -244,16 +244,11 @@ export default function CandidaturePage() {
       const cinNorm = form.cin.trim().toUpperCase();
       const emailNorm = form.email.trim().toLowerCase();
 
-      // Detect duplicates in Firestore
-      const cinSnap = await getDocs(query(collection(db, 'candidatures'), where('cin', '==', cinNorm)));
-      if (!cinSnap.empty) {
-        setResult({ doublon: true, ref: cinSnap.docs[0].data().ref || '' });
-        setStep(6);
-        return;
-      }
-      const emailSnap = await getDocs(query(collection(db, 'candidatures'), where('email', '==', emailNorm)));
-      if (!emailSnap.empty) {
-        setResult({ doublon: true, ref: emailSnap.docs[0].data().ref || '' });
+      // Duplicate check via index (get by CIN — no list needed)
+      const indexRef = doc(db, 'candidature_index', cinNorm);
+      const indexSnap = await getDoc(indexRef);
+      if (indexSnap.exists()) {
+        setResult({ doublon: true, ref: indexSnap.data().ref || '' });
         setStep(6);
         return;
       }
@@ -270,8 +265,9 @@ export default function CandidaturePage() {
         }
       }
 
-      // Save to Firestore
-      await addDoc(collection(db, 'candidatures'), {
+      // Save to Firestore (doc ID = CIN for O(1) suivi lookup without collection listing)
+      const candidatureRef = doc(db, 'candidatures', cinNorm);
+      await setDoc(candidatureRef, {
         ...form,
         cin: cinNorm,
         email: emailNorm,
@@ -281,6 +277,8 @@ export default function CandidaturePage() {
         nbFichiers: Object.keys(fichierUrls).length,
         createdAt: new Date(),
       });
+      // Create index entry for suivi page lookup
+      await setDoc(indexRef, { candidatureId: cinNorm, ref: reference, createdAt: new Date() });
 
       setResult({ ref: reference, doublon: false });
       setStep(6);
