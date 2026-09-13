@@ -71,7 +71,11 @@ export default function LoginPage({ auth }) {
     setError('');
     setLoading(true);
     try {
-      await auth.login(email, password);
+      const EMAIL_DOMAIN = import.meta.env.VITE_EMAIL_DOMAIN;
+      const loginEmail = email.includes('@') || !EMAIL_DOMAIN
+        ? email
+        : `${email}@${EMAIL_DOMAIN}`;
+      await auth.login(loginEmail, password);
       // Navigation handled by useEffect above once auth state settles
     } catch {
       setError(t('login.err_invalid_creds'));
@@ -252,14 +256,17 @@ export default function LoginPage({ auth }) {
 
                 {/* Email */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 6 }}>{t('login.email')}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 6 }}>
+                    {import.meta.env.VITE_EMAIL_DOMAIN ? t('login.identifier', 'Identifiant') : t('login.email')}
+                  </div>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
-                      <Ico path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" size="w-4 h-4" />
+                      <Ico path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" size="w-4 h-4" />
                     </span>
                     <input
-                      type="email" value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="you@example.com" required autoComplete="email"
+                      type="text" value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder={import.meta.env.VITE_EMAIL_DOMAIN ? 'ex: admin' : 'you@example.com'}
+                      required autoComplete="username"
                       style={inputBase}
                       onFocus={e => e.target.style.borderColor = BLUE}
                       onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
