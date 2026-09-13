@@ -55,17 +55,6 @@ export default function LoginPage({ auth }) {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Navigate once auth state is resolved after login
-  useEffect(() => {
-    if (!auth.loading && auth.isAuthenticated) {
-      const role = auth.userProfile?.role;
-      if (role === 'intervenant') navigate('/portail-intervenant');
-      else if (role === 'apprenant') navigate('/portail-apprenant');
-      else if (role === 'parent') navigate('/portail-tuteur');
-      else navigate('/');
-    }
-  }, [auth.loading, auth.isAuthenticated, auth.userProfile?.role]);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -76,10 +65,10 @@ export default function LoginPage({ auth }) {
         ? email
         : `${email}@${EMAIL_DOMAIN}`;
       await auth.login(loginEmail, password);
-      // Navigation handled by useEffect above once auth state settles
+      // Force full reload so App re-initialises with the restored auth session
+      window.location.replace('/');
     } catch {
       setError(t('login.err_invalid_creds'));
-    } finally {
       setLoading(false);
     }
   };
