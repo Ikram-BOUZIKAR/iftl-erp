@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../UI/LanguageSwitcher';
 import { useBranding } from '../../contexts/BrandingContext';
@@ -57,18 +55,24 @@ export default function LoginPage({ auth }) {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  // Navigate once auth state is resolved after login
+  useEffect(() => {
+    if (!auth.loading && auth.isAuthenticated) {
+      const role = auth.userProfile?.role;
+      if (role === 'intervenant') navigate('/portail-intervenant');
+      else if (role === 'apprenant') navigate('/portail-apprenant');
+      else if (role === 'parent') navigate('/portail-tuteur');
+      else navigate('/');
+    }
+  }, [auth.loading, auth.isAuthenticated, auth.userProfile?.role]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const firebaseUser = await auth.login(email, password);
-      const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-      const role = snap.data()?.role;
-      if (role === 'intervenant') navigate('/portail-intervenant');
-      else if (role === 'apprenant') navigate('/portail-apprenant');
-      else if (role === 'parent') navigate('/portail-tuteur');
-      else navigate('/');
+      await auth.login(email, password);
+      // Navigation handled by useEffect above once auth state settles
     } catch {
       setError(t('login.err_invalid_creds'));
     } finally {

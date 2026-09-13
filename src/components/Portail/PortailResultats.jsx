@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, query as fsQuery, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { PORTAIL_DATA } from '../../data/portailData';
+import { useBranding } from '../../contexts/BrandingContext';
 
 const BLUE  = '#005989';
 const RED   = '#c8141b';
@@ -259,6 +260,7 @@ function SearchInput({ value, onChange, onKeyDown, placeholder, accentColor, upp
 // ── Composant principal ───────────────────────────────────────────────────────
 export default function PortailResultats() {
   const { t } = useTranslation();
+  const { branding } = useBranding();
   const [tab, setTab] = useState('ts');
 
   const [query,    setQuery]    = useState('');
@@ -313,7 +315,10 @@ export default function PortailResultats() {
       <header style={{ background: `linear-gradient(160deg, #7f0d11 0%, ${RED} 50%, #e53935 100%)` }}>
         <div className="max-w-lg mx-auto px-4 pt-8 pb-6 text-center">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 bg-white flex items-center justify-center shadow-lg overflow-hidden">
-            <img src="/iftl-logo.svg" alt="IFTL" className="w-full h-full object-contain p-1.5" />
+            {branding.logoURL
+              ? <img src={branding.logoURL} alt="Logo" className="w-full h-full object-contain p-1.5" />
+              : <span className="text-xl font-black" style={{ color: RED }}>{(branding.instituteName || 'EP').slice(0, 2).toUpperCase()}</span>
+            }
           </div>
           <h1 className="text-white font-black text-2xl tracking-tight">{t('portail.resultats_title')}</h1>
           <p className="text-white/65 text-sm mt-1">Année académique 2025–2026</p>
@@ -449,10 +454,12 @@ export default function PortailResultats() {
         {/* Pied de page */}
         <div className="py-8 text-center space-y-2">
           <div className="flex items-center justify-center gap-1.5">
-            <div className="w-5 h-5 rounded overflow-hidden bg-white flex items-center justify-center">
-              <img src="/iftl-logo.svg" alt="" className="w-full object-contain" />
-            </div>
-            <p className="text-xs font-semibold text-slate-400">IFTL · 2025–2026</p>
+            {branding.logoURL && (
+              <div className="w-5 h-5 rounded overflow-hidden bg-white flex items-center justify-center">
+                <img src={branding.logoURL} alt="" className="w-full object-contain" />
+              </div>
+            )}
+            <p className="text-xs font-semibold text-slate-400">{branding.instituteName || 'ERP'} · 2025–2026</p>
           </div>
           <Link to="/login"
             className="inline-flex items-center gap-1 text-xs font-semibold transition-colors hover:underline"
