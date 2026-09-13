@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../UI/LanguageSwitcher';
+import { useBranding } from '../../contexts/BrandingContext';
 
 function Ico({ path, path2, size = 'w-6 h-6', stroke = 'currentColor', strokeWidth = 1.5 }) {
   return (
@@ -48,6 +49,7 @@ export default function LoginPage({ auth }) {
   const [isMobile, setIsMobile]         = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { branding } = useBranding();
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -170,8 +172,24 @@ export default function LoginPage({ auth }) {
 
           {/* Brand block — hidden on mobile */}
           {!isMobile && (
-            <div style={{ flexShrink: 0 }}>
-              <img src="/Logo IFTL avec Signature.png" alt="Logo" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
+            <div style={{ flexShrink: 0, textAlign: 'center' }}>
+              {branding.logoURL ? (
+                <img src={branding.logoURL} alt="Logo" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
+              ) : (
+                <div style={{ width: 200, marginBottom: 14 }}>
+                  <div style={{
+                    width: 72, height: 72, borderRadius: 18, margin: '0 auto 12px',
+                    background: `linear-gradient(135deg, ${branding.primaryColor}, var(--brand-primary-dark, #003d63))`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 900, fontSize: 28, letterSpacing: 1,
+                  }}>
+                    {(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}
+                  </div>
+                  {branding.instituteName && (
+                    <div style={{ fontWeight: 800, fontSize: 16, color: '#1e293b' }}>{branding.instituteName}</div>
+                  )}
+                </div>
+              )}
               <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>EduCloud ERP — Smart. Scalable. Multilingual.</div>
             </div>
           )}

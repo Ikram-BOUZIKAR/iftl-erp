@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../services/firebase';
 import { sendEmail } from '../../services/emailService';
+import { useBranding } from '../../contexts/BrandingContext';
 
 const BRAND = { blue: '#005989', yellow: '#f5c845', red: '#c8141b', green: '#c8d45d', orange: '#d75930' };
 
@@ -63,6 +64,7 @@ function Input({ label, hint, error, icon, ...props }) {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { branding } = useBranding();
   const [step, setStep] = useState(1); // 1=role, 2=form
   const [role, setRole] = useState('');
   const [form, setForm] = useState({
@@ -223,8 +225,19 @@ export default function RegisterPage() {
         <div className="max-w-lg w-full">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="mb-4">
-              <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 140, height: 'auto', display: 'block', margin: '0 auto' }} />
+            <div className="mb-4 flex justify-center">
+              {branding.logoURL ? (
+                <img src={branding.logoURL} alt="Logo" style={{ width: 140, height: 'auto', display: 'block' }} />
+              ) : (
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: `linear-gradient(135deg, ${branding.primaryColor}, var(--brand-primary-dark, #003d63))`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontWeight: 900, fontSize: 22,
+                }}>
+                  {(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}
+                </div>
+              )}
             </div>
             <h1 className="text-2xl font-bold text-slate-800">Créer un compte</h1>
             <p className="text-slate-500 text-sm mt-1">Qui êtes-vous ?</p>

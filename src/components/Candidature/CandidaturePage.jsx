@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { collection, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
+import { useBranding } from '../../contexts/BrandingContext';
 
 // ── Données référentiels ───────────────────────────────────────────────────────
 const FILIERES_BY_CAT = {
@@ -93,7 +94,7 @@ const STEPS = [
 function genRef() {
   const year = new Date().getFullYear();
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `IFTL-${year}-${rand}`;
+  return `APP-${year}-${rand}`;
 }
 
 function Err({ msg }) {
@@ -172,6 +173,7 @@ function TTextarea({ label, name, form, set, errors, required, placeholder, rows
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function CandidaturePage() {
   const { t } = useTranslation();
+  const { branding } = useBranding();
   const [step, setStep]           = useState(1);
   const [form, setForm]           = useState(INITIAL);
   const [errors, setErrors]       = useState({});
@@ -304,7 +306,7 @@ export default function CandidaturePage() {
               <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Candidature déjà reçue</h2>
               <p className="text-slate-500 text-sm mb-4">Une candidature avec ce CIN ou cet e-mail existe déjà dans notre système.</p>
               {ref && <p className="font-mono text-sm bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-amber-700 inline-block mb-4">Réf : <strong>{ref}</strong></p>}
-              <p className="text-xs text-slate-400">Contact : <a href="tel:+212522078705" className="text-[#005989] font-semibold">+212 5220-78705</a></p>
+              <p className="text-xs text-slate-400">Contactez l&apos;établissement pour plus d&apos;informations.</p>
             </>
           ) : (
             <>
@@ -367,15 +369,19 @@ export default function CandidaturePage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md"
-              style={{ background: 'linear-gradient(135deg, #005989, #0077b6)' }}
+              className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md overflow-hidden"
+              style={{ background: `linear-gradient(135deg, ${branding.primaryColor}, var(--brand-primary-dark, #003d63))` }}
             >
-              <span className="font-black text-sm text-white tracking-tight">IF</span>
+              {branding.logoURL
+                ? <img src={branding.logoURL} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                : <span className="font-black text-sm text-white tracking-tight">{(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}</span>
+              }
             </div>
-            <div className="text-left">
-              <p className="font-black text-slate-800 text-lg leading-none"> Institut </p>
-              <p className="text-xs text-slate-500 mt-0.5">Institut de Formation · Transport & Logistique</p>
-            </div>
+            {branding.instituteName && (
+              <div className="text-left">
+                <p className="font-black text-slate-800 text-lg leading-none">{branding.instituteName}</p>
+              </div>
+            )}
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900">{t('candidaturePublic.title')}</h1>
           <p className="text-slate-400 text-sm mt-1">Année académique {form.anneeEntree || '2025–2026'}</p>
@@ -681,10 +687,7 @@ export default function CandidaturePage() {
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-5 leading-relaxed">
-          Données confidentielles · Loi 09-08 · CNDP n° A-PO-268/2024<br />
-          <a href="mailto:scolarite@iftl.ma" className="text-[#005989]">scolarite@iftl.ma</a>
-          {' · '}
-          <a href="tel:+212522078705" className="text-[#005989]">+212 5220-78705</a>
+          Données confidentielles — Protection des données personnelles
         </p>
       </div>
     </div>

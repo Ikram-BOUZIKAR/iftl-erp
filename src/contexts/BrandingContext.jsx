@@ -4,11 +4,11 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../services/firebase';
 
 const DEFAULT_BRANDING = {
-  primaryColor: '#005989',
+  primaryColor: import.meta.env.VITE_DEFAULT_PRIMARY_COLOR || '#005989',
   accentColor: '#f5c845',
-  logoURL: '',
-  instituteName: '',
-  layout: 'sidebar', // 'sidebar' | 'topnav' | 'saas'
+  logoURL: import.meta.env.VITE_DEFAULT_LOGO_URL || '',
+  instituteName: import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || '',
+  layout: 'sidebar',
 };
 
 const BrandingContext = createContext(null);
