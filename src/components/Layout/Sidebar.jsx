@@ -199,7 +199,7 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 overflow-hidden ${open ? 'w-60' : 'w-[60px]'}`}
+      className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 overflow-hidden ${open ? 'w-60 translate-x-0' : 'w-60 lg:w-[60px] -translate-x-full lg:translate-x-0'}`}
       style={{ background: 'linear-gradient(180deg,#002d47 0%,#003d63 30%,#005989 70%,#004a73 100%)' }}
     >
       {/* ── Logo ───────────────────────────────────────────────────────── */}

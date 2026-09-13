@@ -96,9 +96,7 @@ export default function MainLayout({ auth, children }) {
           <div className="flex items-center gap-2 shrink-0">
 
             {/* Language switcher */}
-            <div className="hidden sm:block">
-              <LanguageSwitcher />
-            </div>
+            <LanguageSwitcher />
 
             {/* Date */}
             <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-400 font-medium capitalize px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 mr-1">
