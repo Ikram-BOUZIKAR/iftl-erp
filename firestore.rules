@@ -110,6 +110,11 @@ service cloud.firestore {
       allow read: if hasRole(['admin', 'direction']);
       allow write: if hasRole(['admin', 'direction']);
     }
+    // Branding publiquement lisible — couleurs et nom de l'établissement (pas de PII)
+    match /settings/branding {
+      allow read: if true;
+      allow write: if hasRole(['admin', 'direction']);
+    }
     // Config réinscription : lisible publiquement (portail public en a besoin)
     match /settings/reinscription_config {
       allow read: if true;
