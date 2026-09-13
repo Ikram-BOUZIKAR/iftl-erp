@@ -134,6 +134,60 @@ const en = {
     erp_name: 'Educational ERP',
     cndp:     'CNDP no. A-PO-268/2024',
   },
+
+  dashboard: {
+    greeting_morning:   'Good morning',
+    greeting_afternoon: 'Good afternoon',
+    greeting_evening:   'Good evening',
+    live_badge:         'LIVE',
+    add_session:        'Add session',
+    btn_emargement:     'Attendance',
+    hero_live:          '{{count}} session(s) live · attendance open',
+    hero_today:         '{{count}} session(s) scheduled today',
+    hero_empty:         'No sessions planned today',
+
+    qa_new_session:     'New\nsession',
+    qa_emargement:      'Attendance',
+    qa_candidatures:    'Applications',
+    qa_apprenants:      'Learners',
+    qa_notes:           'Grades',
+    qa_rapports:        'Reports',
+
+    kpi_students:       'Learners',
+    kpi_groups:         'Active groups',
+    kpi_sessions_today: 'Sessions today',
+    kpi_absences:       'Absence alerts',
+    kpi_trend_month:    '+{{count}} this month',
+    kpi_trend_active:   '{{count}} active',
+    kpi_trend_live:     '{{count}} live',
+    kpi_trend_planned:  'planned',
+    kpi_trend_all_good: 'All good',
+
+    onboarding_title:    'Quick start',
+    onboarding_progress: '{{done}}/4 completed',
+    onboarding_subtitle: 'Follow these steps to set up your ERP.',
+    ob_step1:            'Add instructors',
+    ob_step2:            'Create a training group',
+    ob_step3:            'Register learners',
+    ob_step4:            'Schedule your first session',
+
+    sessions_title:    "Today's sessions",
+    sessions_view_all: 'View all',
+    sessions_empty:    'No sessions today',
+    sessions_plan:     'Schedule a session',
+
+    alerts_title:     'At-risk learners',
+    alerts_report:    'Report',
+    alerts_computing: 'Calculating…',
+    alerts_empty:     'No learners at risk',
+    alerts_all_good:  'All good!',
+    alerts_more:      '+ {{count}} more',
+
+    stat_total:        'Total sessions',
+    stat_done:         'Completed sessions',
+    stat_intervenants: 'Instructors',
+    stat_presence:     'Attendance rate',
+  },
 };
 
 export default en;

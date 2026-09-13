@@ -4,7 +4,7 @@ import { setAppLanguage } from '../../i18n/index.js';
 const LANGS = [
   { code: 'fr', flag: '🇫🇷', label: 'FR' },
   { code: 'en', flag: '🇬🇧', label: 'EN' },
-  { code: 'ar', flag: '🇲🇦', label: 'ع' },
+  { code: 'ar', flag: '🇸🇦', label: 'ع' },
 ];
 
 export default function LanguageSwitcher({ compact = false }) {

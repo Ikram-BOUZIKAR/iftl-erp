@@ -134,6 +134,60 @@ const ar = {
     erp_name: 'نظام إدارة التعليم',
     cndp:     'CNDP رقم A-PO-268/2024',
   },
+
+  dashboard: {
+    greeting_morning:   'صباح الخير',
+    greeting_afternoon: 'مساء الخير',
+    greeting_evening:   'مساء الخير',
+    live_badge:         'مباشر',
+    add_session:        'إضافة حصة',
+    btn_emargement:     'التوقيع',
+    hero_live:          '{{count}} حصة جارية · التوقيع مفتوح',
+    hero_today:         '{{count}} حصة مبرمجة اليوم',
+    hero_empty:         'لا توجد حصص مبرمجة اليوم',
+
+    qa_new_session:     'حصة\nجديدة',
+    qa_emargement:      'التوقيع',
+    qa_candidatures:    'الترشيحات',
+    qa_apprenants:      'المتعلمون',
+    qa_notes:           'النقط',
+    qa_rapports:        'التقارير',
+
+    kpi_students:       'المتعلمون',
+    kpi_groups:         'المجموعات النشطة',
+    kpi_sessions_today: 'حصص اليوم',
+    kpi_absences:       'تنبيهات الغياب',
+    kpi_trend_month:    '+{{count}} هذا الشهر',
+    kpi_trend_active:   '{{count}} نشط',
+    kpi_trend_live:     '{{count}} جارية',
+    kpi_trend_planned:  'مبرمجة',
+    kpi_trend_all_good: 'كل شيء على ما يرام',
+
+    onboarding_title:    'البدء السريع',
+    onboarding_progress: '{{done}}/4 مكتمل',
+    onboarding_subtitle: 'اتبع هذه الخطوات لإعداد نظامك.',
+    ob_step1:            'إضافة أساتذة',
+    ob_step2:            'إنشاء مجموعة تكوين',
+    ob_step3:            'تسجيل المتعلمين',
+    ob_step4:            'برمجة أول حصة',
+
+    sessions_title:    'حصص اليوم',
+    sessions_view_all: 'عرض الكل',
+    sessions_empty:    'لا توجد حصص اليوم',
+    sessions_plan:     'برمجة حصة',
+
+    alerts_title:     'المتعلمون في خطر',
+    alerts_report:    'تقرير',
+    alerts_computing: 'جارٍ الحساب…',
+    alerts_empty:     'لا يوجد متعلمون في خطر',
+    alerts_all_good:  'كل شيء على ما يرام !',
+    alerts_more:      '+ {{count}} آخرون',
+
+    stat_total:        'إجمالي الحصص',
+    stat_done:         'الحصص المنجزة',
+    stat_intervenants: 'الأساتذة',
+    stat_presence:     'نسبة الحضور',
+  },
 };
 
 export default ar;

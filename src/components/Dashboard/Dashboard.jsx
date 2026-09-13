@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr as frLocale, enUS, ar as arLocale } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import { useStudents, useSessions, useGroupes, useIntervenants } from '../../hooks/useData';
 import { getStudentsAtRisk } from '../../services/absenceService';
 import { presencesService } from '../../services/firestore';
+
+const DATE_LOCALES = { fr: frLocale, en: enUS, ar: arLocale };
 
 const BRAND = {
   blue: '#005989',
@@ -133,18 +136,10 @@ function IconRocket({ className }) {
   );
 }
 
-function IconChevronRight({ className }) {
+function IconChevronRight({ className, style }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  );
-}
-
-function IconCircle({ className }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="9" strokeWidth={2} />
     </svg>
   );
 }
@@ -264,19 +259,19 @@ function OnboardingStep({ done, label, to, step }) {
 
 /* ─── QuickActions ────────────────────────────────────────────────────────── */
 
-const QUICK_ACTIONS = [
-  { label: 'Nouvelle séance', to: '/planning',      Icon: IconPlusCircle },
-  { label: 'Émargement',            to: '/emargement',    Icon: IconClipboardCheck },
-  { label: 'Candidatures',              to: '/candidatures',  Icon: IconInbox },
-  { label: 'Apprenants',                to: '/apprenants',    Icon: IconUsers },
-  { label: 'Notes',                     to: '/notes',         Icon: IconPencilAlt },
-  { label: 'Rapports',                  to: '/rapports',      Icon: IconBarChart },
+const QUICK_ACTION_DEFS = [
+  { labelKey: 'dashboard.qa_new_session',  to: '/planning',      Icon: IconPlusCircle },
+  { labelKey: 'dashboard.qa_emargement',   to: '/emargement',    Icon: IconClipboardCheck },
+  { labelKey: 'dashboard.qa_candidatures', to: '/candidatures',  Icon: IconInbox },
+  { labelKey: 'dashboard.qa_apprenants',   to: '/apprenants',    Icon: IconUsers },
+  { labelKey: 'dashboard.qa_notes',        to: '/notes',         Icon: IconPencilAlt },
+  { labelKey: 'dashboard.qa_rapports',     to: '/rapports',      Icon: IconBarChart },
 ];
 
-function QuickActions() {
+function QuickActions({ t }) {
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
-      {QUICK_ACTIONS.map(({ label, to, Icon }) => (
+      {QUICK_ACTION_DEFS.map(({ labelKey, to, Icon }) => (
         <Link
           key={to}
           to={to}
@@ -288,7 +283,7 @@ function QuickActions() {
           >
             <Icon className="w-4.5 h-4.5" style={{ color: BRAND.blue, width: '1.1rem', height: '1.1rem' }} />
           </div>
-          <span className="text-xs font-semibold text-slate-600 text-center leading-tight whitespace-pre-wrap">{label}</span>
+          <span className="text-xs font-semibold text-slate-600 text-center leading-tight whitespace-pre-wrap">{t(labelKey)}</span>
         </Link>
       ))}
     </div>
@@ -299,6 +294,8 @@ function QuickActions() {
 
 export default function Dashboard({ auth }) {
   const { userProfile, user } = auth;
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'fr';
   const { data: students } = useStudents();
   const { data: sessions } = useSessions();
   const { data: groupes } = useGroupes();
@@ -320,9 +317,14 @@ export default function Dashboard({ auth }) {
   }, [sessions]);
 
   const now = new Date();
-  const today = format(now, 'EEEE dd MMMM yyyy', { locale: fr });
+  const dateLocale = DATE_LOCALES[lang] || frLocale;
+  const today = format(now, 'EEEE dd MMMM yyyy', { locale: dateLocale });
   const hour = now.getHours();
-  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const greeting = hour < 12
+    ? t('dashboard.greeting_morning')
+    : hour < 18
+    ? t('dashboard.greeting_afternoon')
+    : t('dashboard.greeting_evening');
   const firstName = userProfile?.prenom || user?.email?.split('@')[0] || '';
 
   const todaySessions = sessions.filter(s => s.date && new Date(s.date).toDateString() === now.toDateString());
@@ -331,11 +333,12 @@ export default function Dashboard({ auth }) {
   const getGroupeName = (id) => groupes.find(g => g.id === id)?.nom || '—';
 
   const isEmpty = students.length === 0 && groupes.length === 0 && sessions.length === 0;
+
   const onboardingSteps = [
-    { done: intervenants.length > 0, label: 'Ajouter des intervenants', to: '/intervenants' },
-    { done: groupes.length > 0, label: 'Créer un groupe de formation', to: '/groupes' },
-    { done: students.length > 0, label: 'Enregistrer des apprenants', to: '/apprenants' },
-    { done: sessions.length > 0, label: 'Planifier une première séance', to: '/planning' },
+    { done: intervenants.length > 0, label: t('dashboard.ob_step1'), to: '/intervenants' },
+    { done: groupes.length > 0,      label: t('dashboard.ob_step2'), to: '/groupes' },
+    { done: students.length > 0,     label: t('dashboard.ob_step3'), to: '/apprenants' },
+    { done: sessions.length > 0,     label: t('dashboard.ob_step4'), to: '/planning' },
   ];
   const onboardingProgress = onboardingSteps.filter(s => s.done).length;
 
@@ -345,10 +348,16 @@ export default function Dashboard({ auth }) {
 
   const activeGroupes = groupes.filter(g => g.actif !== false);
 
+  const heroSubtext = liveSessions.length > 0
+    ? t('dashboard.hero_live', { count: liveSessions.length })
+    : todaySessions.length > 0
+    ? t('dashboard.hero_today', { count: todaySessions.length })
+    : t('dashboard.hero_empty');
+
   return (
     <div className="space-y-6 max-w-7xl">
 
-      {/* ── Hero ─────────────────────────────────────────── */}
+      {/* Hero */}
       <div
         className="relative overflow-hidden rounded-2xl p-7 text-white"
         style={{
@@ -358,7 +367,6 @@ export default function Dashboard({ auth }) {
       >
         <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full" style={{ background: `${BRAND.yellow}12` }} />
         <div className="absolute right-32 bottom-0 translate-y-1/2 w-40 h-40 rounded-full" style={{ background: `${BRAND.green}08` }} />
-        {/* Bande accent gauche */}
         <div className="absolute left-0 top-6 bottom-6 w-1 rounded-r-full" style={{ background: BRAND.yellow }} />
 
         <div className="relative pl-4 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -370,17 +378,11 @@ export default function Dashboard({ auth }) {
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full"
                   style={{ background: `${BRAND.green}30`, color: BRAND.green }}>
                   <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: BRAND.green }} />
-                  EN DIRECT
+                  {t('dashboard.live_badge')}
                 </span>
               )}
             </h1>
-            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              {liveSessions.length > 0
-                ? `${liveSessions.length} séance${liveSessions.length > 1 ? 's' : ''} en cours · émargement ouvert`
-                : todaySessions.length > 0
-                ? `${todaySessions.length} séance${todaySessions.length > 1 ? 's' : ''} prévue${todaySessions.length > 1 ? 's' : ''} aujourd’hui`
-                : 'Aucune séance planifiée aujourd’hui'}
-            </p>
+            <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.65)' }}>{heroSubtext}</p>
           </div>
           <div className="flex gap-3 flex-wrap shrink-0">
             <Link to="/planning"
@@ -392,7 +394,7 @@ export default function Dashboard({ auth }) {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Ajouter séance
+              {t('dashboard.add_session')}
             </Link>
             <Link to="/emargement"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
@@ -402,21 +404,21 @@ export default function Dashboard({ auth }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              Émargement
+              {t('dashboard.btn_emargement')}
             </Link>
           </div>
         </div>
       </div>
 
-      {/* ── Quick actions ─────────────────────────────────── */}
-      <QuickActions />
+      {/* Quick actions */}
+      <QuickActions t={t} />
 
-      {/* ── KPI Cards ────────────────────────────────────── */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Apprenants"
+          label={t('dashboard.kpi_students')}
           value={students.length}
-          trend={students.length > 0 ? `+${Math.min(students.length, 3)} ce mois` : '—'}
+          trend={students.length > 0 ? t('dashboard.kpi_trend_month', { count: Math.min(students.length, 3) }) : '—'}
           IconComponent={IconUsers}
           from={BRAND.blue}
           toColor="#003d63"
@@ -424,9 +426,9 @@ export default function Dashboard({ auth }) {
           linkTo="/apprenants"
         />
         <KpiCard
-          label="Groupes actifs"
+          label={t('dashboard.kpi_groups')}
           value={activeGroupes.length}
-          trend={activeGroupes.length > 0 ? `${activeGroupes.length} actif${activeGroupes.length > 1 ? 's' : ''}` : '—'}
+          trend={activeGroupes.length > 0 ? t('dashboard.kpi_trend_active', { count: activeGroupes.length }) : '—'}
           IconComponent={IconArchive}
           from="#6a7d10"
           toColor={BRAND.green}
@@ -434,9 +436,13 @@ export default function Dashboard({ auth }) {
           linkTo="/groupes"
         />
         <KpiCard
-          label="Séances aujourd’hui"
+          label={t('dashboard.kpi_sessions_today')}
           value={todaySessions.length}
-          trend={liveSessions.length > 0 ? `${liveSessions.length} en cours` : todaySessions.length > 0 ? 'planifiées' : '—'}
+          trend={liveSessions.length > 0
+            ? t('dashboard.kpi_trend_live', { count: liveSessions.length })
+            : todaySessions.length > 0
+            ? t('dashboard.kpi_trend_planned')
+            : '—'}
           IconComponent={IconCalendar}
           from={BRAND.orange}
           toColor="#b04020"
@@ -444,9 +450,11 @@ export default function Dashboard({ auth }) {
           linkTo="/planning"
         />
         <KpiCard
-          label="Alertes absences"
+          label={t('dashboard.kpi_absences')}
           value={atRisk.length}
-          trend={atRisk.length > 0 ? `${atRisk.length} apprenant${atRisk.length > 1 ? 's' : ''}` : 'Tout va bien'}
+          trend={atRisk.length > 0
+            ? t('dashboard.kpi_trend_active', { count: atRisk.length })
+            : t('dashboard.kpi_trend_all_good')}
           IconComponent={IconWarning}
           from={BRAND.red}
           toColor="#8e0e12"
@@ -455,7 +463,7 @@ export default function Dashboard({ auth }) {
         />
       </div>
 
-      {/* ── Onboarding ───────────────────────────────────── */}
+      {/* Onboarding */}
       {isEmpty && (
         <div className="bg-white rounded-2xl border p-6" style={{ borderColor: `${BRAND.blue}30` }}>
           <div className="flex items-center justify-between mb-1">
@@ -464,14 +472,14 @@ export default function Dashboard({ auth }) {
                 style={{ background: `${BRAND.blue}15` }}>
                 <IconRocket className="w-3.5 h-3.5" style={{ color: BRAND.blue }} />
               </div>
-              Démarrage rapide
+              {t('dashboard.onboarding_title')}
             </h2>
             <span className="text-xs font-bold px-2.5 py-1 rounded-full"
               style={{ background: `${BRAND.blue}15`, color: BRAND.blue }}>
-              {onboardingProgress}/4 complété
+              {t('dashboard.onboarding_progress', { done: onboardingProgress })}
             </span>
           </div>
-          <p className="text-slate-500 text-sm mb-4">Suivez ces étapes pour configurer votre ERP.</p>
+          <p className="text-slate-500 text-sm mb-4">{t('dashboard.onboarding_subtitle')}</p>
           <div className="w-full rounded-full h-1.5 mb-4" style={{ background: '#e2e8f0' }}>
             <div className="h-1.5 rounded-full transition-all"
               style={{ width: `${(onboardingProgress / 4) * 100}%`, background: BRAND.blue }} />
@@ -485,7 +493,7 @@ export default function Dashboard({ auth }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ── Séances du jour ──────────────────────────── */}
+        {/* Sessions du jour */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
@@ -493,9 +501,11 @@ export default function Dashboard({ auth }) {
                 style={{ background: `${BRAND.blue}15` }}>
                 <IconCalendar className="w-4 h-4" style={{ color: BRAND.blue }} />
               </div>
-              <h2 className="font-bold text-slate-800">Séances du jour</h2>
+              <h2 className="font-bold text-slate-800">{t('dashboard.sessions_title')}</h2>
             </div>
-            <Link to="/planning" className="text-xs font-medium hover:underline" style={{ color: BRAND.blue }}>Voir tout &rarr;</Link>
+            <Link to="/planning" className="text-xs font-medium hover:underline" style={{ color: BRAND.blue }}>
+              {t('dashboard.sessions_view_all')} &rarr;
+            </Link>
           </div>
           <div className="p-4 space-y-2">
             {todaySessions.length === 0 ? (
@@ -504,9 +514,9 @@ export default function Dashboard({ auth }) {
                   style={{ background: `${BRAND.yellow}20` }}>
                   <IconCalendar className="w-6 h-6" style={{ color: BRAND.orange }} />
                 </div>
-                <p className="text-slate-500 text-sm font-medium">Aucune séance aujourd’hui</p>
+                <p className="text-slate-500 text-sm font-medium">{t('dashboard.sessions_empty')}</p>
                 <Link to="/planning" className="inline-block mt-2 text-xs font-medium hover:underline" style={{ color: BRAND.blue }}>
-                  Planifier une séance &rarr;
+                  {t('dashboard.sessions_plan')} &rarr;
                 </Link>
               </div>
             ) : todaySessions.map(s => (
@@ -515,7 +525,7 @@ export default function Dashboard({ auth }) {
           </div>
         </div>
 
-        {/* ── Alertes absences ──────────────────────────── */}
+        {/* Alertes absences */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
@@ -523,20 +533,22 @@ export default function Dashboard({ auth }) {
                 style={{ background: `${BRAND.red}15` }}>
                 <IconWarning className="w-4 h-4" style={{ color: BRAND.red }} />
               </div>
-              <h2 className="font-bold text-slate-800">Apprenants en alerte</h2>
+              <h2 className="font-bold text-slate-800">{t('dashboard.alerts_title')}</h2>
               {atRisk.length > 0 && (
                 <span className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center text-white"
                   style={{ background: BRAND.red }}>{atRisk.length}</span>
               )}
             </div>
-            <Link to="/rapports" className="text-xs font-medium hover:underline" style={{ color: BRAND.blue }}>Rapport &rarr;</Link>
+            <Link to="/rapports" className="text-xs font-medium hover:underline" style={{ color: BRAND.blue }}>
+              {t('dashboard.alerts_report')} &rarr;
+            </Link>
           </div>
           <div className="p-4">
             {loadingPresences ? (
               <div className="py-8 text-center">
                 <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-2"
                   style={{ borderColor: `${BRAND.blue}40`, borderTopColor: BRAND.blue }} />
-                <p className="text-slate-400 text-xs">Calcul en cours…</p>
+                <p className="text-slate-400 text-xs">{t('dashboard.alerts_computing')}</p>
               </div>
             ) : atRisk.length === 0 ? (
               <div className="py-8 text-center">
@@ -544,15 +556,15 @@ export default function Dashboard({ auth }) {
                   style={{ background: `${BRAND.green}25` }}>
                   <IconCheckCircle className="w-6 h-6" style={{ color: '#5a7a0a' }} />
                 </div>
-                <p className="text-slate-500 text-sm font-medium">Aucun apprenant en alerte</p>
-                <p className="text-xs text-slate-400 mt-1">Tout va bien !</p>
+                <p className="text-slate-500 text-sm font-medium">{t('dashboard.alerts_empty')}</p>
+                <p className="text-xs text-slate-400 mt-1">{t('dashboard.alerts_all_good')}</p>
               </div>
             ) : (
               <div className="space-y-1">
                 {atRisk.slice(0, 7).map(s => <AlertRow key={s.id} student={s} />)}
                 {atRisk.length > 7 && (
                   <Link to="/rapports" className="block text-center text-xs font-medium hover:underline pt-2" style={{ color: BRAND.blue }}>
-                    + {atRisk.length - 7} autre{atRisk.length - 7 > 1 ? 's' : ''} &rarr;
+                    {t('dashboard.alerts_more', { count: atRisk.length - 7 })} &rarr;
                   </Link>
                 )}
               </div>
@@ -561,36 +573,16 @@ export default function Dashboard({ auth }) {
         </div>
       </div>
 
-      {/* ── Stats bar ────────────────────────────────────── */}
+      {/* Stats bar */}
       {(students.length > 0 || sessions.length > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            {
-              label: 'Total séances',
-              value: sessions.length,
-              Icon: IconBarChart,
-              color: BRAND.blue,
-            },
-            {
-              label: 'Séances terminées',
-              value: sessions.filter(s => s.statut === 'terminee').length,
-              Icon: IconCheckCircle,
-              color: BRAND.green,
-            },
-            {
-              label: 'Intervenants',
-              value: intervenants.length,
-              Icon: IconUser,
-              color: BRAND.orange,
-            },
-            {
-              label: 'Taux présence',
-              value: loadingPresences ? '…' : (presenceRate !== null ? `${presenceRate}%` : '—'),
-              Icon: IconTrend,
-              color: BRAND.yellow,
-            },
+            { labelKey: 'dashboard.stat_total',        value: sessions.length,                                          Icon: IconBarChart,    color: BRAND.blue   },
+            { labelKey: 'dashboard.stat_done',          value: sessions.filter(s => s.statut === 'terminee').length,    Icon: IconCheckCircle, color: BRAND.green  },
+            { labelKey: 'dashboard.stat_intervenants',  value: intervenants.length,                                     Icon: IconUser,        color: BRAND.orange },
+            { labelKey: 'dashboard.stat_presence',      value: loadingPresences ? '…' : (presenceRate !== null ? `${presenceRate}%` : '—'), Icon: IconTrend, color: BRAND.yellow },
           ].map(item => (
-            <div key={item.label} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+            <div key={item.labelKey} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: `${item.color}18` }}
@@ -599,7 +591,7 @@ export default function Dashboard({ auth }) {
               </div>
               <div>
                 <p className="text-xl font-bold text-slate-800">{item.value}</p>
-                <p className="text-xs text-slate-400 font-medium">{item.label}</p>
+                <p className="text-xs text-slate-400 font-medium">{t(item.labelKey)}</p>
               </div>
             </div>
           ))}

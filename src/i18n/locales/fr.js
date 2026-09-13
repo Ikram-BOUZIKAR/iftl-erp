@@ -141,6 +141,60 @@ const fr = {
     erp_name: 'ERP Pédagogique',
     cndp:     'CNDP n° A-PO-268/2024',
   },
+
+  dashboard: {
+    greeting_morning:   'Bonjour',
+    greeting_afternoon: 'Bon après-midi',
+    greeting_evening:   'Bonsoir',
+    live_badge:         'EN DIRECT',
+    add_session:        'Ajouter séance',
+    btn_emargement:     'Émargement',
+    hero_live:          '{{count}} séance(s) en cours · émargement ouvert',
+    hero_today:         '{{count}} séance(s) prévue(s) aujourd\'hui',
+    hero_empty:         'Aucune séance planifiée aujourd\'hui',
+
+    qa_new_session:     'Nouvelle\nséance',
+    qa_emargement:      'Émargement',
+    qa_candidatures:    'Candidatures',
+    qa_apprenants:      'Apprenants',
+    qa_notes:           'Notes',
+    qa_rapports:        'Rapports',
+
+    kpi_students:       'Apprenants',
+    kpi_groups:         'Groupes actifs',
+    kpi_sessions_today: 'Séances aujourd\'hui',
+    kpi_absences:       'Alertes absences',
+    kpi_trend_month:    '+{{count}} ce mois',
+    kpi_trend_active:   '{{count}} actif(s)',
+    kpi_trend_live:     '{{count}} en cours',
+    kpi_trend_planned:  'planifiées',
+    kpi_trend_all_good: 'Tout va bien',
+
+    onboarding_title:    'Démarrage rapide',
+    onboarding_progress: '{{done}}/4 complété',
+    onboarding_subtitle: 'Suivez ces étapes pour configurer votre ERP.',
+    ob_step1:            'Ajouter des intervenants',
+    ob_step2:            'Créer un groupe de formation',
+    ob_step3:            'Enregistrer des apprenants',
+    ob_step4:            'Planifier une première séance',
+
+    sessions_title:    'Séances du jour',
+    sessions_view_all: 'Voir tout',
+    sessions_empty:    'Aucune séance aujourd\'hui',
+    sessions_plan:     'Planifier une séance',
+
+    alerts_title:     'Apprenants en alerte',
+    alerts_report:    'Rapport',
+    alerts_computing: 'Calcul en cours…',
+    alerts_empty:     'Aucun apprenant en alerte',
+    alerts_all_good:  'Tout va bien !',
+    alerts_more:      '+ {{count}} autre(s)',
+
+    stat_total:        'Total séances',
+    stat_done:         'Séances terminées',
+    stat_intervenants: 'Intervenants',
+    stat_presence:     'Taux présence',
+  },
 };
 
 export default fr;
