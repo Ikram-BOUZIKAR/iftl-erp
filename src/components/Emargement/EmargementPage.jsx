@@ -7,6 +7,7 @@ import { sessionsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog'; // still used by handleDeleteSession
 import EmargementLibreModal from './EmargementLibreModal';
+import { useTranslation } from 'react-i18next';
 
 const GRANDES_SALLES = ['Grande Salle 01', 'Grande Salle 02', 'Amphi'];
 
@@ -33,6 +34,7 @@ function SearchIcon() {
 }
 
 export default function EmargementPage() {
+  const { t } = useTranslation();
   const toast = useToast();
   const confirm = useConfirm();
   const { data: sessions, loading, refetch } = useSessions();
@@ -161,7 +163,7 @@ export default function EmargementPage() {
     <div className="space-y-5 max-w-6xl">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Émargement</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('emargement.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">Gestion des feuilles de présence</p>
         </div>
         <button
@@ -196,15 +198,15 @@ export default function EmargementPage() {
         </select>
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
-          <option value="">Tous les statuts</option>
-          <option value="planifiee">Planifiée</option>
-          <option value="en_cours">En cours</option>
-          <option value="terminee">Terminée</option>
-          <option value="annulee">Annulée</option>
+          <option value="">{t('common.all')}</option>
+          <option value="planifiee">{t('planning.status_planned')}</option>
+          <option value="en_cours">{t('planning.status_live')}</option>
+          <option value="terminee">{t('planning.status_done')}</option>
+          <option value="annulee">{t('planning.status_cancelled')}</option>
         </select>
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
-          <option value="">Tous les groupes</option>
+          <option value="">{t('planning.all_groupes')}</option>
           {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
       </div>

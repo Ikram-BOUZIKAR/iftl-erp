@@ -5,6 +5,7 @@ import { useCandidatures, useGroupes } from '../../hooks/useData';
 import { candidaturesService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { sendCandidatureStatut } from '../../services/emailService';
+import { useTranslation } from 'react-i18next';
 
 const BRAND = '#005989';
 
@@ -50,6 +51,14 @@ function Row({ label, val, bold }) {
 
 export default function CandidaturesAdminPage() {
   const toast = useToast();
+  const { t } = useTranslation();
+  const statusLabel = (key) => ({
+    recu: t('candidaturesAdmin.status_new'),
+    en_cours: t('candidaturesAdmin.status_review'),
+    accepte: t('candidaturesAdmin.status_admitted'),
+    refuse: t('candidaturesAdmin.status_rejected'),
+    liste_attente: t('candidaturesAdmin.status_waitlist'),
+  }[key] || STATUTS[key]?.label || key);
   const { data: candidatures, loading, refetch } = useCandidatures();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
 
@@ -251,7 +260,7 @@ export default function CandidaturesAdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Candidatures</h1>
+          <h1 className="text-2xl font-black text-slate-800">{t('candidaturesAdmin.title')}</h1>
           <p className="text-slate-400 text-sm">Traitement des dossiers de préinscription</p>
         </div>
         <div className="flex items-center gap-2">
@@ -297,8 +306,8 @@ export default function CandidaturesAdminPage() {
           </div>
           <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
             className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
-            <option value="">Tous statuts</option>
-            {Object.entries(STATUTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            <option value="">{t('candidaturesAdmin.all_statuses')}</option>
+            {Object.entries(STATUTS).map(([k]) => <option key={k} value={k}>{statusLabel(k)}</option>)}
           </select>
           <select value={filterAnnee} onChange={e => setFilterAnnee(e.target.value)}
             className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
@@ -368,7 +377,7 @@ export default function CandidaturesAdminPage() {
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <span className="text-4xl">📋</span>
-              <p className="text-slate-500 font-medium mt-3">Aucune candidature</p>
+              <p className="text-slate-500 font-medium mt-3">{t('candidaturesAdmin.no_candidatures')}</p>
               <p className="text-slate-400 text-xs mt-1">Les dossiers soumis via le formulaire public apparaîtront ici.</p>
             </div>
           ) : (
@@ -381,11 +390,11 @@ export default function CandidaturesAdminPage() {
                         onChange={toggleAll}
                         className="w-3.5 h-3.5 rounded accent-[#005989] cursor-pointer" />
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold">Candidat</th>
-                    <th className="px-4 py-3 text-left font-semibold hidden lg:table-cell">Filière</th>
-                    <th className="px-4 py-3 text-left font-semibold hidden md:table-cell">Date</th>
-                    <th className="px-4 py-3 text-left font-semibold">Statut</th>
-                    <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                    <th className="px-4 py-3 text-left font-semibold">{t('candidaturesAdmin.col_name')}</th>
+                    <th className="px-4 py-3 text-left font-semibold hidden lg:table-cell">{t('candidaturesAdmin.col_filiere')}</th>
+                    <th className="px-4 py-3 text-left font-semibold hidden md:table-cell">{t('candidaturesAdmin.col_date')}</th>
+                    <th className="px-4 py-3 text-left font-semibold">{t('candidaturesAdmin.col_status')}</th>
+                    <th className="px-4 py-3 text-right font-semibold">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -420,7 +429,7 @@ export default function CandidaturesAdminPage() {
                         <td className="px-4 py-3 cursor-pointer" onClick={() => handleOpenDetail(c)}>
                           <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full ${st.cls}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
-                            {st.label}
+                            {statusLabel(c.statut)}
                           </span>
                           {c.adminMessage && (
                             <svg className="w-3 h-3 text-amber-400 inline ml-1" viewBox="0 0 24 24" fill="currentColor"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -438,11 +447,11 @@ export default function CandidaturesAdminPage() {
                               <>
                                 <button onClick={() => updateStatut(c, 'accepte')}
                                   className="text-xs px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition">
-                                  ✓ Admettre
+                                  ✓ {t('candidaturesAdmin.admit')}
                                 </button>
                                 <button onClick={() => setShowRefusModal(c)}
                                   className="text-xs px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition">
-                                  ✗ Refuser
+                                  ✗ {t('candidaturesAdmin.reject')}
                                 </button>
                               </>
                             )}
@@ -472,7 +481,7 @@ export default function CandidaturesAdminPage() {
             <div className="bg-gradient-to-r from-[#005989] to-[#003d63] p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUTS[selected.statut]?.cls || 'bg-white/20 text-white'}`}>
-                  {STATUTS[selected.statut]?.label}
+                  {statusLabel(selected.statut)}
                 </span>
                 <button onClick={() => setSelected(null)} className="text-white/60 hover:text-white text-lg leading-none">×</button>
               </div>
@@ -592,11 +601,11 @@ export default function CandidaturesAdminPage() {
                   <>
                     <button onClick={() => updateStatut(selected, 'accepte')}
                       className="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded-xl hover:bg-green-700 transition">
-                      ✓ Admettre
+                      ✓ {t('candidaturesAdmin.admit')}
                     </button>
                     <button onClick={() => setShowRefusModal(selected)}
                       className="flex-1 bg-red-600 text-white text-xs font-bold py-2 rounded-xl hover:bg-red-700 transition">
-                      ✗ Refuser
+                      ✗ {t('candidaturesAdmin.reject')}
                     </button>
                   </>
                 )}

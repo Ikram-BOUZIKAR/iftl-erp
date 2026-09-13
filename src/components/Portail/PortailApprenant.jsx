@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
@@ -31,14 +32,14 @@ const POINTS_RASSEMBLEMENT = [
 ];
 
 const TABS = [
-  { id: 'profil',        label: 'Mon Profil',     short: 'Profil',     Icon: IcoUser  },
-  { id: 'planning',      label: 'Mon Planning',   short: 'Planning',   Icon: IcoCal   },
-  { id: 'resultats',     label: 'Mes Résultats',  short: 'Résultats',  Icon: IcoChart },
-  { id: 'absences',      label: 'Mes Absences',   short: 'Absences',   Icon: IcoClock },
-  { id: 'ressources',    label: 'Ressources',     short: 'Ressources', Icon: IcoBook  },
-  { id: 'notifications', label: 'Annonces',       short: 'Annonces',   Icon: IcoBell  },
-  { id: 'transport',     label: 'Transport',      short: 'Transport',  Icon: IcoBus   },
-  { id: 'rentree',       label: 'Programme de rentrée', short: 'Rentrée', Icon: IcoStar },
+  { id: 'profil',        label: 'Mon Profil',     short: 'Profil',     Icon: IcoUser,  i18nKey: null },
+  { id: 'planning',      label: 'Mon Planning',   short: 'Planning',   Icon: IcoCal,   i18nKey: 'portail.tab_planning' },
+  { id: 'resultats',     label: 'Mes Résultats',  short: 'Résultats',  Icon: IcoChart, i18nKey: 'portail.tab_notes' },
+  { id: 'absences',      label: 'Mes Absences',   short: 'Absences',   Icon: IcoClock, i18nKey: 'portail.tab_absences' },
+  { id: 'ressources',    label: 'Ressources',     short: 'Ressources', Icon: IcoBook,  i18nKey: 'portail.tab_documents' },
+  { id: 'notifications', label: 'Annonces',       short: 'Annonces',   Icon: IcoBell,  i18nKey: null },
+  { id: 'transport',     label: 'Transport',      short: 'Transport',  Icon: IcoBus,   i18nKey: null },
+  { id: 'rentree',       label: 'Programme de rentrée', short: 'Rentrée', Icon: IcoStar, i18nKey: null },
 ];
 
 const TYPE_COLORS = {
@@ -1249,7 +1250,9 @@ function RentreeTab() {
 
 // ── Sidebar nav link ───────────────────────────────────────────────────────────
 function SideNavLink({ tab, active, onClick }) {
-  const { Icon, label } = tab;
+  const { t } = useTranslation();
+  const { Icon, label, i18nKey } = tab;
+  const displayLabel = i18nKey ? t(i18nKey) : label;
   return (
     <button onClick={onClick}
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left group"
@@ -1262,7 +1265,7 @@ function SideNavLink({ tab, active, onClick }) {
     >
       {active && <span className="absolute left-0 w-1 h-6 rounded-r-full bg-white" />}
       <Icon />
-      {label}
+      {displayLabel}
     </button>
   );
 }
@@ -1473,6 +1476,7 @@ function TransportTab({ studentId, studentNom, studentPrenom, studentCode }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function PortailApprenant({ auth }) {
+  const { t } = useTranslation();
   const { user, userProfile, logout } = auth;
   const [activeTab, setActiveTab] = useState('profil');
   const [student, setStudent]     = useState(null);
@@ -1634,7 +1638,7 @@ export default function PortailApprenant({ auth }) {
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: BLUE }}>
                   <span className="text-white font-black text-xs">IF</span>
                 </div>
-                <span className="font-bold text-slate-800 text-sm">Portail Apprenant</span>
+                <span className="font-bold text-slate-800 text-sm">{t('portail.apprenant_title')}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1655,7 +1659,7 @@ export default function PortailApprenant({ auth }) {
                 {TABS.find(t => t.id === activeTab)?.label}
               </p>
               <h1 className="text-2xl font-black text-slate-800">
-                {activeTab === 'profil' ? `Bonjour, ${prenom || displayName}` : TABS.find(t => t.id === activeTab)?.label}
+                {activeTab === 'profil' ? t('portail.apprenant_welcome', { name: prenom || displayName }) : TABS.find(tab => tab.id === activeTab)?.label}
               </h1>
             </div>
             {student && (

@@ -6,6 +6,7 @@ import { generateAbsenceReport } from '../../services/pdfService';
 import { useAppStore } from '../../store/appStore';
 import { Link } from 'react-router-dom';
 import { useToast } from '../UI/Toast';
+import { useTranslation } from 'react-i18next';
 
 function SearchIcon() {
   return (
@@ -17,6 +18,7 @@ function SearchIcon() {
 
 export default function RapportsPage() {
   const toast = useToast();
+  const { t } = useTranslation();
   const { data: students } = useStudents();
   const { data: sessions } = useSessions();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
@@ -88,7 +90,7 @@ export default function RapportsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Rapports des absences</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('rapports.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">Année {academicYear} · {filtered.length} apprenant{filtered.length !== 1 ? 's' : ''}</p>
         </div>
         <button onClick={handleExportPDF}
@@ -96,7 +98,7 @@ export default function RapportsPage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Exporter PDF
+          {t('rapports.download_pdf')}
         </button>
       </div>
 
@@ -131,7 +133,7 @@ export default function RapportsPage() {
         </div>
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-          <option value="">Tous les groupes</option>
+          <option value="">{t('rapports.all_groupes')}</option>
           {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select value={filterAlert} onChange={e => setFilterAlert(e.target.value)}
@@ -162,11 +164,11 @@ export default function RapportsPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Apprenant</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('rapports.stat_students')}</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden sm:table-cell">Groupe</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Alerte</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Détail modules</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Actions</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

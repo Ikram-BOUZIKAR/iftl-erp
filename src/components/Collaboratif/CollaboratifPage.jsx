@@ -6,6 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -320,6 +321,7 @@ function TachePanel({ tache, defaultStatut, onClose, onSaved, onDelete }) {
 export default function CollaboratifPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const [taches, setTaches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
@@ -382,7 +384,7 @@ export default function CollaboratifPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Espace collaboratif</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('collaboratif.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${taches.length} tâche${taches.length !== 1 ? 's' : ''}`}
           </p>
@@ -392,7 +394,7 @@ export default function CollaboratifPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           <PlusIcon />
-          Nouvelle tâche
+          {t('collaboratif.add')}
         </button>
       </div>
 

@@ -7,6 +7,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useGroupes } from '../../hooks/useData';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -308,6 +309,7 @@ export default function AnnoncesPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
+  const { t } = useTranslation();
   const [annonces, setAnnonces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -381,7 +383,7 @@ export default function AnnoncesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Annonces &amp; Communications</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('annonces.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${annonces.length} annonce${annonces.length !== 1 ? 's' : ''}`}
           </p>
@@ -391,7 +393,7 @@ export default function AnnoncesPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           {showForm ? <CloseIcon /> : <PlusIcon />}
-          {showForm ? 'Fermer' : 'Nouvelle annonce'}
+          {showForm ? 'Fermer' : t('annonces.add')}
         </button>
       </div>
 
@@ -418,7 +420,7 @@ export default function AnnoncesPage() {
               </div>
             ) : annonces.length === 0 ? (
               <div className="p-6 text-center">
-                <p className="text-slate-400 text-sm">Aucune annonce</p>
+                <p className="text-slate-400 text-sm">{t('annonces.no_annonces')}</p>
               </div>
             ) : (
               annonces.map(a => (

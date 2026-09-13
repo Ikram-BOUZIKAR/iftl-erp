@@ -6,6 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -280,6 +281,7 @@ function PersonnelModal({ personnel, onClose, onSaved }) {
 export default function RHPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const [personnel, setPersonnel] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -341,7 +343,7 @@ export default function RHPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Ressources Humaines &amp; Paie</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('rh.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading
               ? 'Chargement…'
@@ -353,7 +355,7 @@ export default function RHPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           <PlusIcon />
-          Ajouter
+          {t('rh.employee_add')}
         </button>
       </div>
 
@@ -405,7 +407,7 @@ export default function RHPage() {
             <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-300">
               <UsersIcon />
             </div>
-            <p className="text-slate-500 font-medium">Aucun membre trouvé</p>
+            <p className="text-slate-500 font-medium">{t('rh.no_employees')}</p>
             <p className="text-slate-400 text-sm mt-1">
               {search || filterPoste || filterStatut
                 ? 'Modifiez vos filtres.'
@@ -417,13 +419,13 @@ export default function RHPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Nom Prénom</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Poste</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden md:table-cell">Contrat</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Date embauche</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Salaire</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Statut</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Actions</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('rh.col_name')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('rh.col_poste')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden md:table-cell">{t('rh.col_type')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">{t('rh.col_date')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">{t('rh.col_salary')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('rh.col_status')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('rh.col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

@@ -6,6 +6,7 @@ import { db } from '../../services/firebase';
 import { generateFeuillEmargement } from '../../services/pdfService';
 import { computeAbsenceScore } from '../../services/absenceService';
 import { useToast } from '../UI/Toast';
+import { useTranslation } from 'react-i18next';
 
 const GRANDES_SALLES = ['Grande Salle 01', 'Grande Salle 02', 'Amphi'];
 
@@ -24,6 +25,7 @@ const STATUTS = [
 ];
 
 export default function SessionAttendance() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const toast = useToast();
   const [session, setSession] = useState(null);
@@ -226,7 +228,7 @@ export default function SessionAttendance() {
 
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-slate-500">
-        <Link to="/emargement" className="hover:text-slate-700 transition-colors">Émargement</Link>
+        <Link to="/emargement" className="hover:text-slate-700 transition-colors">{t('emargement.title')}</Link>
         <svg className="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
@@ -277,8 +279,8 @@ export default function SessionAttendance() {
       {/* Summary stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Présents', count: stats.present, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-          { label: 'Retards', count: stats.retard, color: 'text-amber-700 bg-amber-50 border-amber-200' },
+          { label: t('emargement.stats_present'), count: stats.present, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+          { label: t('emargement.late'), count: stats.retard, color: 'text-amber-700 bg-amber-50 border-amber-200' },
           { label: 'Abs. Justifiés', count: stats.aj, color: 'text-blue-700 bg-blue-50 border-blue-200' },
           { label: 'Abs. Non Just.', count: stats.anj, color: 'text-red-700 bg-red-50 border-red-200' },
         ].map(item => (

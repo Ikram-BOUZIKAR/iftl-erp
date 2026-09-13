@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   collection, query, where, getDocs, addDoc,
   writeBatch, doc, serverTimestamp,
@@ -81,6 +82,7 @@ function DeadlinesSummary() {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function NotesIntervenantPage({ intervenantId, sessions, groupes }) {
+  const { t } = useTranslation();
 
   // ── Step 1 config state ───────────────────────────────────────────────────
   const [step,      setStep]      = useState('config');
@@ -287,7 +289,7 @@ export default function NotesIntervenantPage({ intervenantId, sessions, groupes 
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const enteredCount = Object.values(notes).filter(v => v.note !== '' || v.absent).length;
-  const evalTypeLabel = EVAL_TYPES.find(t => t.value === evalType)?.label || evalType;
+  const evalTypeLabel = EVAL_TYPES.find(et => et.value === evalType)?.label || evalType;
 
   // ── CONFIG STEP ───────────────────────────────────────────────────────────
   if (step === 'config') {
@@ -296,11 +298,11 @@ export default function NotesIntervenantPage({ intervenantId, sessions, groupes 
         <DeadlinesSummary />
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-          <h2 className="font-bold text-slate-700 text-sm">Nouvelle saisie de notes</h2>
+          <h2 className="font-bold text-slate-700 text-sm">{t('notes.intervenant_title')}</h2>
 
           {/* Groupe */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Groupe</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('notes.intervenant_groupe')}</label>
             <select
               value={groupeId}
               onChange={e => setGroupeId(e.target.value)}
@@ -315,7 +317,7 @@ export default function NotesIntervenantPage({ intervenantId, sessions, groupes 
 
           {/* Module */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Module</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('notes.intervenant_module')}</label>
             <select
               value={moduleKey}
               onChange={e => setModuleKey(e.target.value)}

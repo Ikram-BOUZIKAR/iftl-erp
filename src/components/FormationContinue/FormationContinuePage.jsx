@@ -6,6 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -904,6 +905,7 @@ const TABS = ['Entreprises', 'Sessions', 'Devis'];
 
 export default function FormationContinuePage() {
   const toast = useToast();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState(0);
   const [entreprises, setEntreprises] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -942,7 +944,7 @@ export default function FormationContinuePage() {
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Formation Continue</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t('formationContinue.title')}</h1>
         <p className="text-slate-500 text-sm mt-0.5">CRM formation entreprise — entreprises, sessions & devis</p>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query as fsQuery, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -257,6 +258,7 @@ function SearchInput({ value, onChange, onKeyDown, placeholder, accentColor, upp
 
 // ── Composant principal ───────────────────────────────────────────────────────
 export default function PortailResultats() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('ts');
 
   const [query,    setQuery]    = useState('');
@@ -313,7 +315,7 @@ export default function PortailResultats() {
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 bg-white flex items-center justify-center shadow-lg overflow-hidden">
             <img src="/iftl-logo.svg" alt="IFTL" className="w-full h-full object-contain p-1.5" />
           </div>
-          <h1 className="text-white font-black text-2xl tracking-tight">Portail Résultats</h1>
+          <h1 className="text-white font-black text-2xl tracking-tight">{t('portail.resultats_title')}</h1>
           <p className="text-white/65 text-sm mt-1">Année académique 2025–2026</p>
 
           {/* Tabs */}
@@ -349,7 +351,7 @@ export default function PortailResultats() {
                   className="w-full py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-opacity hover:opacity-90 active:scale-[.98]"
                   style={{ background: RED }}>
                   <IcoSearch />
-                  Rechercher mes résultats
+                  {t('portail.resultats_search')}
                 </button>
               </div>
               <p className="text-[11px] text-slate-400 mt-3 text-center">
@@ -362,7 +364,7 @@ export default function PortailResultats() {
                 <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
                   <IcoSearch />
                 </div>
-                <p className="font-bold text-slate-700">Aucun résultat trouvé</p>
+                <p className="font-bold text-slate-700">{t('portail.resultats_not_found')}</p>
                 <p className="text-sm text-slate-400 mt-1">Vérifiez votre CIN ou code apprenant</p>
               </div>
             )}

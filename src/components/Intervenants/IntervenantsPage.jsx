@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useIntervenants } from '../../hooks/useData';
@@ -102,6 +103,7 @@ function RefreshIcon() {
 
 function IntervenantModal({ editing, onClose, onSaved }) {
   const toast = useToast();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     nom: editing?.nom || '',
     prenom: editing?.prenom || '',
@@ -150,7 +152,7 @@ function IntervenantModal({ editing, onClose, onSaved }) {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-base font-bold text-slate-800">
-            {editing ? "Modifier l'intervenant" : 'Ajouter un intervenant'}
+            {editing ? t('intervenants.form_title_edit') : t('intervenants.form_title_add')}
           </h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
             <CloseIcon />
@@ -305,21 +307,22 @@ function ModalTaux({ intervenant, onClose, onSaved }) {
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
 function EmptyState({ onAdd }) {
+  const { t } = useTranslation();
   return (
     <div className="text-center py-16">
       <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
         <span className="text-2xl">👤</span>
       </div>
-      <p className="text-slate-700 font-semibold">Aucun intervenant pour l'instant</p>
+      <p className="text-slate-700 font-semibold">{t('intervenants.no_intervenants')}</p>
       <p className="text-slate-400 text-sm mt-1 mb-5">
-        Ajoutez votre premier intervenant pour commencer à planifier des séances.
+        {t('intervenants.no_intervenants_hint')}
       </p>
       <button
         onClick={onAdd}
         className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
       >
         <PlusIcon />
-        Ajouter un intervenant
+        {t('intervenants.add')}
       </button>
     </div>
   );
@@ -340,6 +343,7 @@ function KpiCard({ label, value, sub }) {
 // ─── Tab: Intervenants (Liste) ─────────────────────────────────────────────────
 
 function ListeTab({ intervenants, loading, refetch }) {
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [compteStatus, setCompteStatus] = useState({});
@@ -352,7 +356,7 @@ function ListeTab({ intervenants, loading, refetch }) {
 
   const handleDelete = async (i) => {
     const ok = await confirm({
-      title: 'Supprimer cet intervenant ?',
+      title: t('intervenants.delete_confirm'),
       message: `${i.prenom} ${i.nom} sera définitivement supprimé(e). Les séances liées ne seront pas affectées.`,
       danger: true,
       confirmLabel: 'Supprimer',
@@ -398,14 +402,14 @@ function ListeTab({ intervenants, loading, refetch }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-slate-500 text-sm">
-          {loading ? 'Chargement…' : `${intervenants.length} intervenant${intervenants.length !== 1 ? 's' : ''}`}
+          {loading ? 'Chargement…' : t('intervenants.total', { count: intervenants.length })}
         </p>
         <button
           onClick={openAdd}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
         >
           <PlusIcon />
-          Ajouter
+          {t('intervenants.add')}
         </button>
       </div>
 
@@ -781,6 +785,7 @@ const TABS = [
 ];
 
 export default function IntervenantsPage() {
+  const { t } = useTranslation();
   const { data: intervenants, loading, refetch } = useIntervenants();
   const [activeTab, setActiveTab] = useState('intervenants');
 
@@ -788,9 +793,9 @@ export default function IntervenantsPage() {
     <div className="space-y-5 max-w-5xl">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Intervenants</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t('intervenants.title')}</h1>
         <p className="text-slate-500 text-sm mt-0.5">
-          {loading ? 'Chargement…' : `${intervenants.length} intervenant${intervenants.length !== 1 ? 's' : ''}`}
+          {loading ? 'Chargement…' : t('intervenants.total', { count: intervenants.length })}
         </p>
       </div>
 

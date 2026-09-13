@@ -15,6 +15,7 @@ import { useConfirm } from '../UI/ConfirmDialog';
 import { getAlertLevel, computeAbsenceScore } from '../../services/absenceService';
 import { sendAlertAbsenceEmail } from '../../services/emailService';
 import AbsenceNotificationModal from '../Notifications/AbsenceNotificationModal';
+import { useTranslation } from 'react-i18next';
 
 const MOIS_OPTIONS = [
   { value: '', label: 'Tous les mois' },
@@ -85,6 +86,7 @@ function KpiCard({ label, value, sub, color }) {
 }
 
 function JustifyModal({ presence, onClose, onSave }) {
+  const { t } = useTranslation();
   const [motif, setMotif] = useState(presence.motif || '');
   const [docRef, setDocRef] = useState(presence.docRef || '');
   const [saving, setSaving] = useState(false);
@@ -105,14 +107,14 @@ function JustifyModal({ presence, onClose, onSave }) {
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h3 className="text-base font-bold text-slate-800">Justifier l'absence</h3>
+          <h3 className="text-base font-bold text-slate-800">{t('absences.justify_modal')}</h3>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
             <CloseIcon />
           </button>
         </div>
         <form onSubmit={handleSave} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Motif de justification *</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('absences.justify_reason')} *</label>
             <textarea
               value={motif}
               onChange={e => setMotif(e.target.value)}
@@ -123,7 +125,7 @@ function JustifyModal({ presence, onClose, onSave }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Référence du justificatif</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('absences.justify_doc')}</label>
             <input
               type="text"
               value={docRef}
@@ -135,11 +137,11 @@ function JustifyModal({ presence, onClose, onSave }) {
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button type="submit" disabled={saving}
               className="px-4 py-2 text-sm font-medium bg-[#005989] hover:bg-[#004a73] text-white rounded-xl transition-colors disabled:opacity-60">
-              {saving ? 'Enregistrement…' : 'Justifier'}
+              {saving ? t('common.loading') : t('absences.justify_save')}
             </button>
           </div>
         </form>
@@ -149,6 +151,7 @@ function JustifyModal({ presence, onClose, onSave }) {
 }
 
 export default function AbsencesPage() {
+  const { t } = useTranslation();
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -395,7 +398,7 @@ export default function AbsencesPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Gestion des absences</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('absences.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">Suivi des présences, retards et justifications</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -459,7 +462,7 @@ export default function AbsencesPage() {
           onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
         >
-          <option value="">Tous les groupes</option>
+          <option value="">{t('absences.all_groupes')}</option>
           {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select
@@ -583,7 +586,7 @@ export default function AbsencesPage() {
                         onClick={() => setJustifyTarget(row)}
                         className="text-xs font-medium px-3 py-1.5 bg-[#005989] hover:bg-[#004a73] text-white rounded-lg transition-colors"
                       >
-                        Justifier
+                        {t('absences.justify')}
                       </button>
                     )}
                   </td>

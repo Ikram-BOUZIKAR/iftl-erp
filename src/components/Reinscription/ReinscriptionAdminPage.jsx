@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, getDocs, updateDoc, doc, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
@@ -28,6 +29,7 @@ function StatutBadge({ statut }) {
 }
 
 function DetailDrawer({ rec, onClose, onValidate, onRefuse }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
@@ -121,11 +123,11 @@ function DetailDrawer({ rec, onClose, onValidate, onRefuse }) {
           <div className="sticky bottom-0 bg-white border-t border-slate-200 p-4 flex gap-3">
             <button onClick={() => onRefuse(rec)}
               className="flex-1 py-2.5 border border-red-300 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-50 transition-colors">
-              Refuser
+              {t('reinscription.admin_reject')}
             </button>
             <button onClick={() => onValidate(rec)}
               className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">
-              Valider
+              {t('reinscription.admin_approve')}
             </button>
           </div>
         )}
@@ -142,6 +144,7 @@ const DEFAULT_CONFIG = {
 };
 
 export default function ReinscriptionAdminPage() {
+  const { t } = useTranslation();
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -293,7 +296,7 @@ export default function ReinscriptionAdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Réinscriptions</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('reinscription.admin_title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">Gestion des demandes de réinscription</p>
         </div>
         <div className="flex items-center gap-2">
@@ -403,7 +406,7 @@ export default function ReinscriptionAdminPage() {
         />
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
           className="text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
-          <option value="">Tous les statuts</option>
+          <option value="">{t('reinscription.admin_all')}</option>
           {Object.entries(STATUTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         {niveaux.length > 0 && (

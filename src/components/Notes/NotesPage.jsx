@@ -15,6 +15,7 @@ import { useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateBulletin, generatePV } from '../../services/pdfService';
+import { useTranslation } from 'react-i18next';
 
 // ── Helpers: group deduplication (hyphen vs en-dash) ─────────────────────────
 function normalizeDash(str) {
@@ -144,6 +145,7 @@ function Spinner() {
 // ─── Tab: Évaluations ─────────────────────────────────────────────────────────
 
 function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -227,7 +229,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
           onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
         >
-          <option value="">Tous les groupes</option>
+          <option value="">{t('notes.all_groupes')}</option>
           {uniqueByNorm(groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select
@@ -235,7 +237,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
           onChange={e => setFilterModule(e.target.value)}
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
         >
-          <option value="">Tous les modules</option>
+          <option value="">{t('notes.all_modules')}</option>
           {modules.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom}</option>)}
         </select>
         <button
@@ -243,7 +245,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
           className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-xl transition-colors"
         >
           <PlusIcon />
-          Nouvelle évaluation
+          {t('notes.add_eval')}
         </button>
       </div>
 
@@ -310,7 +312,7 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowForm(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h3 className="text-base font-bold text-slate-800">{editing ? 'Modifier l\'évaluation' : 'Nouvelle évaluation'}</h3>
+              <h3 className="text-base font-bold text-slate-800">{editing ? t('common.edit') : t('notes.add_eval')}</h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><CloseIcon /></button>
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
@@ -387,11 +389,11 @@ function EvaluationsTab({ evaluations, loadingEval, modules, groupes, onRefetch 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)}
                   className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" disabled={saving}
                   className="px-4 py-2 text-sm font-medium bg-[#005989] hover:bg-[#004a73] text-white rounded-xl transition-colors disabled:opacity-60">
-                  {saving ? 'Enregistrement…' : editing ? 'Modifier' : 'Créer'}
+                  {saving ? t('notes.saving') : editing ? t('common.edit') : t('common.add')}
                 </button>
               </div>
             </form>
@@ -478,6 +480,7 @@ function StudentHistoryModal({ student, evaluations, modules, onClose }) {
 }
 
 function SaisieTab({ evaluations, modules, groupes }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const [selectedEvalId, setSelectedEvalId] = useState('');
   const [students, setStudents] = useState([]);
@@ -619,7 +622,7 @@ function SaisieTab({ evaluations, modules, groupes }) {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-60"
                 >
                   <SaveIcon />
-                  {saving ? 'Enregistrement…' : 'Enregistrer les notes'}
+                  {saving ? t('notes.saving') : t('notes.save_notes')}
                 </button>
               </div>
               <table className="w-full text-sm">
@@ -1213,6 +1216,7 @@ function PvTab({ evaluations, modules, groupes }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('evaluations');
   const { data: groupes } = useGroupes();
 
@@ -1256,7 +1260,7 @@ export default function NotesPage() {
     <div className="space-y-5 max-w-7xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Notes & Évaluations</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t('notes.title')}</h1>
         <p className="text-slate-500 text-sm mt-0.5">Gestion des évaluations et saisie des notes</p>
       </div>
 

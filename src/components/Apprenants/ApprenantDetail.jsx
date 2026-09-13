@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { studentsService } from '../../services/firestore';
 import { usePresencesByStudent, useSessions, useGroupes } from '../../hooks/useData';
 import { computeStudentAbsencesByModule } from '../../services/absenceService';
@@ -55,11 +56,11 @@ const SESSION_TYPE_COLORS = {
 };
 
 const TABS = [
-  { id: 'dossier', label: 'Dossier' },
-  { id: 'resultats', label: 'Résultats' },
-  { id: 'absences', label: 'Absences' },
-  { id: 'planning', label: 'Planning' },
-  { id: 'annonces', label: 'Annonces' },
+  { id: 'dossier', label: 'Dossier', i18nKey: 'apprenants.detail_info' },
+  { id: 'resultats', label: 'Résultats', i18nKey: 'apprenants.detail_notes' },
+  { id: 'absences', label: 'Absences', i18nKey: 'apprenants.detail_absences' },
+  { id: 'planning', label: 'Planning', i18nKey: null },
+  { id: 'annonces', label: 'Annonces', i18nKey: null },
 ];
 
 function toAscii(str) {
@@ -373,6 +374,7 @@ async function createCompteApprenant(student, emailIftl) {
 }
 
 export default function ApprenantDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -715,7 +717,7 @@ export default function ApprenantDetail() {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              {tab.label}
+              {tab.i18nKey ? t(tab.i18nKey) : tab.label}
             </button>
           ))}
         </div>

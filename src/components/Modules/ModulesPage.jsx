@@ -13,6 +13,7 @@ import { db } from '../../services/firebase';
 import { useIntervenants } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 const FILIERES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP'];
 
@@ -362,6 +363,7 @@ function ImportCSVModal({ onClose, onImported, existingModules }) {
 export default function ModulesPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const { data: intervenants } = useIntervenants();
 
   const [modules, setModules] = useState([]);
@@ -444,7 +446,7 @@ export default function ModulesPage() {
 
   const handleDelete = async (m) => {
     const ok = await confirm({
-      title: 'Supprimer ce module ?',
+      title: t('modules.delete_confirm'),
       message: `Le module "${m.nom}" (${m.code}) sera définitivement supprimé.`,
       danger: true,
       confirmLabel: 'Supprimer',
@@ -489,7 +491,7 @@ export default function ModulesPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Modules & Référentiel</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('modules.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${modules.length} module${modules.length !== 1 ? 's' : ''} au total`}
           </p>
@@ -509,7 +511,7 @@ export default function ModulesPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
           >
             <PlusIcon />
-            Nouveau module
+            {t('modules.add')}
           </button>
         </div>
       </div>
@@ -590,14 +592,14 @@ export default function ModulesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Code</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Intitulé</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Filière</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('modules.col_code')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('modules.col_name')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">{t('modules.col_filiere')}</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Année</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Coeff.</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Heures</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Actions</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">{t('modules.col_coeff')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">{t('modules.col_hours')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -676,7 +678,7 @@ export default function ModulesPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
               <div>
                 <h2 className="text-base font-bold text-slate-800">
-                  {editing ? 'Modifier le module' : 'Nouveau module'}
+                  {editing ? t('modules.form_title_edit') : t('modules.form_title_add')}
                 </h2>
                 {editing && (
                   <p className="text-xs text-slate-400 mt-0.5 font-mono">{editing.code}</p>
@@ -718,7 +720,7 @@ export default function ModulesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Intitulé du module *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('modules.form_name')} *</label>
                 <input
                   type="text"
                   value={form.nom}
@@ -732,7 +734,7 @@ export default function ModulesPage() {
               {/* Filière + Type */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Filière</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('modules.form_filiere')}</label>
                   <select
                     value={form.filiereCode}
                     onChange={e => setField('filiereCode', e.target.value)}
@@ -762,7 +764,7 @@ export default function ModulesPage() {
               {/* Coeff + Heures */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Coefficient</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('modules.form_coeff')}</label>
                   <input
                     type="number"
                     min="0"
@@ -773,7 +775,7 @@ export default function ModulesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Volume horaire (h)</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('modules.form_hours')}</label>
                   <input
                     type="number"
                     min="0"

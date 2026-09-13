@@ -4,6 +4,7 @@ import { db } from '../../services/firebase';
 import { useStudents, useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 const STATUTS = {
   en_attente:  { label: 'En attente',  cls: 'bg-amber-100 text-amber-700' },
@@ -26,6 +27,12 @@ const EMPTY = {
 export default function InscriptionsPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
+  const inscStatusLabel = (key) => ({
+    en_attente: t('inscriptions.status_pending'),
+    valide: t('inscriptions.status_active'),
+    annule: t('inscriptions.status_cancelled'),
+  }[key] || STATUTS[key]?.label || key);
   const { data: students } = useStudents();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
 
@@ -95,12 +102,12 @@ export default function InscriptionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Inscriptions</h1>
+          <h1 className="text-2xl font-black text-slate-800">{t('inscriptions.title')}</h1>
           <p className="text-slate-400 text-sm">Gestion des dossiers d'inscription des apprenants</p>
         </div>
         <button onClick={openNew}
           className="flex items-center gap-2 bg-[#005989] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#004a73] transition">
-          + Nouvelle inscription
+          + {t('inscriptions.add')}
         </button>
       </div>
 
@@ -109,7 +116,7 @@ export default function InscriptionsPage() {
         {Object.entries(STATUTS).map(([k, v]) => (
           <div key={k} className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-2xl font-black text-slate-800">{inscriptions.filter(i => i.statut === k).length}</p>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">{v.label}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">{inscStatusLabel(k)}</p>
           </div>
         ))}
       </div>
@@ -120,8 +127,8 @@ export default function InscriptionsPage() {
           className="flex-1 min-w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]" />
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
           className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]">
-          <option value="">Tous statuts</option>
-          {Object.entries(STATUTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          <option value="">{t('inscriptions.all_statuses')}</option>
+          {Object.entries(STATUTS).map(([k]) => <option key={k} value={k}>{inscStatusLabel(k)}</option>)}
         </select>
       </div>
 
@@ -131,7 +138,7 @@ export default function InscriptionsPage() {
           <div className="py-16 text-center"><div className="w-6 h-6 border-2 border-[#005989] border-t-transparent rounded-full animate-spin mx-auto" /></div>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-slate-400 font-medium">Aucune inscription</p>
+            <p className="text-slate-400 font-medium">{t('inscriptions.no_inscriptions')}</p>
             <button onClick={openNew} className="mt-3 text-sm text-[#005989] hover:underline">+ Créer la première inscription</button>
           </div>
         ) : (
@@ -140,12 +147,12 @@ export default function InscriptionsPage() {
               <thead>
                 <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
                   <th className="px-4 py-3 text-left font-semibold">Référence</th>
-                  <th className="px-4 py-3 text-left font-semibold">Apprenant</th>
-                  <th className="px-4 py-3 text-left font-semibold">Groupe</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t('inscriptions.col_student')}</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t('inscriptions.col_groupe')}</th>
                   <th className="px-4 py-3 text-left font-semibold">Année</th>
                   <th className="px-4 py-3 text-left font-semibold">Frais</th>
-                  <th className="px-4 py-3 text-left font-semibold">Statut</th>
-                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                  <th className="px-4 py-3 text-left font-semibold">{t('inscriptions.col_status')}</th>
+                  <th className="px-4 py-3 text-right font-semibold">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -158,7 +165,7 @@ export default function InscriptionsPage() {
                     <td className="px-4 py-3 text-slate-600">{ins.fraisScolarite ? `${Number(ins.fraisScolarite).toLocaleString()} MAD` : '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUTS[ins.statut]?.cls || 'bg-slate-100 text-slate-600'}`}>
-                        {STATUTS[ins.statut]?.label || ins.statut}
+                        {inscStatusLabel(ins.statut)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">

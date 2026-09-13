@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
 import { collection, getDocs } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 import { db } from '../../services/firebase';
 
 const BLUE   = '#005989';
@@ -102,6 +103,7 @@ const CustomTooltip = ({ active, payload, label, fmt: fmtFn }) => {
 
 // ── 1. Vue Générale ──────────────────────────────────────────────────────────
 function VueGenerale({ students, groupes, modules, intervenants, presences, absences, factures, sessions, loading }) {
+  const { t } = useTranslation();
   const presenceRate = useMemo(() => {
     if (!presences.length) return null;
     const present = presences.filter(p => p.statut === 'present').length;
@@ -137,23 +139,23 @@ function VueGenerale({ students, groupes, modules, intervenants, presences, abse
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KpiCard label="Apprenants actifs" value={fmt(students.length)} icon="🎓" color={BLUE} sub={`${groupes.length} groupes`} />
+        <KpiCard label={t('statistiques.kpi_students')} value={fmt(students.length)} icon="🎓" color={BLUE} sub={`${groupes.length} groupes`} />
         <KpiCard label="Intervenants" value={fmt(intervenants.length)} icon="👨‍🏫" color="#7c3aed" />
         <KpiCard label="Groupes" value={fmt(groupes.length)} icon="🏫" color="#0ea5e9" />
         <KpiCard label="Modules" value={fmt(modules.length)} icon="📚" color={GREEN} />
         <KpiCard
-          label="Taux présence"
+          label={t('statistiques.kpi_presence')}
           value={presenceRate != null ? `${presenceRate}%` : '—'}
           icon="📊"
           color={presenceRate == null ? SLATE : presenceRate >= 80 ? '#16a34a' : presenceRate >= 60 ? '#d97706' : RED}
           sub={`${presences.length} enregistrements`}
         />
-        <KpiCard label="Séances" value={fmt(sessions.length)} icon="📅" color={YELLOW} sub={`${sessions.filter(s => s.statut === 'terminee').length} terminées`} />
+        <KpiCard label={t('statistiques.kpi_sessions')} value={fmt(sessions.length)} icon="📅" color={YELLOW} sub={`${sessions.filter(s => s.statut === 'terminee').length} terminées`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardTitle>Répartition apprenants par filière</CardTitle>
+          <CardTitle>{t('statistiques.chart_niveaux')}</CardTitle>
           {filiereData.length === 0 ? <Empty /> : (
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <ResponsiveContainer width={200} height={200}>
@@ -659,6 +661,7 @@ function Intervenants({ sessions, intervenants, loading }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function StatistiquesPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading]     = useState(true);
   const [fetchErrors, setFetchErrors] = useState([]);
@@ -766,7 +769,7 @@ export default function StatistiquesPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Statistiques</h1>
+          <h1 className="text-2xl font-black text-slate-800">{t('statistiques.title')}</h1>
           <p className="text-slate-400 text-sm mt-0.5">Tableau de bord analytique — IFTL</p>
         </div>
         <div className="flex items-center gap-3">
@@ -776,7 +779,7 @@ export default function StatistiquesPage() {
             onChange={e => setFilterGroupe(e.target.value)}
             className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#005989]"
           >
-            <option value="">Tous les groupes</option>
+            <option value="">{t('statistiques.all_groupes')}</option>
             {groupes.sort((a, b) => (a.nom || '').localeCompare(b.nom || '')).map(g => (
               <option key={g.id} value={g.id}>{g.nom}</option>
             ))}

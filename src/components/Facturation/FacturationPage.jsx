@@ -7,6 +7,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateRecu } from '../../services/pdfService';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -197,6 +198,7 @@ const ANNEES = ['2024-2025', '2025-2026', '2026-2027'];
 
 function ModalNouvelleFacture({ onClose, onSaved }) {
   const toast = useToast();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     studentNom: '',
     studentPrenom: '',
@@ -309,7 +311,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Montant total (DH) *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('facturation.form_amount')} *</label>
               <input
                 type="number"
                 min="0"
@@ -357,7 +359,7 @@ function ModalNouvelleFacture({ onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Date d'échéance</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('facturation.form_due')}</label>
             <input
               type="date"
               value={form.dateEcheance}
@@ -517,6 +519,7 @@ function ModalPaiement({ facture, onClose, onSaved }) {
 export default function FacturationPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const [factures, setFactures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNouvelleFacture, setShowNouvelleFacture] = useState(false);
@@ -591,7 +594,7 @@ export default function FacturationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Reçus de paiement</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('facturation.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${factures.length} reçu${factures.length !== 1 ? 's' : ''}`}
           </p>
@@ -601,7 +604,7 @@ export default function FacturationPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           <PlusIcon />
-          Nouveau reçu
+          {t('facturation.add_invoice')}
         </button>
       </div>
 
@@ -631,10 +634,10 @@ export default function FacturationPage() {
             onChange={e => setFilterStatut(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
           >
-            <option value="">Tous les statuts</option>
-            <option value="impayee">Impayée</option>
-            <option value="partiellement_payee">Partiellement payée</option>
-            <option value="payee">Payée</option>
+            <option value="">{t('facturation.all_statuses')}</option>
+            <option value="impayee">{t('facturation.status_pending')}</option>
+            <option value="partiellement_payee">{t('facturation.status_partial')}</option>
+            <option value="payee">{t('facturation.status_paid')}</option>
           </select>
           <select
             value={filterAnnee}
@@ -674,15 +677,15 @@ export default function FacturationPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Référence</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Apprenant</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Montant</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('facturation.col_ref')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('facturation.col_student')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('facturation.col_amount')}</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Payé</th>
                   <th className="px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Progression</th>
                   <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Solde</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Statut</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Échéance</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Actions</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('facturation.col_status')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">{t('facturation.col_due')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

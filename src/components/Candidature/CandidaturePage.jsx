@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
@@ -170,6 +171,7 @@ function TTextarea({ label, name, form, set, errors, required, placeholder, rows
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function CandidaturePage() {
+  const { t } = useTranslation();
   const [step, setStep]           = useState(1);
   const [form, setForm]           = useState(INITIAL);
   const [errors, setErrors]       = useState({});
@@ -311,7 +313,7 @@ export default function CandidaturePage() {
               <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
                 <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Candidature envoyée !</h2>
+              <h2 className="text-2xl font-extrabold text-slate-800 mb-2">{t('candidaturePublic.success_title')}</h2>
               <p className="text-slate-500 text-sm mb-5">
                 Confirmation envoyée à <strong className="text-slate-700">{form.email}</strong><br />et par WhatsApp au <strong className="text-slate-700">{form.telephone}</strong>.
               </p>
@@ -377,7 +379,7 @@ export default function CandidaturePage() {
               <p className="text-xs text-slate-500 mt-0.5">Institut de Formation · Transport & Logistique</p>
             </div>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Formulaire de candidature</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900">{t('candidaturePublic.title')}</h1>
           <p className="text-slate-400 text-sm mt-1">Année académique {form.anneeEntree || '2025–2026'}</p>
         </div>
 
@@ -442,12 +444,12 @@ export default function CandidaturePage() {
             {/* ── Étape 1 : Identité & Coordonnées ──────────────────────── */}
             {step === 1 && <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TInput label="Nom de famille" name="nom" form={form} set={set} errors={errors} required placeholder="BENALI" />
-                <TInput label="Prénom" name="prenom" form={form} set={set} errors={errors} required placeholder="Youssef" />
+                <TInput label={t('candidaturePublic.form_nom')} name="nom" form={form} set={set} errors={errors} required placeholder="BENALI" />
+                <TInput label={t('candidaturePublic.form_prenom')} name="prenom" form={form} set={set} errors={errors} required placeholder="Youssef" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TInput label="Date de naissance" name="dateNaissance" type="date" form={form} set={set} errors={errors} required />
-                <TInput label="Numéro CIN" name="cin" form={form} set={set} errors={errors} required placeholder="AB123456" />
+                <TInput label={t('candidaturePublic.form_dob')} name="dateNaissance" type="date" form={form} set={set} errors={errors} required />
+                <TInput label={t('candidaturePublic.form_cin')} name="cin" form={form} set={set} errors={errors} required placeholder="AB123456" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TSelect label="Sexe" name="sexe" form={form} set={set} errors={errors} required
@@ -455,8 +457,8 @@ export default function CandidaturePage() {
                 <TInput label="Nationalité" name="nationalite" form={form} set={set} errors={errors} placeholder="Marocaine" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TInput label="Téléphone" name="telephone" type="tel" form={form} set={set} errors={errors} required placeholder="06XXXXXXXX" />
-                <TInput label="Adresse e-mail" name="email" type="email" form={form} set={set} errors={errors} required placeholder="vous@email.com" />
+                <TInput label={t('candidaturePublic.form_phone')} name="telephone" type="tel" form={form} set={set} errors={errors} required placeholder="06XXXXXXXX" />
+                <TInput label={t('candidaturePublic.form_email')} name="email" type="email" form={form} set={set} errors={errors} required placeholder="vous@email.com" />
               </div>
               <TInput label="Adresse complète" name="adresse" form={form} set={set} errors={errors} required placeholder="N° rue, quartier, commune…" />
               <TInput label="Ville" name="ville" form={form} set={set} errors={errors} required placeholder="Casablanca" />
@@ -671,9 +673,9 @@ export default function CandidaturePage() {
               <button type="button" onClick={handleSubmit} disabled={submitting}
                 className="flex items-center gap-2 bg-green-600 text-white text-sm font-bold px-7 py-2.5 rounded-xl hover:bg-green-700 disabled:opacity-60 transition shadow-md shadow-green-200">
                 {submitting ? (
-                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Envoi en cours…</>
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('candidaturePublic.form_submitting')}</>
                 ) : (
-                  <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg> Soumettre ma candidature</>
+                  <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg> {t('candidaturePublic.form_submit')}</>
                 )}
               </button>
             )}

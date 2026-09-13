@@ -5,6 +5,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import ImportDataPage from './ImportDataPage';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -88,23 +89,24 @@ function Input({ ...props }) {
 // ─── Établissement tab ────────────────────────────────────────────────────────
 
 function EtablissementTab({ settings, setSettings, onSave, saving }) {
+  const { t } = useTranslation();
   return (
-    <SectionCard title="Informations de l'établissement" description="Ces informations apparaissent sur les documents générés (PDFs, rapports).">
-      <FieldRow label="Nom de l'établissement" hint="Affiché sur les en-têtes des documents">
+    <SectionCard title={t('settings.etab_title')} description={t('settings.etab_desc')}>
+      <FieldRow label={t('settings.etab_name')} hint={t('settings.etab_name_hint')}>
         <Input
           value={settings.nomEcole || ''}
           onChange={e => setSettings(s => ({ ...s, nomEcole: e.target.value }))}
           placeholder="Ex: Mon Institut de Formation"
         />
       </FieldRow>
-      <FieldRow label="Adresse" hint="Adresse postale complète">
+      <FieldRow label={t('settings.etab_address')} hint={t('settings.etab_address_hint')}>
         <Input
           value={settings.adresse || ''}
           onChange={e => setSettings(s => ({ ...s, adresse: e.target.value }))}
           placeholder="123 Rue de l'École, 75000 Paris"
         />
       </FieldRow>
-      <FieldRow label="Téléphone">
+      <FieldRow label={t('settings.etab_phone')}>
         <Input
           value={settings.telephone || ''}
           onChange={e => setSettings(s => ({ ...s, telephone: e.target.value }))}
@@ -112,7 +114,7 @@ function EtablissementTab({ settings, setSettings, onSave, saving }) {
           type="tel"
         />
       </FieldRow>
-      <FieldRow label="Email de contact">
+      <FieldRow label={t('settings.etab_email')}>
         <Input
           value={settings.emailContact || ''}
           onChange={e => setSettings(s => ({ ...s, emailContact: e.target.value }))}
@@ -120,7 +122,7 @@ function EtablissementTab({ settings, setSettings, onSave, saving }) {
           type="email"
         />
       </FieldRow>
-      <FieldRow label="URL du logo" hint="Lien vers le logo à afficher sur les documents">
+      <FieldRow label={t('settings.etab_logo')} hint={t('settings.etab_logo_hint')}>
         <Input
           value={settings.logoURL || ''}
           onChange={e => setSettings(s => ({ ...s, logoURL: e.target.value }))}
@@ -128,7 +130,7 @@ function EtablissementTab({ settings, setSettings, onSave, saving }) {
           type="url"
         />
       </FieldRow>
-      <FieldRow label="Année académique active" hint="Année scolaire en cours (ex: 2025-2026)">
+      <FieldRow label={t('settings.etab_year')} hint={t('settings.etab_year_hint')}>
         <Input
           value={settings.anneeAcademique || ''}
           onChange={e => setSettings(s => ({ ...s, anneeAcademique: e.target.value }))}
@@ -141,7 +143,7 @@ function EtablissementTab({ settings, setSettings, onSave, saving }) {
           disabled={saving}
           className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
         >
-          {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          {saving ? t('settings.etab_saving') : t('settings.etab_save')}
         </button>
       </div>
     </SectionCard>
@@ -152,6 +154,7 @@ function EtablissementTab({ settings, setSettings, onSave, saving }) {
 
 function ProfilTab({ auth }) {
   const toast = useToast();
+  const { t } = useTranslation();
   const { user, userProfile } = auth;
   const [form, setForm] = useState({
     prenom: userProfile?.prenom || '',
@@ -199,10 +202,10 @@ function ProfilTab({ auth }) {
             placeholder="Nom de famille"
           />
         </FieldRow>
-        <FieldRow label="Adresse email" hint="Non modifiable — identifiant de connexion">
+        <FieldRow label={t('settings.compte_email')} hint="Non modifiable — identifiant de connexion">
           <Input value={user?.email || ''} disabled />
         </FieldRow>
-        <FieldRow label="Rôle" hint="Attribué par un administrateur">
+        <FieldRow label={t('settings.compte_role')} hint="Attribué par un administrateur">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-sm font-medium border border-indigo-200 capitalize">
               {userProfile?.role || 'Utilisateur'}
@@ -356,6 +359,7 @@ const ROLE_LABEL = Object.fromEntries(ROLES.map(r => [r.value, r.label]));
 function UtilisateursTab({ userRole }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -450,7 +454,7 @@ function UtilisateursTab({ userRole }) {
             onClick={() => setTab('pending')}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'pending' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            En attente
+            {t('settings.users_pending')}
             {pending.length > 0 && (
               <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center">
                 {pending.length}
@@ -691,16 +695,16 @@ function DonneesTab() {
 
 // ─── Main SettingsPage ────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: 'etablissement', label: 'Établissement', Icon: BuildingIcon },
-  { id: 'profil', label: 'Mon profil', Icon: UserIcon },
-  { id: 'utilisateurs', label: 'Utilisateurs', Icon: UsersIcon, adminOnly: true },
-  { id: 'donnees', label: 'Données', Icon: DatabaseIcon },
-  { id: 'import', label: 'Import données', Icon: UploadIcon },
-];
-
 export default function SettingsPage({ auth }) {
   const toast = useToast();
+  const { t } = useTranslation();
+  const TABS = [
+    { id: 'etablissement', label: t('settings.tab_etablissement'), Icon: BuildingIcon },
+    { id: 'profil', label: t('settings.tab_compte'), Icon: UserIcon },
+    { id: 'utilisateurs', label: t('settings.tab_users'), Icon: UsersIcon, adminOnly: true },
+    { id: 'donnees', label: t('settings.tab_data'), Icon: DatabaseIcon },
+    { id: 'import', label: t('settings.tab_import'), Icon: UploadIcon },
+  ];
   const userRole = auth?.userProfile?.role || '';
   const isAdmin = ['admin', 'direction', 'scolarite'].includes(userRole);
   const [activeTab, setActiveTab] = useState('etablissement');
@@ -751,7 +755,7 @@ export default function SettingsPage({ auth }) {
     <div className="max-w-5xl space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Paramètres</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t('settings.title')}</h1>
         <p className="text-slate-500 text-sm mt-1">Configuration de l'application et préférences</p>
       </div>
 
@@ -759,7 +763,7 @@ export default function SettingsPage({ auth }) {
         {/* Left sidebar tabs */}
         <nav className="w-52 shrink-0">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2">
-            {TABS.filter(t => !t.adminOnly || isAdmin).map(tab => {
+            {TABS.filter(tabItem => !tabItem.adminOnly || isAdmin).map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button

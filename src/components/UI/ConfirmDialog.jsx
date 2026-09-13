@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const ConfirmContext = createContext(null);
 
@@ -21,13 +22,16 @@ function InfoCircle() {
 export function ConfirmProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const resolveRef = useRef(null);
+  const { t } = useTranslation();
 
-  const confirm = useCallback(({ title, message, danger = false, confirmLabel = 'Confirmer', cancelLabel = 'Annuler' }) => {
+  const confirm = useCallback(({ title, message, danger = false, confirmLabel, cancelLabel }) => {
+    const _confirmLabel = confirmLabel ?? t('common.confirm');
+    const _cancelLabel = cancelLabel ?? t('common.cancel');
     return new Promise((resolve) => {
       resolveRef.current = resolve;
-      setDialog({ title, message, danger, confirmLabel, cancelLabel });
+      setDialog({ title, message, danger, confirmLabel: _confirmLabel, cancelLabel: _cancelLabel });
     });
-  }, []);
+  }, [t]);
 
   const handleConfirm = () => {
     resolveRef.current?.(true);

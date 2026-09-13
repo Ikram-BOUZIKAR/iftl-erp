@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
@@ -33,6 +34,7 @@ function fmtDate(val) {
 }
 
 export default function SuiviCandidaturePage() {
+  const { t } = useTranslation();
   const params = new URLSearchParams(window.location.search);
   const cinFromUrl = params.get('cin') || '';
 
@@ -88,14 +90,14 @@ export default function SuiviCandidaturePage() {
               <p className="text-xs text-slate-500 mt-0.5">Institut de Formation · Transport & Logistique</p>
             </div>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Suivi de candidature</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900">{t('candidaturePublic.track_title')}</h1>
           <p className="text-slate-400 text-sm mt-1">Consultez l'état de votre dossier</p>
         </div>
 
         {/* CIN search */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-5">
           <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
-            Votre numéro CIN
+            {t('candidaturePublic.track_email')}
           </label>
           <div className="flex gap-2">
             <input
@@ -111,7 +113,7 @@ export default function SuiviCandidaturePage() {
               className="px-5 py-2.5 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-bold rounded-xl transition disabled:opacity-60 flex items-center gap-2"
             >
               {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {loading ? 'Recherche…' : 'Consulter'}
+              {loading ? t('candidaturePublic.track_search') : t('candidaturePublic.track_search')}
             </button>
           </div>
           {error && (

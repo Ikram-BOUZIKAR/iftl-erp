@@ -7,6 +7,7 @@ import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebas
 import { db, storage } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -471,6 +472,7 @@ function RessourcePanel({ ressource, onClose, onSaved }) {
 export default function BibliothequeePage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const [ressources, setRessources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
@@ -540,7 +542,7 @@ export default function BibliothequeePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Bibliothèque &amp; Ressources</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('bibliotheque.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${ressources.length} ressource${ressources.length !== 1 ? 's' : ''}`}
           </p>
@@ -550,7 +552,7 @@ export default function BibliothequeePage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           <PlusIcon />
-          Ajouter ressource
+          {t('bibliotheque.add')}
         </button>
       </div>
 
@@ -681,7 +683,7 @@ export default function BibliothequeePage() {
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-300">
             <BookOpenIcon />
           </div>
-          <p className="text-slate-500 font-medium">Aucune ressource trouvée</p>
+          <p className="text-slate-500 font-medium">{t('bibliotheque.no_resources')}</p>
           <p className="text-slate-400 text-sm mt-1">
             {search || filterType || filterFiliere
               ? 'Modifiez vos filtres.'

@@ -6,6 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -1207,13 +1208,14 @@ function AbonnementsApprenantsTab() {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TransportPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('flotte');
 
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Transport &amp; Flotte</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t('transport.title')}</h1>
       </div>
 
       {/* Tab navigation */}

@@ -3,6 +3,7 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { generateReleve1A, generateReleve2A } from '../../services/pdfService';
 import { useToast } from '../UI/Toast';
+import { useTranslation } from 'react-i18next';
 
 const ANNEE_1A = '2026-2027';
 const ANNEE_2A = '2026-2027';
@@ -36,6 +37,7 @@ function inputCls() {
 
 export default function RelevesPage() {
   const { showToast } = useToast();
+  const { t } = useTranslation();
 
   const [students, setStudents] = useState([]);
   const [allModules, setAllModules] = useState([]);
@@ -214,7 +216,7 @@ export default function RelevesPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Relevés de Notes</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t('releves.title')}</h1>
         <p className="text-sm text-slate-500 mt-1">Génération PDF des relevés annuels 1A TS et de fin de formation 2A TS</p>
       </div>
 
@@ -294,7 +296,7 @@ export default function RelevesPage() {
                         <table className="w-full text-xs">
                           <thead className="bg-slate-50 text-slate-500">
                             <tr>
-                              <th className="px-3 py-2 text-left font-semibold">Réf.</th>
+                              <th className="px-3 py-2 text-left font-semibold">{t('releves.col_code')}</th>
                               <th className="px-3 py-2 text-left font-semibold">Module</th>
                               <th className="px-3 py-2 text-center font-semibold">Note /20</th>
                               <th className="px-3 py-2 text-center font-semibold">Coef.</th>
@@ -316,7 +318,7 @@ export default function RelevesPage() {
                         <div className="mt-3 flex items-center justify-between text-sm">
                           <span className="text-slate-500">Moyenne générale : <strong className="text-slate-800">{bulletin1A.moyenneGenerale?.toFixed(2)}/20</strong></span>
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${bulletin1A.decision === 'admis' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {bulletin1A.decision === 'admis' ? 'ADMIS(E)' : 'NON ADMIS(E)'} — {bulletin1A.mention}
+                            {bulletin1A.decision === 'admis' ? t('releves.decision_admis') : 'NON ADMIS(E)'} — {bulletin1A.mention}
                           </span>
                         </div>
                       )}
@@ -414,7 +416,7 @@ export default function RelevesPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                {generating ? 'Génération…' : `Télécharger Relevé ${annee} TS — ${selected.nom} ${selected.prenom}`}
+                {generating ? t('releves.generating') : `${t('releves.generate_btn')} ${annee} TS — ${selected.nom} ${selected.prenom}`}
               </button>
             </>
           ) : (

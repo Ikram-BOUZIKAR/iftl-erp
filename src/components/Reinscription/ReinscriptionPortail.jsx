@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, addDoc, getDoc, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
@@ -204,6 +205,7 @@ function Btn({ onClick, type = 'button', disabled, variant = 'primary', fullWidt
 
 /* ─── Main component ─────────────────────────────────────────────── */
 export default function ReinscriptionPortail() {
+  const { t } = useTranslation();
   const [config, setConfig]         = useState(DEFAULT_CONFIG);
   const [configLoading, setConfigLoading] = useState(true);
   const [isMobile, setIsMobile]     = useState(false);
@@ -337,7 +339,7 @@ export default function ReinscriptionPortail() {
         <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px' }}>
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={tok.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
         </div>
-        <h2 style={{ margin: '0 0 12px', fontSize: 24, fontWeight: 800, color: tok.ink, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Demande envoyée !</h2>
+        <h2 style={{ margin: '0 0 12px', fontSize: 24, fontWeight: 800, color: tok.ink, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{t('reinscription.success_title')}</h2>
         <p style={{ margin: '0 0 8px', fontSize: 15, color: tok.muted, lineHeight: 1.7 }}>
           Votre demande de réinscription pour <strong style={{ color: tok.ink }}>{form.niveauReinscription}</strong> — année <strong style={{ color: tok.ink }}>{config.anneeReinscription}</strong> a été reçue.
         </p>
@@ -408,7 +410,7 @@ export default function ReinscriptionPortail() {
           <div style={{ marginBottom: 44 }}>
             <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ height: 42, objectFit: 'contain', marginBottom: 24, filter: 'brightness(0) invert(1)' }} />
             <h1 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.25, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Portail de<br/>Réinscription
+              {t('reinscription.portal_title')}
             </h1>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -473,7 +475,7 @@ export default function ReinscriptionPortail() {
                 <ErrorBox msg={error} />
 
                 <Btn type="submit" variant="primary" disabled={!cin.trim()} style={{ width: '100%' }}>
-                  Continuer →
+                  {t('reinscription.form_search')}
                 </Btn>
               </form>
             )}
@@ -653,8 +655,8 @@ export default function ReinscriptionPortail() {
                   <div style={{ flex: 1 }}>
                     <Btn type="submit" variant="primary" disabled={submitting}>
                       {submitting
-                        ? <><span style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Envoi en cours…</>
-                        : 'Soumettre ma demande'
+                        ? <><span style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> {t('reinscription.form_confirm')}</>
+                        : t('reinscription.form_confirm')
                       }
                     </Btn>
                   </div>

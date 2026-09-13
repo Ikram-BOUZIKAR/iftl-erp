@@ -8,6 +8,7 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useGroupes } from '../../hooks/useData';
 import { generateDocumentAdministratif } from '../../services/pdfService';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -239,6 +240,7 @@ export default function DocumentsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
+  const { t } = useTranslation();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -333,7 +335,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Documents &amp; Attestations</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('documents.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${documents.length} document${documents.length !== 1 ? 's' : ''}`}
           </p>
@@ -412,7 +414,7 @@ export default function DocumentsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-slate-500 font-medium">Aucun document trouvé</p>
+            <p className="text-slate-500 font-medium">{t('documents.no_documents')}</p>
             <p className="text-slate-400 text-sm mt-1">Modifiez vos filtres ou créez un nouveau document.</p>
           </div>
         ) : (
@@ -421,12 +423,12 @@ export default function DocumentsPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Référence</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Type</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Apprenant</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('documents.col_type')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('documents.col_student')}</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Groupe</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Date</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('documents.col_date')}</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Statut</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Actions</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('documents.col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -112,6 +113,7 @@ function rowToPayload(row, groupes) {
 // ─── Import Modal ─────────────────────────────────────────────────────────────
 function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone }) {
   const toast = useToast();
+  const { t } = useTranslation();
   const fileRef = useRef();
   const [step, setStep] = useState('upload');
   const [rows, setRows] = useState([]);
@@ -172,7 +174,7 @@ function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Importer des apprenants</h2>
+            <h2 className="text-lg font-bold text-slate-800">{t('apprenants.import_title')}</h2>
             <p className="text-xs text-slate-500 mt-0.5">Fichier CSV — colonnes : {CSV_HEADERS.join(', ')}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
@@ -268,6 +270,7 @@ function StatutBadge({ statut }) {
 
 // ─── Selector de niveau (écran d'accueil) ─────────────────────────────────────
 function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
+  const { t } = useTranslation();
   // Compter par niveau normalisé
   const counts = useMemo(() => {
     const c = {};
@@ -286,17 +289,17 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Apprenants</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('apprenants.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">{total} inscrits · {totalActifs} actifs — Choisissez un niveau pour afficher la liste</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onImport} className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-sm font-medium rounded-lg transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-            Importer CSV
+            {t('apprenants.import_csv')}
           </button>
           <button onClick={onAdd} className="inline-flex items-center gap-2 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-            Ajouter
+            {t('apprenants.add')}
           </button>
         </div>
       </div>
@@ -371,6 +374,7 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
 
 // ─── Liste des apprenants d'un niveau ─────────────────────────────────────────
 function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, onAdd }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [filterGroupe, setFilterGroupe] = useState('');
   const [filterStatut, setFilterStatut] = useState('actif');
@@ -427,7 +431,7 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
         </div>
         <button onClick={onAdd} className="inline-flex items-center gap-2 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-          Ajouter
+          {t('apprenants.add')}
         </button>
       </div>
 
@@ -437,12 +441,12 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
           <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <input type="text" placeholder="Nom, prénom, code, CIN, tél…" value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder={t('apprenants.search')} value={search} onChange={e => setSearch(e.target.value)}
             className="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 focus:border-[#005989] transition-colors" />
         </div>
         <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
-          <option value="">Tous les groupes</option>
+          <option value="">{t('apprenants.all_groupes')}</option>
           {groupesNiveau.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
         </select>
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
@@ -460,7 +464,7 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
         {filtered.length === 0 ? (
           <div className="py-16 text-center">
             <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4"><span className="text-2xl">🎓</span></div>
-            <p className="text-slate-700 font-semibold">{search ? `Aucun résultat pour "${search}"` : 'Aucun apprenant à afficher'}</p>
+            <p className="text-slate-700 font-semibold">{search ? `Aucun résultat pour "${search}"` : t('apprenants.no_results')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -468,15 +472,15 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                 <tr>
                   <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">#</th>
-                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Code</th>
-                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Nom & Prénom</th>
+                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">{t('apprenants.col_code')}</th>
+                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">{t('apprenants.col_name')}</th>
                   <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">CIN</th>
                   <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Date naiss.</th>
-                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Téléphone</th>
-                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Email</th>
-                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Groupe</th>
+                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">{t('apprenants.col_phone')}</th>
+                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">{t('apprenants.col_email')}</th>
+                  <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">{t('apprenants.col_groupe')}</th>
                   <th className="text-left px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Statut</th>
-                  <th className="text-right px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Actions</th>
+                  <th className="text-right px-3 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">{t('apprenants.col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -527,7 +531,7 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
       </div>
 
       {filtered.length > 0 && (
-        <p className="text-xs text-slate-400 text-right">{filtered.length} apprenant{filtered.length !== 1 ? 's' : ''}</p>
+        <p className="text-xs text-slate-400 text-right">{t('apprenants.total', { count: filtered.length })}</p>
       )}
     </div>
   );
@@ -537,6 +541,7 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
 export default function ApprenantsPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const { data: students, loading, refetch } = useStudents();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const [selectedNiveau, setSelectedNiveau] = useState(null);

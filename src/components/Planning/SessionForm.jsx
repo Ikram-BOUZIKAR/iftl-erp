@@ -4,6 +4,7 @@ import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { intervenantsService, affectationsService } from '../../services/firestore';
+import { useTranslation } from 'react-i18next';
 
 const ANNEE_COURANTE = '2026-2027';
 
@@ -63,6 +64,7 @@ function PlusIcon() {
 
 // ── Mini-modal: Nouvel intervenant ──────────────────────────────────────────
 function NouvelIntervenantModal({ onClose, onCreated }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ nom: '', prenom: '', specialite: '', email: '', telephone: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -158,7 +160,7 @@ function NouvelIntervenantModal({ onClose, onCreated }) {
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
             >
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -176,6 +178,7 @@ function NouvelIntervenantModal({ onClose, onCreated }) {
 
 // ── SessionForm ───────────────────────────────────────────────────────────────
 export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, onSave, onClose, onIntervenantCreated }) {
+  const { t } = useTranslation();
   const toJsDate = (v) => {
     if (!v) return null;
     if (v instanceof Date) return v;
@@ -343,7 +346,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
         {/* Header with type color accent */}
         <div className={`px-6 py-4 rounded-t-2xl ${selectedType.color} flex items-center justify-between`}>
           <div>
-            <h2 className="text-base font-bold">{initial?.id ? 'Modifier la séance' : 'Nouvelle séance'}</h2>
+            <h2 className="text-base font-bold">{initial?.id ? t('session_form.title_edit') : t('session_form.title_add')}</h2>
             <p className="text-xs opacity-75 mt-0.5">{selectedType.label}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg opacity-75 hover:opacity-100 hover:bg-white/20 transition">
@@ -355,7 +358,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
 
           {/* Type selector — pill buttons */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Type de séance</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">{t('session_form.type')}</label>
             <div className="flex gap-2 flex-wrap">
               {TYPES.map(t => (
                 <button key={t.value} type="button"
@@ -374,7 +377,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           {/* Module */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-              Module <span className="text-red-500">*</span>
+              {t('session_form.module')} <span className="text-red-500">*</span>
             </label>
             {/* No-affectation banner */}
             {form.groupeId && !loadingAff && groupAffectations.length === 0 && modules.length > 0 && (
@@ -395,7 +398,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
               </div>
             ) : filteredModules.length > 0 ? (
               <select value={form.module} onChange={e => handleModuleChange(e.target.value)} className={inputCls('module')}>
-                <option value="">— Sélectionner un module —</option>
+                <option value="">{t('session_form.select_module')}</option>
                 {filteredModules.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom}</option>)}
               </select>
             ) : (
@@ -408,7 +411,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           {/* Date */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-              Date <span className="text-red-500">*</span>
+              {t('session_form.date')} <span className="text-red-500">*</span>
             </label>
             <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls('date')} />
             {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
@@ -452,17 +455,17 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
-                Groupe <span className="text-red-500">*</span>
+                {t('session_form.groupe')} <span className="text-red-500">*</span>
               </label>
               <select value={form.groupeId} onChange={e => set('groupeId', e.target.value)}
                 className={inputCls('groupeId')}>
-                <option value="">— Sélectionner —</option>
+                <option value="">{t('session_form.select_groupe')}</option>
                 {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
               </select>
               {errors.groupeId && <p className="text-xs text-red-500 mt-1">{errors.groupeId}</p>}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Salle</label>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">{t('session_form.salle')}</label>
               <input type="text" list="salles-list" value={form.salle} onChange={e => set('salle', e.target.value)}
                 placeholder="Choisir ou saisir…" className={inputCls('')} />
               <datalist id="salles-list">
@@ -482,14 +485,14 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
 
           {/* Intervenant */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Intervenant</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">{t('session_form.intervenant')}</label>
             <div className="flex gap-2">
               <select
                 value={form.intervenantId}
                 onChange={e => set('intervenantId', e.target.value)}
                 className={`${inputCls('')} flex-1`}
               >
-                <option value="">— Sélectionner —</option>
+                <option value="">{t('session_form.select_intervenant')}</option>
                 {allIntervenants.map(i => (
                   <option key={i.id} value={i.id}>{i.prenom} {i.nom}</option>
                 ))}
@@ -513,7 +516,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
 
           {/* Statut */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Statut</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">{t('common.status')}</label>
             <div className="flex gap-2 flex-wrap">
               {STATUTS.map(s => (
                 <button key={s.value} type="button"
@@ -531,7 +534,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Notes (optionnel)</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">{t('session_form.notes')}</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2}
               className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#005989]/40 focus:border-[#005989] resize-none"
               placeholder="Informations complémentaires…" />
@@ -671,11 +674,11 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
           <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
             <button type="button" onClick={onClose}
               className="px-5 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-              Annuler
+              {t('session_form.cancel')}
             </button>
             <button type="submit" disabled={saving || checking}
               className={`px-6 py-2 text-sm font-bold text-white rounded-xl transition-colors disabled:opacity-60 ${selectedType.color.replace('text-white', '').trim()} hover:opacity-90`}>
-              {checking ? 'Vérification…' : saving ? 'Enregistrement…' : initial?.id ? 'Modifier' : 'Créer la séance'}
+              {checking ? 'Vérification…' : saving ? t('session_form.saving') : initial?.id ? t('common.edit') : t('session_form.save')}
             </button>
           </div>
         </form>

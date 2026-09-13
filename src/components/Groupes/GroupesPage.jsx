@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
@@ -37,19 +38,20 @@ function CloseIcon() {
 }
 
 function EmptyState({ onAdd }) {
+  const { t } = useTranslation();
   return (
     <div className="text-center py-16 col-span-3">
       <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
         <span className="text-2xl">👥</span>
       </div>
-      <p className="text-slate-700 font-semibold">Aucun groupe pour l'instant</p>
-      <p className="text-slate-400 text-sm mt-1 mb-5">Créez votre premier groupe pour commencer à organiser vos apprenants.</p>
+      <p className="text-slate-700 font-semibold">{t('groupes.no_groups')}</p>
+      <p className="text-slate-400 text-sm mt-1 mb-5">{t('groupes.no_groups_hint')}</p>
       <button
         onClick={onAdd}
         className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
       >
         <PlusIcon />
-        Créer un groupe
+        {t('groupes.add')}
       </button>
     </div>
   );
@@ -279,6 +281,7 @@ function GroupeDetailPanel({ groupe, onClose, toast }) {
 export default function GroupesPage() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const { data: groupes, loading, refetch } = useGroupes();
   const { data: intervenants } = useIntervenants();
   const [activeTab,      setActiveTab]      = useState('groupes');
@@ -353,7 +356,7 @@ export default function GroupesPage() {
   };
 
   const handleDelete = async (id, nom) => {
-    const ok = await confirm({ title: 'Supprimer ce groupe ?', message: `"${nom}" sera définitivement supprimé.`, danger: true, confirmLabel: 'Supprimer' });
+    const ok = await confirm({ title: t('groupes.delete_confirm'), message: `"${nom}" sera définitivement supprimé.`, danger: true, confirmLabel: 'Supprimer' });
     if (!ok) return;
     try { await groupesService.delete(id); refetch(); toast.success('Groupe supprimé'); }
     catch (err) { toast.error('Erreur : ' + err.message); }
@@ -429,14 +432,14 @@ export default function GroupesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Groupes & Promotions</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('groupes.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${activeGroupes.length} actif${activeGroupes.length !== 1 ? 's' : ''} · ${inactifGroupes.length} inactif${inactifGroupes.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <button onClick={openAdd}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-          <PlusIcon /> Créer un groupe
+          <PlusIcon /> {t('groupes.add')}
         </button>
       </div>
 
@@ -541,7 +544,7 @@ export default function GroupesPage() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h2 className="text-base font-bold text-slate-800">{editing ? 'Modifier le groupe' : 'Créer un groupe'}</h2>
+              <h2 className="text-base font-bold text-slate-800">{editing ? t('groupes.form_title_edit') : t('groupes.form_title_add')}</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                 <CloseIcon />
               </button>

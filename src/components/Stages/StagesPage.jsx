@@ -7,6 +7,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
+import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -439,6 +440,7 @@ export default function StagesPage() {
   const confirm = useConfirm();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const { data: intervenants } = useIntervenants();
+  const { t } = useTranslation();
   const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('en_cours');
@@ -500,7 +502,7 @@ export default function StagesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Stages</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('stages.title')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">
             {loading ? 'Chargement…' : `${stages.length} stage${stages.length !== 1 ? 's' : ''} au total`}
           </p>
@@ -510,7 +512,7 @@ export default function StagesPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
         >
           <PlusIcon />
-          Nouveau stage
+          {t('stages.add')}
         </button>
       </div>
 
@@ -558,15 +560,15 @@ export default function StagesPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Apprenant</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Entreprise</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('stages.col_student')}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('stages.col_company')}</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden md:table-cell">Ville</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Type</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Dates</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">Tuteur école</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide hidden lg:table-cell">{t('stages.col_tutor')}</th>
                   <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Convention</th>
-                  <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Éval.</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">Actions</th>
+                  <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('stages.col_note')}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs uppercase tracking-wide">{t('stages.col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

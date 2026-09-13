@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const FILIERE_CODES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP'];
 const FILIERE_LABELS = {
@@ -31,6 +32,7 @@ function SectionHeader({ title }) {
 }
 
 export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     nom: initial?.nom || '',
     prenom: initial?.prenom || '',
@@ -117,7 +119,7 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
           <h2 className="text-base font-bold text-slate-800">
-            {initial ? "Modifier l'apprenant" : 'Ajouter un apprenant'}
+            {initial ? t('apprenants.form_title_edit') : t('apprenants.form_title_add')}
           </h2>
           <button
             onClick={onClose}
@@ -131,16 +133,16 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
           {/* Section Identité */}
           <SectionHeader title="Identité" />
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Nom" fieldKey="nom" required />
-            <Field label="Prénom" fieldKey="prenom" required />
+            <Field label={t('apprenants.form_nom')} fieldKey="nom" required />
+            <Field label={t('apprenants.form_prenom')} fieldKey="prenom" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Email" fieldKey="email" type="email" required />
-            <Field label="Téléphone" fieldKey="telephone" type="tel" />
+            <Field label={t('apprenants.form_email')} fieldKey="email" type="email" required />
+            <Field label={t('apprenants.form_phone')} fieldKey="telephone" type="tel" />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="CIN" fieldKey="cin" />
-            <Field label="Date de naissance" fieldKey="dateNaissance" type="date" />
+            <Field label={t('apprenants.form_cin')} fieldKey="cin" />
+            <Field label={t('apprenants.form_dob')} fieldKey="dateNaissance" type="date" />
           </div>
 
           {/* Section Adresse */}
@@ -262,14 +264,14 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Annuler
+              {t('apprenants.form_cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-60"
             >
-              {saving ? 'Enregistrement…' : initial ? 'Modifier' : 'Créer'}
+              {saving ? t('common.loading') : t('apprenants.form_save')}
             </button>
           </div>
         </form>

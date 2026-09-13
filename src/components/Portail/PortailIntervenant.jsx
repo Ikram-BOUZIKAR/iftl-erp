@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { collection, getDocs, query, where, onSnapshot, addDoc, Timestamp, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import NotesIntervenantPage from '../Notes/NotesIntervenantPage';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -25,12 +26,12 @@ function IcoPlus()   { return <svg className="w-5 h-5" fill="none" stroke="curre
 function IcoBadge()  { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>; }
 
 const TABS = [
-  { id: 'planning',      label: 'Mon Planning',   short: 'Planning',  Icon: IcoCal   },
-  { id: 'emargement',   label: 'Émargement',      short: 'Émarger',   Icon: IcoPen   },
-  { id: 'notes',         label: 'Saisie des notes', short: 'Notes',   Icon: IcoNotes },
-  { id: 'badges',        label: 'Badges apprenants', short: 'Badges', Icon: IcoBadge },
-  { id: 'statistiques', label: 'Statistiques',    short: 'Stats',     Icon: IcoStats },
-  { id: 'profil',       label: 'Mon Profil',      short: 'Profil',    Icon: IcoUser  },
+  { id: 'planning',      label: 'Mon Planning',     short: 'Planning',  Icon: IcoCal,   i18nKey: 'portail.tab_sessions' },
+  { id: 'emargement',   label: 'Émargement',        short: 'Émarger',   Icon: IcoPen,   i18nKey: 'portail.tab_emargement' },
+  { id: 'notes',         label: 'Saisie des notes', short: 'Notes',     Icon: IcoNotes, i18nKey: 'portail.tab_evals' },
+  { id: 'badges',        label: 'Badges apprenants', short: 'Badges',   Icon: IcoBadge, i18nKey: null },
+  { id: 'statistiques', label: 'Statistiques',      short: 'Stats',     Icon: IcoStats, i18nKey: null },
+  { id: 'profil',       label: 'Mon Profil',        short: 'Profil',    Icon: IcoUser,  i18nKey: null },
 ];
 
 const TYPE_COLOR = {
@@ -1045,7 +1046,9 @@ function ProfilTab({ intervenant, auth, sessions }) {
 
 // ── Sidebar link ──────────────────────────────────────────────────────────────
 function SideNavLink({ tab, active, badge, onClick }) {
-  const { Icon, label } = tab;
+  const { t } = useTranslation();
+  const { Icon, label, i18nKey } = tab;
+  const displayLabel = i18nKey ? t(i18nKey) : label;
   return (
     <button onClick={onClick}
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left relative"
@@ -1055,7 +1058,7 @@ function SideNavLink({ tab, active, badge, onClick }) {
     >
       {active && <span className="absolute left-0 w-1 h-6 rounded-r-full bg-white" />}
       <Icon />
-      <span className="flex-1">{label}</span>
+      <span className="flex-1">{displayLabel}</span>
       {badge > 0 && (
         <span className="w-5 h-5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shrink-0">
           {badge}
@@ -1067,6 +1070,7 @@ function SideNavLink({ tab, active, badge, onClick }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function PortailIntervenant({ auth }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const [intervenant, setIntervenant]   = useState(null);
   const [sessions, setSessions]         = useState([]);
@@ -1189,9 +1193,9 @@ export default function PortailIntervenant({ auth }) {
   };
 
   const tabTitles = {
-    planning:     'Mon Planning',
+    planning:     t('portail.tab_sessions'),
     emargement:   'Feuilles de présence',
-    notes:        'Saisie des notes',
+    notes:        t('portail.tab_evals'),
     badges:       'Badges apprenants',
     statistiques: 'Mes Statistiques',
     profil:       'Mon Profil',
@@ -1232,7 +1236,7 @@ export default function PortailIntervenant({ auth }) {
           </div>
           <div>
             <p className="text-white font-black text-base leading-tight">IFTL</p>
-            <p className="text-blue-300 text-[10px] leading-tight">Portail Intervenant</p>
+            <p className="text-blue-300 text-[10px] leading-tight">{t('portail.intervenant_title')}</p>
           </div>
         </div>
       </div>
@@ -1316,7 +1320,7 @@ export default function PortailIntervenant({ auth }) {
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: BLUE }}>
                   <span className="text-white font-black text-xs">IF</span>
                 </div>
-                <span className="font-bold text-slate-800 text-sm">Portail Intervenant</span>
+                <span className="font-bold text-slate-800 text-sm">{t('portail.intervenant_title')}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1338,7 +1342,7 @@ export default function PortailIntervenant({ auth }) {
         {/* Desktop page header */}
         <div className="hidden lg:block px-8 pt-8 pb-4">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-            {TABS.find(t => t.id === activeTab)?.label}
+            {TABS.find(tab => tab.id === activeTab)?.label}
           </p>
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-black text-slate-800">{tabTitles[activeTab]}</h1>

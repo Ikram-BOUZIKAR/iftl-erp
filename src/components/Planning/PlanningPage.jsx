@@ -12,6 +12,7 @@ import CalendrierAcademique from './CalendrierAcademique';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generatePlanningPDF } from '../../services/pdfService';
+import { useTranslation } from 'react-i18next';
 
 // ── Créneaux horaires par jour (0=Lun … 6=Dim) ───────────────────────────────
 export const DAY_SLOTS = [
@@ -69,6 +70,7 @@ function isVacance(date, vacances) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function PlanningPage() {
+  const { t }    = useTranslation();
   const toast   = useToast();
   const confirm = useConfirm();
 
@@ -301,7 +303,7 @@ export default function PlanningPage() {
   };
 
   const handleDelete = async (id, moduleName) => {
-    const ok = await confirm({ title: 'Supprimer cette séance ?', message: `"${moduleName}" sera supprimée.`, danger: true, confirmLabel: 'Supprimer' });
+    const ok = await confirm({ title: t('planning.delete_confirm'), message: `"${moduleName}" sera supprimée.`, danger: true, confirmLabel: t('common.delete') });
     if (!ok) return;
     try { await sessionsService.delete(id); fetchWeekSessions(); toast.success('Séance supprimée'); }
     catch (err) { toast.error('Erreur : ' + err.message); }
@@ -375,7 +377,7 @@ export default function PlanningPage() {
       <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 bg-white border-b border-slate-200">
         <div>
           <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-slate-800" style={{ fontFamily: 'Outfit, sans-serif' }}>Planning / EDT</h1>
+          <h1 className="text-xl font-bold text-slate-800" style={{ fontFamily: 'Outfit, sans-serif' }}>{t('planning.title')}</h1>
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
             <button onClick={() => setActiveTab('planning')}
               className={`px-3 py-1 transition-colors ${activeTab === 'planning' ? 'bg-[#005989] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
@@ -400,7 +402,7 @@ export default function PlanningPage() {
             <button onClick={() => setWeekStart(w => subWeeks(w, 1))}
               className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-r border-slate-100 text-sm">←</button>
             <button onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-              className="px-3 py-2 text-xs font-semibold text-[#005989] hover:bg-blue-50 transition-colors">Aujourd'hui</button>
+              className="px-3 py-2 text-xs font-semibold text-[#005989] hover:bg-blue-50 transition-colors">{t('planning.today')}</button>
             <button onClick={() => setWeekStart(w => addWeeks(w, 1))}
               className="px-3 py-2 text-slate-500 hover:bg-slate-50 hover:text-[#005989] transition-colors border-l border-slate-100 text-sm">→</button>
           </div>
@@ -429,7 +431,7 @@ export default function PlanningPage() {
           </button>
           <button onClick={() => openAdd(null, null, activeGroupId)}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white rounded-xl text-xs font-semibold shadow-sm transition-colors">
-            + Séance
+            {t('planning.add_session')}
           </button>
         </div>
       </div>

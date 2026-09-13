@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
+import { useTranslation } from 'react-i18next';
 import {
   sendEmail,
   sendRelancePaiement,
@@ -893,6 +894,7 @@ function ConfigTab() {
 
 export default function EmailsPage() {
   const toast = useToast();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('composer');
 
   // Shared data
@@ -930,7 +932,7 @@ export default function EmailsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Emails</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t('emails.title')}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Envoi d'emails transactionnels via Brevo (Sendinblue)
           </p>
