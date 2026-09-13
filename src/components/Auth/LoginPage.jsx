@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../UI/LanguageSwitcher';
 
 function Ico({ path, path2, size = 'w-6 h-6', stroke = 'currentColor', strokeWidth = 1.5 }) {
   return (
@@ -20,7 +22,6 @@ const YELLOW = '#f5c845';
 const LIME   = '#4ade80';
 const LIME_DK = '#14532d';
 
-// ── Shared input / button components ──────────────────────────────────────────
 const inputBase = {
   width: '100%',
   background: '#f8fafc',
@@ -46,6 +47,7 @@ export default function LoginPage({ auth }) {
   const [resetLoading, setResetLoading] = useState(false);
   const [isMobile, setIsMobile]         = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -66,7 +68,7 @@ export default function LoginPage({ auth }) {
       else if (role === 'parent') navigate('/portail-tuteur');
       else navigate('/');
     } catch {
-      setError('Identifiants incorrects. Vérifiez votre email et mot de passe.');
+      setError(t('login.err_invalid_creds'));
     } finally {
       setLoading(false);
     }
@@ -80,7 +82,7 @@ export default function LoginPage({ auth }) {
       await sendPasswordResetEmail(getAuth(), resetEmail);
       setResetSent(true);
     } catch {
-      setError('Adresse email introuvable.');
+      setError(t('login.err_email_not_found'));
     } finally {
       setResetLoading(false);
     }
@@ -88,6 +90,11 @@ export default function LoginPage({ auth }) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: NAVY, fontFamily: 'inherit', color: '#fff' }}>
+
+      {/* Language switcher — top right */}
+      <div style={{ position: 'absolute', top: 12, right: 16, zIndex: 50 }}>
+        <LanguageSwitcher />
+      </div>
 
       {/* ══ TOP BAR: two portal panels ══ */}
       <div style={{
@@ -120,9 +127,9 @@ export default function LoginPage({ auth }) {
             <Ico path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size="w-6 h-6" stroke="white" strokeWidth={1.75} />
           </div>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(0,89,137,0.75)', marginBottom: 4 }}>Portail résultats</div>
-            <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>Consulter<br/>mes résultats</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>Notes · Bulletins · Planning · Absences</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(0,89,137,0.75)', marginBottom: 4 }}>{t('login.portal_results')}</div>
+            <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>{t('login.portal_results_sub')}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>{t('login.portal_results_desc')}</div>
           </div>
           <div style={{ marginLeft: 'auto', flexShrink: 0, position: 'relative', zIndex: 1, opacity: 0.35 }}>
             <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-6 h-6" strokeWidth={1.75} />
@@ -147,9 +154,9 @@ export default function LoginPage({ auth }) {
             <Ico path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" size="w-6 h-6" stroke={LIME_DK} strokeWidth={1.75} />
           </div>
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: `rgba(74,222,128,0.9)`, marginBottom: 4 }}>Candidature</div>
-            <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>Candidater<br/>à une formation</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>Formation initiale · continue · apprentissage</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: `rgba(74,222,128,0.9)`, marginBottom: 4 }}>{t('login.candidature')}</div>
+            <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>{t('login.candidature_sub')}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>{t('login.candidature_desc')}</div>
           </div>
           <div style={{ marginLeft: 'auto', flexShrink: 0, position: 'relative', zIndex: 1, opacity: 0.35 }}>
             <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-6 h-6" strokeWidth={1.75} />
@@ -157,15 +164,15 @@ export default function LoginPage({ auth }) {
         </Link>
       </div>
 
-      {/* ══ BOTTOM: IFTL branding + login form ══ */}
+      {/* ══ BOTTOM: branding + login form ══ */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 16px' : '32px 24px', background: '#fff' }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 0 : 72, width: '100%', maxWidth: isMobile ? '100%' : 820 }}>
 
           {/* Brand block — hidden on mobile */}
           {!isMobile && (
             <div style={{ flexShrink: 0 }}>
-              <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
-              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les Métiers du Transport &amp; de la Logistique</div>
+              <img src="/Logo IFTL avec Signature.png" alt="Logo" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
+              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>EduCloud ERP — Smart. Scalable. Multilingual.</div>
             </div>
           )}
 
@@ -184,7 +191,7 @@ export default function LoginPage({ auth }) {
                   onMouseEnter={e => e.currentTarget.style.color = '#334155'}
                   onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
                 >
-                  <Ico path="M10 19l-7-7m0 0l7-7m-7 7h18" size="w-4 h-4" /> Retour
+                  <Ico path="M10 19l-7-7m0 0l7-7m-7 7h18" size="w-4 h-4" /> {t('login.back')}
                 </button>
 
                 {resetSent ? (
@@ -192,15 +199,15 @@ export default function LoginPage({ auth }) {
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                       <Ico path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" size="w-5 h-5" stroke="#16a34a" />
                     </div>
-                    <p style={{ fontWeight: 700, color: '#15803d', marginBottom: 4 }}>Email envoyé !</p>
-                    <p style={{ fontSize: 12, color: '#4ade80' }}>Vérifiez <strong style={{ color: '#15803d' }}>{resetEmail}</strong></p>
+                    <p style={{ fontWeight: 700, color: '#15803d', marginBottom: 4 }}>{t('login.email_sent')}</p>
+                    <p style={{ fontSize: 12, color: '#4ade80' }}>{t('login.check_email')} <strong style={{ color: '#15803d' }}>{resetEmail}</strong></p>
                   </div>
                 ) : (
                   <form onSubmit={handleReset}>
-                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>Entrez votre email pour recevoir un lien de réinitialisation.</p>
+                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>{t('login.reset_instructions')}</p>
                     <input
                       type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
-                      placeholder="vous@iftl.ma"
+                      placeholder="you@example.com"
                       style={{ ...inputBase, paddingLeft: 14, marginBottom: 12 }}
                       onFocus={e => e.target.style.borderColor = BLUE}
                       onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
@@ -210,25 +217,27 @@ export default function LoginPage({ auth }) {
                       type="submit" disabled={resetLoading}
                       style={{ width: '100%', padding: '13px', background: YELLOW, color: NAVY, border: 'none', borderRadius: 12, fontWeight: 800, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                     >
-                      {resetLoading ? <><div style={{ width: 16, height: 16, border: `2px solid ${NAVY}40`, borderTopColor: NAVY, borderRadius: '50%', animation: 'spin .7s linear infinite' }} /> Envoi…</> : 'Envoyer le lien'}
+                      {resetLoading
+                        ? <><div style={{ width: 16, height: 16, border: `2px solid ${NAVY}40`, borderTopColor: NAVY, borderRadius: '50%', animation: 'spin .7s linear infinite' }} /> {t('login.sending')}</>
+                        : t('login.send_link')}
                     </button>
                   </form>
                 )}
               </div>
             ) : (
               <form onSubmit={handleLogin}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: BLUE, marginBottom: 10 }}>Connexion professionnelle</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: BLUE, marginBottom: 10 }}>{t('login.pro_login')}</div>
 
                 {/* Email */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 6 }}>Email</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 6 }}>{t('login.email')}</div>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
                       <Ico path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" size="w-4 h-4" />
                     </span>
                     <input
                       type="email" value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="vous@iftl.ma" required autoComplete="email"
+                      placeholder="you@example.com" required autoComplete="email"
                       style={inputBase}
                       onFocus={e => e.target.style.borderColor = BLUE}
                       onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
@@ -239,12 +248,12 @@ export default function LoginPage({ auth }) {
                 {/* Password */}
                 <div style={{ marginBottom: 4 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8' }}>Mot de passe</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8' }}>{t('login.password')}</span>
                     <button type="button" onClick={() => { setResetMode(true); setResetEmail(email); setError(''); }}
                       style={{ fontSize: 11.5, fontWeight: 600, color: BLUE, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
                       onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                       onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
-                    >Oublié ?</button>
+                    >{t('login.forgot')}</button>
                   </div>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
@@ -274,7 +283,7 @@ export default function LoginPage({ auth }) {
                 {auth.pendingAccount && (
                   <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#fefce8', border: '1px solid #fde68a', color: '#92400e', fontSize: 12, marginTop: 12 }}>
                     <Ico path="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#d97706" />
-                    Compte en attente de validation par un administrateur.
+                    {t('login.err_pending')}
                   </div>
                 )}
                 {error && (
@@ -292,8 +301,8 @@ export default function LoginPage({ auth }) {
                   onMouseLeave={e => !loading && (e.currentTarget.style.boxShadow = `0 4px 20px ${YELLOW}35`)}
                 >
                   {loading
-                    ? <><div style={{ width: 17, height: 17, border: `2px solid ${NAVY}30`, borderTopColor: NAVY, borderRadius: '50%', animation: 'spin .7s linear infinite' }} /> Connexion…</>
-                    : <>Se connecter <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke={NAVY} strokeWidth={2.5} /></>
+                    ? <><div style={{ width: 17, height: 17, border: `2px solid ${NAVY}30`, borderTopColor: NAVY, borderRadius: '50%', animation: 'spin .7s linear infinite' }} /> {t('login.signing_in')}</>
+                    : <>{t('login.sign_in')} <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke={NAVY} strokeWidth={2.5} /></>
                   }
                 </button>
 
@@ -308,14 +317,14 @@ export default function LoginPage({ auth }) {
                   onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
                 >
                   <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
-                  Créer un compte
+                  {t('login.create_account')}
                 </Link>
               </form>
             )}
 
             {/* CNDP */}
             <div style={{ marginTop: 20, fontSize: 9, color: 'rgba(255,255,255,0.15)', textAlign: 'center', lineHeight: 1.7 }}>
-              Loi n° 09-08 · Protection des données personnelles · CNDP n° A-PO-268/2024
+              {t('login.cndp_notice')}
             </div>
           </div>
         </div>

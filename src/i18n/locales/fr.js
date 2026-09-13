@@ -1,0 +1,146 @@
+const fr = {
+  // ── Navigation sections ────────────────────────────────────────────────
+  nav: {
+    dashboard:        'Tableau de bord',
+    section_pedagogy: 'Pédagogie',
+    section_people:   'Population',
+    section_admin:    'Administratif',
+    section_finance:  'Finance',
+    section_analytics:   'Analyses',
+    section_settings:    'Configuration',
+    section_resources:   'Ressources',
+    section_communication:'Communication',
+
+    planning:         'Planning / EDT',
+    planningRentree:  'Programme de rentrée',
+    masseHoraire:     'Masse Horaire',
+    emargement:       'Émargement',
+    modules:          'Modules & Référentiel',
+    notes:            'Notes & Évaluations',
+    releves:          'Relevés de Notes',
+    absences:         'Absences & Retards',
+
+    apprenants:       'Apprenants',
+    groupes:          'Groupes & Promotions',
+    intervenants:     'Intervenants',
+
+    candidatures:     'Candidatures',
+    inscriptions:     'Inscriptions',
+    reinscriptions:   'Réinscriptions',
+    facturation:      'Facturation',
+    formationContinue:'Formation continue',
+    stages:           'Stages & Alternance',
+    documents:        'Documents',
+    annonces:         'Annonces & Événements',
+
+    rh:               'RH & Paie',
+    bibliotheque:     'Bibliothèque & Ressources',
+    transport:        'Transport & Flotte',
+    collaboratif:     'Espace collaboratif',
+    emails:           'Emails',
+
+    rapports:         'Rapports',
+    statistiques:     'Statistiques',
+    parametres:       'Paramètres',
+  },
+
+  // ── Breadcrumbs ────────────────────────────────────────────────────────
+  breadcrumb: {
+    '/':               'Tableau de bord',
+    '/planning':       'Planning / EDT',
+    '/emargement':     'Émargement',
+    '/modules':        'Modules & Référentiel',
+    '/notes':          'Notes & Évaluations',
+    '/absences':       'Absences & Retards',
+    '/apprenants':     'Apprenants',
+    '/groupes':        'Groupes & Promotions',
+    '/intervenants':   'Intervenants',
+    '/candidatures':   'Candidatures',
+    '/inscriptions':   'Inscriptions',
+    '/facturation':    'Facturation',
+    '/stages':         'Stages & Alternance',
+    '/documents':      'Documents',
+    '/annonces':       'Annonces & Événements',
+    '/rh':             'RH & Paie',
+    '/bibliotheque':   'Bibliothèque & Ressources',
+    '/transport':      'Transport & Flotte',
+    '/collaboratif':   'Espace collaboratif',
+    '/rapports':       'Rapports',
+    '/statistiques':   'Statistiques',
+    '/parametres':     'Paramètres',
+  },
+
+  // ── Roles ──────────────────────────────────────────────────────────────
+  roles: {
+    admin:       'Administrateur',
+    direction:   'Direction',
+    scolarite:   'Scolarité',
+    intervenant: 'Intervenant',
+    apprenant:   'Apprenant',
+    parent:      'Parent',
+    user:        'Utilisateur',
+  },
+
+  // ── Login page ─────────────────────────────────────────────────────────
+  login: {
+    portal_results:      'Portail résultats',
+    portal_results_sub:  'Consulter mes résultats',
+    portal_results_desc: 'Notes · Bulletins · Planning · Absences',
+    candidature:         'Candidature',
+    candidature_sub:     'Candidater à une formation',
+    candidature_desc:    'Formation initiale · continue · apprentissage',
+    pro_login:           'Connexion professionnelle',
+    email:               'Email',
+    password:            'Mot de passe',
+    forgot:              'Oublié ?',
+    sign_in:             'Se connecter',
+    signing_in:          'Connexion…',
+    create_account:      'Créer un compte',
+    back:                'Retour',
+    email_sent:          'Email envoyé !',
+    check_email:         'Vérifiez votre boîte de réception.',
+    reset_instructions:  'Entrez votre email pour recevoir un lien de réinitialisation.',
+    send_link:           'Envoyer le lien',
+    sending:             'Envoi…',
+    err_invalid_creds:   'Identifiants incorrects. Vérifiez votre email et mot de passe.',
+    err_email_not_found: 'Adresse email introuvable.',
+    err_pending:         'Compte en attente de validation par un administrateur.',
+    cndp_notice:         'Données personnelles protégées — CNDP n° A-PO-268/2024',
+  },
+
+  // ── Common ─────────────────────────────────────────────────────────────
+  common: {
+    save:     'Enregistrer',
+    cancel:   'Annuler',
+    delete:   'Supprimer',
+    edit:     'Modifier',
+    add:      'Ajouter',
+    close:    'Fermer',
+    search:   'Rechercher',
+    loading:  'Chargement…',
+    yes:      'Oui',
+    no:       'Non',
+    confirm:  'Confirmer',
+    back:     'Retour',
+    next:     'Suivant',
+    previous: 'Précédent',
+    all:      'Tous',
+    none:     'Aucun',
+    language: 'Langue',
+  },
+
+  // ── Header ─────────────────────────────────────────────────────────────
+  header: {
+    notifications: 'Notifications',
+    my_profile:    'Mon profil',
+    logout:        'Déconnexion',
+  },
+
+  // ── Footer ─────────────────────────────────────────────────────────────
+  footer: {
+    erp_name: 'ERP Pédagogique',
+    cndp:     'CNDP n° A-PO-268/2024',
+  },
+};
+
+export default fr;

@@ -1,43 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr as frLocale, enUS, ar as arLocale } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
 import { HelpButton } from '../UI/HelpGuide';
+import LanguageSwitcher from '../UI/LanguageSwitcher';
 
-const BREADCRUMBS = {
-  '/':             'Tableau de bord',
-  '/planning':     'Planning / EDT',
-  '/emargement':   'Émargement',
-  '/modules':      'Modules & Référentiel',
-  '/notes':        'Notes & Évaluations',
-  '/absences':     'Absences & Retards',
-  '/apprenants':   'Apprenants',
-  '/groupes':      'Groupes & Promotions',
-  '/intervenants': 'Intervenants',
-  '/candidatures': 'Candidatures',
-  '/inscriptions': 'Inscriptions',
-  '/facturation':  'Facturation',
-  '/stages':       'Stages & Alternance',
-  '/documents':    'Documents',
-  '/annonces':     'Annonces & Événements',
-  '/rh':           'RH & Paie',
-  '/bibliotheque': 'Bibliothèque & Ressources',
-  '/transport':    'Transport & Flotte',
-  '/collaboratif': 'Espace collaboratif',
-  '/rapports':     'Rapports',
-  '/statistiques': 'Statistiques',
-  '/parametres':   'Paramètres',
-};
-
-const ROLE_LABELS = {
-  admin:       'Administrateur',
-  direction:   'Direction',
-  scolarite:   'Scolarité',
-  intervenant: 'Intervenant',
-  apprenant:   'Apprenant',
-  parent:      'Parent',
-};
+const DATE_LOCALES = { fr: frLocale, en: enUS, ar: arLocale };
 
 function Ico({ path, size = 'w-5 h-5' }) {
   return (
@@ -53,6 +23,8 @@ export default function MainLayout({ auth, children }) {
   );
   const { user, userProfile } = auth;
   const location = useLocation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'fr';
 
   // Close drawer on navigation (mobile)
   useEffect(() => {
@@ -60,7 +32,10 @@ export default function MainLayout({ auth, children }) {
   }, [location.pathname]);
 
   const pathParts   = location.pathname.split('/').filter(Boolean);
-  const currentPage = BREADCRUMBS[location.pathname] || BREADCRUMBS['/' + pathParts[0]] || 'Page';
+  const bcKey       = location.pathname in (t('breadcrumb', { returnObjects: true }) || {})
+    ? `breadcrumb.${location.pathname}`
+    : `breadcrumb./${pathParts[0]}`;
+  const currentPage = t(bcKey, { defaultValue: t(`breadcrumb./${pathParts[0]}`, { defaultValue: 'Page' }) });
   const isHome      = location.pathname === '/';
 
   const initials = userProfile
@@ -70,9 +45,10 @@ export default function MainLayout({ auth, children }) {
 
   const displayName = userProfile?.prenom
     ? `${userProfile.prenom} ${userProfile.nom || ''}`.trim()
-    : user?.email?.split('@')[0] || 'Utilisateur';
+    : user?.email?.split('@')[0] || t('roles.user');
 
-  const today = format(new Date(), 'EEE dd MMM', { locale: fr });
+  const dateLocale = DATE_LOCALES[lang] || frLocale;
+  const today = format(new Date(), 'EEE dd MMM', { locale: dateLocale });
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -87,13 +63,11 @@ export default function MainLayout({ auth, children }) {
 
       <Sidebar open={sidebarOpen} role={userProfile?.role} auth={auth} />
 
-      {/* On mobile: no left margin (sidebar is overlay). On desktop: push content. */}
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'lg:ml-60' : 'lg:ml-[60px]'}`}>
 
-        {/* ── Header ────────────────────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-5 h-14 shadow-sm">
 
-          {/* Gauche : burger + breadcrumb */}
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(v => !v)}
@@ -118,31 +92,32 @@ export default function MainLayout({ auth, children }) {
             </nav>
           </div>
 
-          {/* Droite : date + notif + avatar */}
+          {/* Right: language switcher + date + notif + avatar */}
           <div className="flex items-center gap-2 shrink-0">
 
-            {/* Date — visible sur grands écrans */}
+            {/* Language switcher */}
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
+            </div>
+
+            {/* Date */}
             <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-400 font-medium capitalize px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 mr-1">
               <Ico path="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" size="w-3.5 h-3.5 text-slate-300" />
               {today}
             </div>
 
-            {/* Guide d'utilisation */}
             <HelpButton role={userProfile?.role || 'admin'} color="#005989" />
 
-            {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-              title="Notifications">
+              title={t('header.notifications')}>
               <Ico path="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </button>
 
-            {/* Divider */}
             <div className="w-px h-6 bg-slate-200 mx-1" />
 
-            {/* Avatar + nom */}
             <Link to="/parametres"
               className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 transition-colors group"
-              title="Mon profil">
+              title={t('header.my_profile')}>
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm"
                 style={{ background: 'linear-gradient(135deg, #005989, #0077b6)' }}>
                 <span className="text-white text-[11px] font-black">{initials}</span>
@@ -150,7 +125,7 @@ export default function MainLayout({ auth, children }) {
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-semibold text-slate-700 leading-tight">{displayName}</p>
                 <p className="text-[10px] text-slate-400 capitalize leading-tight">
-                  {ROLE_LABELS[userProfile?.role] || userProfile?.role || 'Utilisateur'}
+                  {t(`roles.${userProfile?.role}`, { defaultValue: userProfile?.role || t('roles.user') })}
                 </p>
               </div>
               <svg className="w-3.5 h-3.5 text-slate-300 hidden sm:block group-hover:text-slate-500 transition-colors"
@@ -161,18 +136,18 @@ export default function MainLayout({ auth, children }) {
           </div>
         </header>
 
-        {/* ── Contenu ───────────────────────────────────────────────────── */}
+        {/* ── Content ─────────────────────────────────────────────────────── */}
         <main className="flex-1 p-3 sm:p-5 lg:p-6">
           {children}
         </main>
 
-        {/* ── Footer ────────────────────────────────────────────────────── */}
+        {/* ── Footer ──────────────────────────────────────────────────────── */}
         <footer className="px-6 py-3 border-t border-slate-100 flex items-center justify-between">
           <p className="text-[11px] text-slate-400">
-            ERP Pédagogique · {new Date().getFullYear()}
+            {t('footer.erp_name')} · {new Date().getFullYear()}
           </p>
           <p className="text-[11px] text-slate-300">
-            CNDP n° A-PO-268/2024
+            {t('footer.cndp')}
           </p>
         </footer>
       </div>

@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 // ── Inline SVG paths ──────────────────────────────────────────────────────────
 // Extra icon paths for new modules
@@ -67,72 +68,72 @@ function allowed(role, to) {
 const SECTIONS = [
   {
     items: [
-      { to: '/', label: 'Tableau de bord', icon: 'home', exact: true },
+      { to: '/', labelKey: 'nav.dashboard', icon: 'home', exact: true },
     ],
   },
   {
-    label: 'Pédagogie',
+    labelKey: 'nav.section_pedagogy',
     items: [
-      { to: '/planning',          label: 'Planning / EDT',        icon: 'calendar' },
-      { to: '/planning-rentree', label: 'Programme de rentrée',  icon: 'star'     },
-      { to: '/masse-horaire', label: 'Masse Horaire',        icon: 'mh' },
-      { to: '/emargement',    label: 'Émargement',           icon: 'clipboard' },
-      { to: '/modules',       label: 'Modules & Référentiel',icon: 'book' },
-      { to: '/notes',       label: 'Notes & Évaluations',  icon: 'award' },
-      { to: '/releves',     label: 'Relevés de Notes',     icon: 'doc' },
-      { to: '/absences',    label: 'Absences & Retards',   icon: 'alert' },
+      { to: '/planning',         labelKey: 'nav.planning',         icon: 'calendar' },
+      { to: '/planning-rentree', labelKey: 'nav.planningRentree',  icon: 'star'     },
+      { to: '/masse-horaire',    labelKey: 'nav.masseHoraire',     icon: 'mh' },
+      { to: '/emargement',       labelKey: 'nav.emargement',       icon: 'clipboard' },
+      { to: '/modules',          labelKey: 'nav.modules',          icon: 'book' },
+      { to: '/notes',            labelKey: 'nav.notes',            icon: 'award' },
+      { to: '/releves',          labelKey: 'nav.releves',          icon: 'doc' },
+      { to: '/absences',         labelKey: 'nav.absences',         icon: 'alert' },
     ],
   },
   {
-    label: 'Population',
+    labelKey: 'nav.section_people',
     items: [
-      { to: '/apprenants',   label: 'Apprenants',           icon: 'users' },
-      { to: '/groupes',      label: 'Groupes & Promotions', icon: 'layers' },
-      { to: '/intervenants', label: 'Intervenants',         icon: 'userTie' },
+      { to: '/apprenants',   labelKey: 'nav.apprenants',   icon: 'users' },
+      { to: '/groupes',      labelKey: 'nav.groupes',      icon: 'layers' },
+      { to: '/intervenants', labelKey: 'nav.intervenants', icon: 'userTie' },
     ],
   },
   {
-    label: 'Administratif',
+    labelKey: 'nav.section_admin',
     items: [
-      { to: '/candidatures',   label: 'Candidatures',         icon: 'inbox',     badge: true },
-      { to: '/inscriptions',   label: 'Inscriptions',         icon: 'doc' },
-      { to: '/reinscriptions', label: 'Réinscriptions',       icon: 'refresh' },
-      { to: '/facturation',  label: 'Facturation',          icon: 'card' },
-      { to: '/rh',                  label: 'RH & Paie',            icon: 'rh' },
-      { to: '/formation-continue', label: 'Formation Continue',   icon: 'fc' },
-      { to: '/stages',             label: 'Stages & Alternance',  icon: 'briefcase' },
-      { to: '/documents',          label: 'Documents',            icon: 'folder' },
+      { to: '/candidatures',   labelKey: 'nav.candidatures',   icon: 'inbox',     badge: true },
+      { to: '/inscriptions',   labelKey: 'nav.inscriptions',   icon: 'doc' },
+      { to: '/reinscriptions', labelKey: 'nav.reinscriptions', icon: 'refresh' },
+      { to: '/facturation',         labelKey: 'nav.facturation',         icon: 'card' },
+      { to: '/rh',                  labelKey: 'nav.rh',                  icon: 'rh' },
+      { to: '/formation-continue',  labelKey: 'nav.formationContinue',   icon: 'fc' },
+      { to: '/stages',              labelKey: 'nav.stages',              icon: 'briefcase' },
+      { to: '/documents',           labelKey: 'nav.documents',           icon: 'folder' },
     ],
   },
   {
-    label: 'Ressources',
+    labelKey: 'nav.section_resources',
     items: [
-      { to: '/bibliotheque', label: 'Bibliothèque',         icon: 'biblio' },
-      { to: '/transport',    label: 'Transport & Flotte',   icon: 'transport2' },
+      { to: '/bibliotheque', labelKey: 'nav.bibliotheque', icon: 'biblio' },
+      { to: '/transport',    labelKey: 'nav.transport',    icon: 'transport2' },
     ],
   },
   {
-    label: 'Communication',
+    labelKey: 'nav.section_communication',
     items: [
-      { to: '/annonces',     label: 'Annonces & Événements', icon: 'bell' },
-      { to: '/collaboratif', label: 'Espace collaboratif',   icon: 'collab' },
-      { to: '/emails',       label: 'Emails',                icon: 'email' },
+      { to: '/annonces',     labelKey: 'nav.annonces',     icon: 'bell' },
+      { to: '/collaboratif', labelKey: 'nav.collaboratif', icon: 'collab' },
+      { to: '/emails',       labelKey: 'nav.emails',       icon: 'email' },
     ],
   },
   {
-    label: 'Analyse',
+    labelKey: 'nav.section_analytics',
     items: [
-      { to: '/rapports',     label: 'Rapports',     icon: 'chart' },
-      { to: '/statistiques', label: 'Statistiques', icon: 'trending' },
+      { to: '/rapports',     labelKey: 'nav.rapports',     icon: 'chart' },
+      { to: '/statistiques', labelKey: 'nav.statistiques', icon: 'trending' },
     ],
   },
   {
-    label: 'Configuration',
+    labelKey: 'nav.section_settings',
     items: [
-      { to: '/parametres',             label: 'Paramètres',          icon: 'cog' },
-      { to: '/admin/passage-niveau',   label: 'Passage de niveau',   icon: 'trending' },
-      { to: '/admin/repair-groupes',   label: 'Réparer groupes',     icon: 'cog' },
-      { to: '/admin/deduplication',    label: 'Dédoublonnage',       icon: 'users' },
+      { to: '/parametres',             labelKey: 'nav.parametres',  icon: 'cog' },
+      { to: '/admin/passage-niveau',   labelKey: 'nav.parametres',  icon: 'trending' },
+      { to: '/admin/repair-groupes',   labelKey: 'nav.parametres',  icon: 'cog' },
+      { to: '/admin/deduplication',    labelKey: 'nav.parametres',  icon: 'users' },
     ],
   },
 ];
@@ -140,9 +141,11 @@ const SECTIONS = [
 // ── NavItem ───────────────────────────────────────────────────────────────────
 function Item({ item, open, badgeCount = 0 }) {
   const loc = useLocation();
+  const { t } = useTranslation();
   const active = item.exact
     ? loc.pathname === item.to
     : loc.pathname === item.to || loc.pathname.startsWith(item.to + '/');
+  const label = t(item.labelKey, { defaultValue: item.labelKey });
 
   return (
     <NavLink
@@ -156,14 +159,12 @@ function Item({ item, open, badgeCount = 0 }) {
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#fff'; }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; } }}
     >
-      {/* Yellow accent bar for active */}
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: '#f5c845' }} />}
 
       <Ico k={item.icon} />
 
-      {open && <span className="flex-1 truncate leading-tight">{item.label}</span>}
+      {open && <span className="flex-1 truncate leading-tight">{label}</span>}
 
-      {/* Badge */}
       {open && badgeCount > 0 && (
         <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center bg-red-500 text-white shrink-0">
           {badgeCount > 99 ? '99+' : badgeCount}
@@ -173,10 +174,9 @@ function Item({ item, open, badgeCount = 0 }) {
         <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-red-500" />
       )}
 
-      {/* Tooltip on collapse */}
       {!open && (
         <div className="pointer-events-none absolute left-[52px] top-1/2 -translate-y-1/2 bg-[#1e293b] text-white text-xs font-medium px-2.5 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[60] shadow-xl border border-white/10">
-          {item.label}
+          {label}
           {badgeCount > 0 && <span className="ml-1.5 bg-red-500 text-white text-[9px] px-1 py-0.5 rounded-full font-bold">{badgeCount}</span>}
           <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#1e293b]" />
         </div>
@@ -188,18 +188,14 @@ function Item({ item, open, badgeCount = 0 }) {
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 export default function Sidebar({ open, role, auth, badges = {} }) {
   const { user, userProfile, logout } = auth || {};
+  const { t } = useTranslation();
 
   const initials = [userProfile?.prenom?.[0], userProfile?.nom?.[0]]
     .filter(Boolean).join('').toUpperCase() || user?.email?.[0]?.toUpperCase() || '?';
 
   const displayName = userProfile?.prenom
     ? `${userProfile.prenom} ${userProfile.nom || ''}`.trim()
-    : user?.email?.split('@')[0] || 'Utilisateur';
-
-  const roleLabels = {
-    admin: 'Administrateur', direction: 'Direction', scolarite: 'Scolarité',
-    intervenant: 'Intervenant', apprenant: 'Apprenant', parent: 'Parent',
-  };
+    : user?.email?.split('@')[0] || t('roles.user');
 
   return (
     <aside
@@ -236,15 +232,16 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
         {SECTIONS.map((sec, si) => {
           const visible = sec.items.filter(i => allowed(role, i.to));
           if (!visible.length) return null;
+          const secLabel = sec.labelKey ? t(sec.labelKey) : null;
           return (
             <div key={si}>
-              {sec.label && open && (
+              {secLabel && open && (
                 <p className="px-2.5 pt-4 pb-1.5 text-[9px] font-bold uppercase tracking-[0.12em]"
                   style={{ color: 'rgba(255,255,255,0.28)' }}>
-                  {sec.label}
+                  {secLabel}
                 </p>
               )}
-              {sec.label && !open && si > 0 && (
+              {secLabel && !open && si > 0 && (
                 <div className="my-2 mx-2 border-t border-white/10" />
               )}
               {visible.map(item => (
@@ -271,10 +268,10 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-semibold truncate leading-tight">{displayName}</p>
               <p className="text-[10px] truncate leading-tight" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                {roleLabels[role] || role || 'Utilisateur'}
+                {t(`roles.${role}`, { defaultValue: role || t('roles.user') })}
               </p>
             </div>
-            <button onClick={logout} title="Déconnexion"
+            <button onClick={logout} title={t('header.logout')}
               className="p-1.5 rounded-lg transition hover:bg-white/20 shrink-0"
               style={{ color: 'rgba(255,255,255,0.45)' }}>
               <Ico k="logout" cls="w-4 h-4" />
@@ -286,7 +283,7 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
               style={{ background: '#f5c845' }} title={displayName}>
               <span className="text-xs font-black" style={{ color: '#003d63' }}>{initials}</span>
             </div>
-            <button onClick={logout} title="Déconnexion"
+            <button onClick={logout} title={t('header.logout')}
               className="p-1.5 rounded-lg transition hover:bg-white/20"
               style={{ color: 'rgba(255,255,255,0.45)' }}>
               <Ico k="logout" cls="w-4 h-4" />
