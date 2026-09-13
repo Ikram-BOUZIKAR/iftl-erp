@@ -83,12 +83,13 @@ export default function LoginPage({ auth }) {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: NAVY, fontFamily: 'inherit', color: '#fff' }}>
 
       {/* ══ TOP BAR: two portal panels side by side ══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flexShrink: 0, height: '30vh', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="portal-top-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flexShrink: 0, minHeight: '28vh', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
 
         {/* Portail Résultats */}
         <Link
           to="/resultats"
-          style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '0 40px', textDecoration: 'none', position: 'relative', overflow: 'hidden', borderRight: '1px solid rgba(255,255,255,0.08)', transition: 'filter .2s' }}
+          className="portal-panel"
+          style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '20px 40px', textDecoration: 'none', position: 'relative', overflow: 'hidden', borderRight: '1px solid rgba(255,255,255,0.08)', transition: 'filter .2s' }}
           onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
           onMouseLeave={e => e.currentTarget.style.filter = ''}
         >
@@ -111,7 +112,8 @@ export default function LoginPage({ auth }) {
         {/* Candidature */}
         <Link
           to="/candidature"
-          style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '0 40px', textDecoration: 'none', position: 'relative', overflow: 'hidden', transition: 'filter .2s' }}
+          className="portal-panel"
+          style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '20px 40px', textDecoration: 'none', position: 'relative', overflow: 'hidden', transition: 'filter .2s' }}
           onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
           onMouseLeave={e => e.currentTarget.style.filter = ''}
         >
@@ -132,16 +134,16 @@ export default function LoginPage({ auth }) {
 
       {/* ══ BOTTOM: IFTL branding + login form ══ */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 72, width: '100%', maxWidth: 820 }}>
+        <div className="portal-bottom-wrap" style={{ display: 'flex', alignItems: 'center', gap: 72, width: '100%', maxWidth: 820 }}>
 
           {/* Brand block */}
-          <div style={{ flexShrink: 0 }}>
+          <div className="portal-brand-block" style={{ flexShrink: 0 }}>
             <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
             <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les Métiers du Transport &amp; de la Logistique</div>
           </div>
 
           {/* Separator */}
-          <div style={{ width: 1, height: 200, background: '#e2e8f0', flexShrink: 0 }} />
+          <div className="portal-sep" style={{ width: 1, height: 200, background: '#e2e8f0', flexShrink: 0 }} />
 
           {/* Form */}
           <div style={{ flex: 1, maxWidth: 380 }}>
@@ -290,7 +292,16 @@ export default function LoginPage({ auth }) {
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 640px) {
+          .portal-top-grid { grid-template-columns: 1fr !important; }
+          .portal-panel { padding: 18px 20px !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.08); }
+          .portal-bottom-wrap { flex-direction: column !important; gap: 0 !important; align-items: stretch !important; }
+          .portal-brand-block { display: none !important; }
+          .portal-sep { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
