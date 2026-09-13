@@ -1656,7 +1656,7 @@ export default function PortailApprenant({ auth }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                {TABS.find(t => t.id === activeTab)?.label}
+                {TABS.find(tab => tab.id === activeTab)?.label}
               </p>
               <h1 className="text-2xl font-black text-slate-800">
                 {activeTab === 'profil' ? t('portail.apprenant_welcome', { name: prenom || displayName }) : TABS.find(tab => tab.id === activeTab)?.label}
