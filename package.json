@@ -1,5 +1,5 @@
 {
-  "name": "iftl-erp",
+  "name": "erp-pedago",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,16 +8,29 @@
     "dev:emulator": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "dev:with-emulator": "concurrently \"npm run dev:emulator\" \"npm run dev\"",
     "build": "vite build",
+    "build:demo": "vite build --mode demo",
     "lint": "eslint .",
     "preview": "vite preview",
-    "firebase:deploy": "firebase deploy --project erp-pedago-iftl"
+    "firebase:deploy": "firebase deploy --project erp-pedago-iftl",
+    "firebase:deploy:demo": "firebase deploy --project edupilot-demo --only hosting:edupilot-demo"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "axios": "^1.13.6",
+    "date-fns": "^4.2.1",
     "firebase": "^12.11.0",
+    "i18next": "^26.4.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-i18next": "^17.0.13",
     "react-router-dom": "^7.13.2",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -31,8 +44,10 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "firebase-admin": "^13.10.0",
     "firebase-tools": "^15.11.0",
     "globals": "^17.4.0",
+    "mammoth": "^1.12.2",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.1"

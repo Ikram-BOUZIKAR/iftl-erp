@@ -1,99 +1,448 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../UI/LanguageSwitcher';
+import { useBranding } from '../../contexts/BrandingContext';
+
+function Ico({ path, path2, size = 'w-6 h-6', stroke = 'currentColor', strokeWidth = 1.5 }) {
+  return (
+    <svg className={size} fill="none" stroke={stroke} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d={path} />
+      {path2 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d={path2} />}
+    </svg>
+  );
+}
+
+// ── Demo role selector (rendered only when VITE_EMAIL_DOMAIN is set) ──────────
+const DEMO_ROLES = [
+  {
+    id: 'direction', label: 'Direction', pw: 'DirectionDemo@2025!',
+    color: '#1a5f8a', bg: '#eaf4fb',
+    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  },
+  {
+    id: 'scolarite', label: 'Scolarité', pw: 'ScolariteDemo@2025!',
+    color: '#0d7a55', bg: '#eafaf4',
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  },
+  {
+    id: 'intervenant', label: 'Formateur', pw: 'IntervenantDemo@2025!',
+    color: '#7c3aed', bg: '#f5f0ff',
+    icon: 'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z',
+  },
+  {
+    id: 'apprenant', label: 'Apprenant', pw: 'ApprenantDemo@2025!',
+    color: '#b45309', bg: '#fffbeb',
+    icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+  },
+];
+
+function DemoRoleSelector({ onQuickLogin }) {
+  const [active, setActive] = useState(null);
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+          Explorer la démonstration
+        </span>
+        <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {DEMO_ROLES.map(({ id, label, pw, color, bg, icon }) => (
+          <button
+            key={id} type="button"
+            disabled={active !== null}
+            onClick={async () => {
+              setActive(id);
+              await onQuickLogin(id, pw);
+              setActive(null);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 9,
+              padding: '10px 12px', borderRadius: 10,
+              background: bg, border: `1.5px solid ${color}28`,
+              color, fontWeight: 600, fontSize: 12.5,
+              cursor: active ? 'wait' : 'pointer',
+              transition: 'transform .12s, box-shadow .12s',
+              opacity: active && active !== id ? 0.5 : 1,
+            }}
+            onMouseEnter={e => { if (!active) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}28`; } }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+          >
+            {active === id
+              ? <div style={{ width: 14, height: 14, border: `2px solid ${color}40`, borderTopColor: color, borderRadius: '50%', animation: 'spin .7s linear infinite', flexShrink: 0 }} />
+              : <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
+                </svg>
+            }
+            {label}
+          </button>
+        ))}
+      </div>
+      <p style={{ fontSize: 9.5, color: '#94a3b8', textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
+        Données 100 % fictives — aucun compte réel
+      </p>
+    </div>
+  );
+}
+
+const NAVY  = '#001829';
+const NAVY2 = '#001f36';
+const BLUE  = '#005989';
+const YELLOW = '#f5c845';
+const LIME   = '#4ade80';
+const LIME_DK = '#14532d';
+
+const inputBase = {
+  width: '100%',
+  background: '#f8fafc',
+  border: '1.5px solid #e2e8f0',
+  borderRadius: 12,
+  color: '#0f172a',
+  fontSize: 14,
+  padding: '13px 13px 13px 42px',
+  outline: 'none',
+  fontFamily: 'inherit',
+  transition: 'border-color .15s, background .15s',
+};
 
 export default function LoginPage({ auth }) {
-  const [email, setEmail] = useState('test@iftl.ma');
-  const [password, setPassword] = useState('Test123456!');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [showPwd, setShowPwd]           = useState(false);
+  const [error, setError]               = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [resetMode, setResetMode]       = useState(false);
+  const [resetEmail, setResetEmail]     = useState('');
+  const [resetSent, setResetSent]       = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [isMobile, setIsMobile]         = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { branding } = useBranding();
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
     setLoading(true);
     try {
-      await auth.login(email, password);
-      setMessage('Connexion réussie');
-      setTimeout(() => navigate('/'), 500);
-    } catch (err) {
-      setMessage(err.message || 'Erreur de connexion');
-    } finally {
+      const EMAIL_DOMAIN = import.meta.env.VITE_EMAIL_DOMAIN;
+      const loginEmail = email.includes('@') || !EMAIL_DOMAIN
+        ? email
+        : `${email}@${EMAIL_DOMAIN}`;
+      await auth.login(loginEmail, password);
+      // Force full reload so App re-initialises with the restored auth session
+      window.location.replace('/');
+    } catch {
+      setError(t('login.err_invalid_creds'));
       setLoading(false);
     }
   };
 
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setError('');
+    try {
+      await sendPasswordResetEmail(getAuth(), resetEmail);
+      setResetSent(true);
+    } catch {
+      setError(t('login.err_email_not_found'));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">IFTL ERP</h1>
-          <p className="text-gray-600 text-sm mb-6">Système de gestion pédagogique</p>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: NAVY, fontFamily: 'inherit', color: '#fff' }}>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="test@iftl.ma"
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent bg-white text-gray-900"
-              />
-            </div>
+      {/* Language switcher — top right */}
+      <div style={{ position: 'absolute', top: 12, right: 16, zIndex: 50 }}>
+        <LanguageSwitcher />
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mot de passe
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Test123456!"
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent bg-white text-gray-900"
-              />
-            </div>
+      {/* ══ TOP BAR: two portal panels ══ */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        flexShrink: 0,
+        minHeight: isMobile ? 'auto' : '28vh',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+      }}>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2 px-4 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 transition disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? 'Connexion...' : 'Se connecter'}
-            </button>
-          </form>
+        {/* Portail Résultats */}
+        <Link
+          to="/resultats"
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: isMobile ? 14 : 20,
+            padding: isMobile ? '18px 20px' : '20px 40px',
+            textDecoration: 'none', position: 'relative', overflow: 'hidden',
+            borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
+            borderBottom: isMobile ? '1px solid rgba(255,255,255,0.08)' : 'none',
+            transition: 'filter .2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
+          onMouseLeave={e => e.currentTarget.style.filter = ''}
+        >
+          <div style={{ position: 'absolute', inset: 0, background: BLUE, opacity: 0.18, transition: 'opacity .2s' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.28'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '0.18'} />
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: BLUE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+            <Ico path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" size="w-6 h-6" stroke="white" strokeWidth={1.75} />
+          </div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(0,89,137,0.75)', marginBottom: 4 }}>{t('login.portal_results')}</div>
+            <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>{t('login.portal_results_sub')}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>{t('login.portal_results_desc')}</div>
+          </div>
+          <div style={{ marginLeft: 'auto', flexShrink: 0, position: 'relative', zIndex: 1, opacity: 0.35 }}>
+            <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-6 h-6" strokeWidth={1.75} />
+          </div>
+        </Link>
 
-          {message && (
-            <div className={`mt-4 p-3 rounded-lg text-sm ${
-              message.includes('réussie') 
-                ? 'bg-green-50 text-green-800' 
-                : 'bg-red-50 text-red-800'
-            }`}>
-              {message}
+        {/* Candidature */}
+        <Link
+          to="/candidature"
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: isMobile ? 14 : 20,
+            padding: isMobile ? '18px 20px' : '20px 40px',
+            textDecoration: 'none', position: 'relative', overflow: 'hidden',
+            transition: 'filter .2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
+          onMouseLeave={e => e.currentTarget.style.filter = ''}
+        >
+          <div style={{ position: 'absolute', inset: 0, background: LIME, opacity: 0.12 }} />
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: LIME, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+            <Ico path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" size="w-6 h-6" stroke={LIME_DK} strokeWidth={1.75} />
+          </div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: `rgba(74,222,128,0.9)`, marginBottom: 4 }}>{t('login.candidature')}</div>
+            <div style={{ fontWeight: 900, fontSize: 'clamp(18px,2.5vw,28px)', lineHeight: 1.1, color: '#fff' }}>{t('login.candidature_sub')}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 4 }}>{t('login.candidature_desc')}</div>
+          </div>
+          <div style={{ marginLeft: 'auto', flexShrink: 0, position: 'relative', zIndex: 1, opacity: 0.35 }}>
+            <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-6 h-6" strokeWidth={1.75} />
+          </div>
+        </Link>
+      </div>
+
+      {/* ══ BOTTOM: branding + login form ══ */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 16px' : '32px 24px', background: '#fff' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 0 : 72, width: '100%', maxWidth: isMobile ? '100%' : 820 }}>
+
+          {/* Brand block — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ flexShrink: 0, textAlign: 'center' }}>
+              {branding.logoURL ? (
+                <img src={branding.logoURL} alt="Logo" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
+              ) : (
+                <div style={{ width: 200, marginBottom: 14 }}>
+                  <div style={{
+                    width: 72, height: 72, borderRadius: 18, margin: '0 auto 12px',
+                    background: `linear-gradient(135deg, ${branding.primaryColor}, var(--brand-primary-dark, #003d63))`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 900, fontSize: 28, letterSpacing: 1,
+                  }}>
+                    {(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}
+                  </div>
+                  {branding.instituteName && (
+                    <div style={{ fontWeight: 800, fontSize: 16, color: '#1e293b' }}>{branding.instituteName}</div>
+                  )}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>EduCloud ERP — Smart. Scalable. Multilingual.</div>
             </div>
           )}
 
-          {auth.error && (
-            <div className="mt-4 p-3 rounded-lg text-sm bg-red-50 text-red-800">
-              {auth.error}
-            </div>
+          {/* Separator — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ width: 1, height: 200, background: '#e2e8f0', flexShrink: 0 }} />
           )}
 
-          <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700">
-            <p className="font-medium mb-1">Identifiants de test :</p>
-            <p>Email : test@iftl.ma</p>
-            <p>Mot de passe : Test123456!</p>
+          {/* Form */}
+          <div style={{ flex: 1, maxWidth: isMobile ? '100%' : 380 }}>
+            {resetMode ? (
+              <div>
+                <button
+                  onClick={() => { setResetMode(false); setResetSent(false); setError(''); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20, padding: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#334155'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                >
+                  <Ico path="M10 19l-7-7m0 0l7-7m-7 7h18" size="w-4 h-4" /> {t('login.back')}
+                </button>
+
+                {resetSent ? (
+                  <div style={{ padding: '20px', borderRadius: 14, background: '#f0fdf4', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                      <Ico path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" size="w-5 h-5" stroke="#16a34a" />
+                    </div>
+                    <p style={{ fontWeight: 700, color: '#15803d', marginBottom: 4 }}>{t('login.email_sent')}</p>
+                    <p style={{ fontSize: 12, color: '#4ade80' }}>{t('login.check_email')} <strong style={{ color: '#15803d' }}>{resetEmail}</strong></p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleReset}>
+                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>{t('login.reset_instructions')}</p>
+                    <input
+                      type="email" required value={resetEmail} onChange={e => setResetEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      style={{ ...inputBase, paddingLeft: 14, marginBottom: 12 }}
+                      onFocus={e => e.target.style.borderColor = BLUE}
+                      onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
+                    />
+                    {error && <p style={{ fontSize: 12, color: '#dc2626', marginBottom: 12 }}>{error}</p>}
+                    <button
+                      type="submit" disabled={resetLoading}
+                      style={{ width: '100%', padding: '13px', background: YELLOW, color: NAVY, border: 'none', borderRadius: 12, fontWeight: 800, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                    >
+                      {resetLoading
+                        ? <><div style={{ width: 16, height: 16, border: `2px solid ${NAVY}40`, borderTopColor: NAVY, borderRadius: '50%', animation: 'spin .7s linear infinite' }} /> {t('login.sending')}</>
+                        : t('login.send_link')}
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleLogin}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: BLUE, marginBottom: 10 }}>{t('login.pro_login')}</div>
+
+                {/* Email */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 6 }}>
+                    {import.meta.env.VITE_EMAIL_DOMAIN ? t('login.identifier', 'Identifiant') : t('login.email')}
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
+                      <Ico path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" size="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text" value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder={import.meta.env.VITE_EMAIL_DOMAIN ? 'ex: admin' : 'you@example.com'}
+                      required autoComplete="username"
+                      style={inputBase}
+                      onFocus={e => e.target.style.borderColor = BLUE}
+                      onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div style={{ marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8' }}>{t('login.password')}</span>
+                    <button type="button" onClick={() => { setResetMode(true); setResetEmail(email); setError(''); }}
+                      style={{ fontSize: 11.5, fontWeight: 600, color: BLUE, background: 'none', border: 'none', cursor: 'pointer', padding: 0, opacity: 0.7 }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+                    >{t('login.forgot')}</button>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex', pointerEvents: 'none' }}>
+                      <Ico path="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" size="w-4 h-4" />
+                    </span>
+                    <input
+                      type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••" required autoComplete="current-password"
+                      style={{ ...inputBase, paddingRight: 44 }}
+                      onFocus={e => e.target.style.borderColor = BLUE}
+                      onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
+                    />
+                    <button type="button" onClick={() => setShowPwd(v => !v)}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#475569'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                    >
+                      {showPwd
+                        ? <Ico path="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" size="w-4 h-4" />
+                        : <Ico path="M15 12a3 3 0 11-6 0 3 3 0 016 0z" path2="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" size="w-4 h-4" />
+                      }
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pending / Error */}
+                {auth.pendingAccount && (
+                  <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#fefce8', border: '1px solid #fde68a', color: '#92400e', fontSize: 12, marginTop: 12 }}>
+                    <Ico path="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#d97706" />
+                    {t('login.err_pending')}
+                  </div>
+                )}
+                {error && (
+                  <div style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, marginTop: 12 }}>
+                    <Ico path="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" size="w-4 h-4 shrink-0 mt-0.5" stroke="#dc2626" />
+                    {error}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button
+                  type="submit" disabled={loading}
+                  style={{ width: '100%', padding: '14.5px 20px', background: YELLOW, color: NAVY, border: 'none', borderRadius: 12, fontWeight: 800, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: `0 4px 20px ${YELLOW}35`, marginTop: 16, transition: 'transform .15s, box-shadow .15s', opacity: loading ? 0.65 : 1 }}
+                  onMouseEnter={e => !loading && (e.currentTarget.style.boxShadow = `0 7px 28px ${YELLOW}50`)}
+                  onMouseLeave={e => !loading && (e.currentTarget.style.boxShadow = `0 4px 20px ${YELLOW}35`)}
+                >
+                  {loading
+                    ? <><div style={{ width: 17, height: 17, border: `2px solid ${NAVY}30`, borderTopColor: NAVY, borderRadius: '50%', animation: 'spin .7s linear infinite' }} /> {t('login.signing_in')}</>
+                    : <>{t('login.sign_in')} <Ico path="M13 7l5 5m0 0l-5 5m5-5H6" size="w-4 h-4" stroke={NAVY} strokeWidth={2.5} /></>
+                  }
+                </button>
+
+                {/* Demo role selector — visible only in demo builds */}
+                {import.meta.env.VITE_EMAIL_DOMAIN && (
+                  <DemoRoleSelector onQuickLogin={async (identifier, pw) => {
+                    setError('');
+                    setLoading(true);
+                    try {
+                      const domain = import.meta.env.VITE_EMAIL_DOMAIN;
+                      await auth.login(`${identifier}@${domain}`, pw);
+                      window.location.replace('/');
+                    } catch {
+                      setError('Connexion démo échouée. Contactez l\'administrateur.');
+                      setLoading(false);
+                    }
+                  }} />
+                )}
+
+                {/* Divider + register */}
+                {!import.meta.env.VITE_EMAIL_DOMAIN && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#cbd5e1', fontSize: 10, margin: '16px 0' }}>
+                      <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} /> ou <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                    </div>
+                    <Link
+                      to="/register"
+                      style={{ width: '100%', padding: '12px 20px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, color: '#64748b', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', transition: 'background .15s, color .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#334155'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
+                    >
+                      <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
+                      {t('login.create_account')}
+                    </Link>
+                  </>
+                )}
+              </form>
+            )}
+
+            {/* CNDP */}
+            <div style={{ marginTop: 20, fontSize: 9, color: 'rgba(255,255,255,0.15)', textAlign: 'center', lineHeight: 1.7 }}>
+              {t('login.cndp_notice')}
+            </div>
           </div>
         </div>
-
-        <div className="mt-6 text-center text-xs text-gray-600">
-          <p>Vos données sont protégées conformément à la loi n° 09-08 – Autorisation CNDP n° A-PO-268/2024</p>
-        </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
