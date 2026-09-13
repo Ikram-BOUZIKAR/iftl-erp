@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -44,7 +44,14 @@ export default function LoginPage({ auth }) {
   const [resetEmail, setResetEmail]     = useState('');
   const [resetSent, setResetSent]       = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [isMobile, setIsMobile]         = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -82,14 +89,27 @@ export default function LoginPage({ auth }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: NAVY, fontFamily: 'inherit', color: '#fff' }}>
 
-      {/* ══ TOP BAR: two portal panels side by side ══ */}
-      <div className="portal-top-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flexShrink: 0, minHeight: '28vh', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      {/* ══ TOP BAR: two portal panels ══ */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        flexShrink: 0,
+        minHeight: isMobile ? 'auto' : '28vh',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+      }}>
 
         {/* Portail Résultats */}
         <Link
           to="/resultats"
-          className="portal-panel"
-          style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '20px 40px', textDecoration: 'none', position: 'relative', overflow: 'hidden', borderRight: '1px solid rgba(255,255,255,0.08)', transition: 'filter .2s' }}
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: isMobile ? 14 : 20,
+            padding: isMobile ? '18px 20px' : '20px 40px',
+            textDecoration: 'none', position: 'relative', overflow: 'hidden',
+            borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
+            borderBottom: isMobile ? '1px solid rgba(255,255,255,0.08)' : 'none',
+            transition: 'filter .2s',
+          }}
           onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
           onMouseLeave={e => e.currentTarget.style.filter = ''}
         >
@@ -112,8 +132,13 @@ export default function LoginPage({ auth }) {
         {/* Candidature */}
         <Link
           to="/candidature"
-          className="portal-panel"
-          style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '20px 40px', textDecoration: 'none', position: 'relative', overflow: 'hidden', transition: 'filter .2s' }}
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: isMobile ? 14 : 20,
+            padding: isMobile ? '18px 20px' : '20px 40px',
+            textDecoration: 'none', position: 'relative', overflow: 'hidden',
+            transition: 'filter .2s',
+          }}
           onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.08)'}
           onMouseLeave={e => e.currentTarget.style.filter = ''}
         >
@@ -133,20 +158,24 @@ export default function LoginPage({ auth }) {
       </div>
 
       {/* ══ BOTTOM: IFTL branding + login form ══ */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#fff' }}>
-        <div className="portal-bottom-wrap" style={{ display: 'flex', alignItems: 'center', gap: 72, width: '100%', maxWidth: 820 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '24px 16px' : '32px 24px', background: '#fff' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 0 : 72, width: '100%', maxWidth: isMobile ? '100%' : 820 }}>
 
-          {/* Brand block */}
-          <div className="portal-brand-block" style={{ flexShrink: 0 }}>
-            <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
-            <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les Métiers du Transport &amp; de la Logistique</div>
-          </div>
+          {/* Brand block — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ flexShrink: 0 }}>
+              <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ width: 200, height: 'auto', display: 'block', marginBottom: 14 }} />
+              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.65, maxWidth: 200 }}>Institut de Formation dans les Métiers du Transport &amp; de la Logistique</div>
+            </div>
+          )}
 
-          {/* Separator */}
-          <div className="portal-sep" style={{ width: 1, height: 200, background: '#e2e8f0', flexShrink: 0 }} />
+          {/* Separator — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ width: 1, height: 200, background: '#e2e8f0', flexShrink: 0 }} />
+          )}
 
           {/* Form */}
-          <div style={{ flex: 1, maxWidth: 380 }}>
+          <div style={{ flex: 1, maxWidth: isMobile ? '100%' : 380 }}>
             {resetMode ? (
               <div>
                 <button
@@ -292,16 +321,7 @@ export default function LoginPage({ auth }) {
         </div>
       </div>
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
-          .portal-top-grid { grid-template-columns: 1fr !important; }
-          .portal-panel { padding: 18px 20px !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.08); }
-          .portal-bottom-wrap { flex-direction: column !important; gap: 0 !important; align-items: stretch !important; }
-          .portal-brand-block { display: none !important; }
-          .portal-sep { display: none !important; }
-        }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
