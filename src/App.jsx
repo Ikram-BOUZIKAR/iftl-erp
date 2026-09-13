@@ -50,6 +50,7 @@ import EDTImportPage        from './components/Admin/EDTImportPage';
 import RelevesPage          from './components/Releves/RelevesPage';
 import ReinscriptionPortail  from './components/Reinscription/ReinscriptionPortail';
 import ReinscriptionAdminPage from './components/Reinscription/ReinscriptionAdminPage';
+import { BrandingProvider } from './contexts/BrandingContext';
 import './App.css';
 
 function App() {
@@ -71,6 +72,7 @@ function App() {
   }
 
   return (
+    <BrandingProvider>
     <ToastProvider>
       <ConfirmProvider>
         <BrowserRouter>
@@ -173,6 +175,7 @@ function App() {
         <DataProtectionNotice />
       </ConfirmProvider>
     </ToastProvider>
+    </BrandingProvider>
   );
 }
 

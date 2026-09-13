@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -6,6 +6,7 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import ImportDataPage from './ImportDataPage';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -693,6 +694,316 @@ function DonneesTab() {
   );
 }
 
+// ─── Palette Icon ─────────────────────────────────────────────────────────────
+
+function PaletteIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+    </svg>
+  );
+}
+
+// ─── Color Presets ────────────────────────────────────────────────────────────
+
+const COLOR_PRESETS = [
+  { label: 'IFTL',     primary: '#005989', accent: '#f5c845' },
+  { label: 'Indigo',   primary: '#4f46e5', accent: '#f59e0b' },
+  { label: 'Emeraude', primary: '#059669', accent: '#fbbf24' },
+  { label: 'Grenat',   primary: '#9b1c1c', accent: '#fcd34d' },
+  { label: 'Ardoise',  primary: '#334155', accent: '#38bdf8' },
+  { label: 'Violet',   primary: '#6d28d9', accent: '#f472b6' },
+];
+
+// ─── Layout option card ───────────────────────────────────────────────────────
+
+function LayoutCard({ value, label, description, selected, onSelect, preview }) {
+  return (
+    <button
+      onClick={() => onSelect(value)}
+      className={`relative flex flex-col gap-2 p-4 rounded-xl border-2 transition-all text-left ${
+        selected ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+      }`}
+    >
+      {selected && (
+        <span className="absolute top-2 right-2 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </span>
+      )}
+      <div className="w-full h-20 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
+        {preview}
+      </div>
+      <p className="text-sm font-semibold text-slate-800">{label}</p>
+      <p className="text-xs text-slate-500">{description}</p>
+    </button>
+  );
+}
+
+function SidebarPreview() {
+  return (
+    <div className="flex h-full">
+      <div className="w-8 h-full bg-slate-700 shrink-0 flex flex-col gap-1 p-1 pt-2">
+        {[...Array(5)].map((_, i) => <div key={i} className="h-1.5 rounded bg-slate-500/60" />)}
+      </div>
+      <div className="flex-1 flex flex-col">
+        <div className="h-4 bg-slate-200 shrink-0" />
+        <div className="flex-1 p-1 flex flex-col gap-1">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-2 rounded bg-slate-200" />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopNavPreview() {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-5 bg-slate-700 shrink-0 flex items-center gap-1 px-1">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-1.5 w-5 rounded bg-slate-500/60" />)}
+      </div>
+      <div className="flex-1 p-1.5 flex flex-col gap-1">
+        {[...Array(3)].map((_, i) => <div key={i} className="h-2 rounded bg-slate-200" />)}
+      </div>
+    </div>
+  );
+}
+
+function SaasPreview() {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-5 bg-indigo-600 shrink-0 flex items-center gap-1 px-1">
+        <div className="h-1.5 w-3 rounded bg-white/60" />
+        <div className="flex-1" />
+        {[...Array(3)].map((_, i) => <div key={i} className="h-1.5 w-4 rounded bg-white/40" />)}
+      </div>
+      <div className="flex-1 p-1 grid grid-cols-2 gap-1 content-start">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-6 rounded bg-slate-100 border border-slate-200" />)}
+      </div>
+    </div>
+  );
+}
+
+// ─── Branding Tab ─────────────────────────────────────────────────────────────
+
+function BrandingTab() {
+  const toast = useToast();
+  const { t } = useTranslation();
+  const { branding, saveBranding, uploadLogo } = useBranding();
+  const [form, setForm] = useState({ ...branding });
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  useEffect(() => { setForm({ ...branding }); }, [branding]);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveBranding(form);
+      toast.success(t('settings.branding_saved', { defaultValue: 'Charte graphique enregistrée' }));
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadLogo(file);
+      set('logoURL', url);
+      toast.success('Logo téléchargé avec succès');
+    } catch (err) {
+      toast.error('Erreur upload : ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Layout */}
+      <SectionCard
+        title={t('settings.branding_layout', { defaultValue: 'Disposition de l\'interface' })}
+        description={t('settings.branding_layout_desc', { defaultValue: 'Choisissez la mise en page qui convient le mieux à votre établissement.' })}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <LayoutCard
+            value="sidebar"
+            label={t('settings.layout_sidebar', { defaultValue: 'Barre latérale' })}
+            description={t('settings.layout_sidebar_desc', { defaultValue: 'Navigation verticale classique à gauche' })}
+            selected={form.layout === 'sidebar'}
+            onSelect={v => set('layout', v)}
+            preview={<SidebarPreview />}
+          />
+          <LayoutCard
+            value="topnav"
+            label={t('settings.layout_topnav', { defaultValue: 'Barre supérieure' })}
+            description={t('settings.layout_topnav_desc', { defaultValue: 'Navigation horizontale en haut de page' })}
+            selected={form.layout === 'topnav'}
+            onSelect={v => set('layout', v)}
+            preview={<TopNavPreview />}
+          />
+          <LayoutCard
+            value="saas"
+            label={t('settings.layout_saas', { defaultValue: 'Mode SaaS' })}
+            description={t('settings.layout_saas_desc', { defaultValue: 'Interface épurée style application moderne' })}
+            selected={form.layout === 'saas'}
+            onSelect={v => set('layout', v)}
+            preview={<SaasPreview />}
+          />
+        </div>
+      </SectionCard>
+
+      {/* Identity */}
+      <SectionCard
+        title={t('settings.branding_identity', { defaultValue: 'Identité visuelle' })}
+        description={t('settings.branding_identity_desc', { defaultValue: 'Logo et nom affiché dans la navigation.' })}
+      >
+        <FieldRow label={t('settings.branding_institute_name', { defaultValue: 'Nom de l\'établissement' })} hint={t('settings.branding_institute_name_hint', { defaultValue: 'Affiché dans la barre de navigation' })}>
+          <Input
+            value={form.instituteName || ''}
+            onChange={e => set('instituteName', e.target.value)}
+            placeholder="Ex: Mon Institut de Formation"
+          />
+        </FieldRow>
+        <FieldRow label={t('settings.branding_logo', { defaultValue: 'Logo' })} hint={t('settings.branding_logo_hint', { defaultValue: 'Format PNG/SVG recommandé, fond transparent' })}>
+          <div className="flex items-center gap-3 flex-wrap">
+            {form.logoURL && (
+              <img src={form.logoURL} alt="logo" className="h-10 w-auto object-contain border border-slate-200 rounded-lg p-1 bg-slate-50" />
+            )}
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 bg-white"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              {uploading ? 'Téléchargement…' : t('settings.branding_upload_logo', { defaultValue: 'Télécharger un logo' })}
+            </button>
+            {form.logoURL && (
+              <button
+                onClick={() => set('logoURL', '')}
+                className="text-xs text-red-500 hover:text-red-700 underline"
+              >
+                {t('settings.branding_remove_logo', { defaultValue: 'Supprimer' })}
+              </button>
+            )}
+          </div>
+        </FieldRow>
+      </SectionCard>
+
+      {/* Colors */}
+      <SectionCard
+        title={t('settings.branding_colors', { defaultValue: 'Couleurs de la charte' })}
+        description={t('settings.branding_colors_desc', { defaultValue: 'Choisissez un preset ou personnalisez librement les couleurs.' })}
+      >
+        {/* Presets */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+            {t('settings.branding_presets', { defaultValue: 'Presets' })}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {COLOR_PRESETS.map(preset => {
+              const isActive = form.primaryColor === preset.primary && form.accentColor === preset.accent;
+              return (
+                <button
+                  key={preset.label}
+                  onClick={() => setForm(f => ({ ...f, primaryColor: preset.primary, accentColor: preset.accent }))}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                    isActive ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <span className="flex gap-0.5">
+                    <span className="w-3.5 h-3.5 rounded-full border border-white/50 shadow-sm" style={{ background: preset.primary }} />
+                    <span className="w-3.5 h-3.5 rounded-full border border-white/50 shadow-sm" style={{ background: preset.accent }} />
+                  </span>
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* Custom pickers */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              {t('settings.branding_primary', { defaultValue: 'Couleur principale' })}
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.primaryColor || '#005989'}
+                onChange={e => set('primaryColor', e.target.value)}
+                className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer p-0.5"
+              />
+              <Input
+                value={form.primaryColor || '#005989'}
+                onChange={e => set('primaryColor', e.target.value)}
+                placeholder="#005989"
+                className="flex-1 font-mono"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              {t('settings.branding_accent', { defaultValue: 'Couleur d\'accent' })}
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.accentColor || '#f5c845'}
+                onChange={e => set('accentColor', e.target.value)}
+                className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer p-0.5"
+              />
+              <Input
+                value={form.accentColor || '#f5c845'}
+                onChange={e => set('accentColor', e.target.value)}
+                placeholder="#f5c845"
+                className="flex-1 font-mono"
+              />
+            </div>
+          </div>
+        </div>
+        {/* Live preview strip */}
+        <div className="mt-5 rounded-xl overflow-hidden border border-slate-200">
+          <div className="h-10 flex items-center px-4 gap-3" style={{ background: form.primaryColor || '#005989' }}>
+            <span className="text-white font-bold text-sm">{form.instituteName || 'Mon Institut'}</span>
+            <div className="flex-1" />
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: form.accentColor || '#f5c845', color: form.primaryColor || '#005989' }}>
+              {t('settings.branding_preview_label', { defaultValue: 'Aperçu' })}
+            </span>
+          </div>
+          <div className="bg-slate-50 px-4 py-3 flex gap-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-2 rounded flex-1" style={{ background: i === 0 ? form.primaryColor + '22' : '#e2e8f0' }} />
+            ))}
+          </div>
+        </div>
+      </SectionCard>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
+        >
+          {saving ? t('settings.etab_saving') : t('settings.branding_save', { defaultValue: 'Appliquer la charte graphique' })}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main SettingsPage ────────────────────────────────────────────────────────
 
 export default function SettingsPage({ auth }) {
@@ -702,6 +1013,7 @@ export default function SettingsPage({ auth }) {
     { id: 'etablissement', label: t('settings.tab_etablissement'), Icon: BuildingIcon },
     { id: 'profil', label: t('settings.tab_compte'), Icon: UserIcon },
     { id: 'utilisateurs', label: t('settings.tab_users'), Icon: UsersIcon, adminOnly: true },
+    { id: 'branding', label: t('settings.tab_branding', { defaultValue: 'Charte graphique' }), Icon: PaletteIcon, adminOnly: true },
     { id: 'donnees', label: t('settings.tab_data'), Icon: DatabaseIcon },
     { id: 'import', label: t('settings.tab_import'), Icon: UploadIcon },
   ];
@@ -802,6 +1114,7 @@ export default function SettingsPage({ auth }) {
               )}
               {activeTab === 'profil' && <ProfilTab auth={auth} />}
               {activeTab === 'utilisateurs' && <UtilisateursTab userRole={userRole} />}
+              {activeTab === 'branding' && <BrandingTab />}
               {activeTab === 'donnees' && <DonneesTab />}
               {activeTab === 'import' && <ImportDataPage />}
             </>

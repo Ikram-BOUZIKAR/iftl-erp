@@ -4,8 +4,10 @@ import { format } from 'date-fns';
 import { fr as frLocale, enUS, ar as arLocale } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import Sidebar from './Sidebar';
+import TopNav from './TopNav';
 import { HelpButton } from '../UI/HelpGuide';
 import LanguageSwitcher from '../UI/LanguageSwitcher';
+import { useBranding } from '../../contexts/BrandingContext';
 
 const DATE_LOCALES = { fr: frLocale, en: enUS, ar: arLocale };
 
@@ -18,6 +20,17 @@ function Ico({ path, size = 'w-5 h-5' }) {
 }
 
 export default function MainLayout({ auth, children }) {
+  const { branding } = useBranding();
+  const layout = branding?.layout || 'sidebar';
+
+  if (layout === 'topnav' || layout === 'saas') {
+    return <TopNav auth={auth}>{children}</TopNav>;
+  }
+
+  return <SidebarLayout auth={auth}>{children}</SidebarLayout>;
+}
+
+function SidebarLayout({ auth, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
   );
