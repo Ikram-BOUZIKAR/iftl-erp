@@ -14,6 +14,80 @@ function Ico({ path, path2, size = 'w-6 h-6', stroke = 'currentColor', strokeWid
   );
 }
 
+// ── Demo role selector (rendered only when VITE_EMAIL_DOMAIN is set) ──────────
+const DEMO_ROLES = [
+  {
+    id: 'direction', label: 'Direction', pw: 'DirectionDemo@2025!',
+    color: '#1a5f8a', bg: '#eaf4fb',
+    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  },
+  {
+    id: 'scolarite', label: 'Scolarité', pw: 'ScolariteDemo@2025!',
+    color: '#0d7a55', bg: '#eafaf4',
+    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  },
+  {
+    id: 'intervenant', label: 'Formateur', pw: 'IntervenantDemo@2025!',
+    color: '#7c3aed', bg: '#f5f0ff',
+    icon: 'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z',
+  },
+  {
+    id: 'apprenant', label: 'Apprenant', pw: 'ApprenantDemo@2025!',
+    color: '#b45309', bg: '#fffbeb',
+    icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+  },
+];
+
+function DemoRoleSelector({ onQuickLogin }) {
+  const [active, setActive] = useState(null);
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+          Explorer la démonstration
+        </span>
+        <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {DEMO_ROLES.map(({ id, label, pw, color, bg, icon }) => (
+          <button
+            key={id} type="button"
+            disabled={active !== null}
+            onClick={async () => {
+              setActive(id);
+              await onQuickLogin(id, pw);
+              setActive(null);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 9,
+              padding: '10px 12px', borderRadius: 10,
+              background: bg, border: `1.5px solid ${color}28`,
+              color, fontWeight: 600, fontSize: 12.5,
+              cursor: active ? 'wait' : 'pointer',
+              transition: 'transform .12s, box-shadow .12s',
+              opacity: active && active !== id ? 0.5 : 1,
+            }}
+            onMouseEnter={e => { if (!active) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}28`; } }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+          >
+            {active === id
+              ? <div style={{ width: 14, height: 14, border: `2px solid ${color}40`, borderTopColor: color, borderRadius: '50%', animation: 'spin .7s linear infinite', flexShrink: 0 }} />
+              : <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icon} />
+                </svg>
+            }
+            {label}
+          </button>
+        ))}
+      </div>
+      <p style={{ fontSize: 9.5, color: '#94a3b8', textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
+        Données 100 % fictives — aucun compte réel
+      </p>
+    </div>
+  );
+}
+
 const NAVY  = '#001829';
 const NAVY2 = '#001f36';
 const BLUE  = '#005989';
@@ -324,19 +398,39 @@ export default function LoginPage({ auth }) {
                   }
                 </button>
 
+                {/* Demo role selector — visible only in demo builds */}
+                {import.meta.env.VITE_EMAIL_DOMAIN && (
+                  <DemoRoleSelector onQuickLogin={async (identifier, pw) => {
+                    setError('');
+                    setLoading(true);
+                    try {
+                      const domain = import.meta.env.VITE_EMAIL_DOMAIN;
+                      await auth.login(`${identifier}@${domain}`, pw);
+                      window.location.replace('/');
+                    } catch {
+                      setError('Connexion démo échouée. Contactez l\'administrateur.');
+                      setLoading(false);
+                    }
+                  }} />
+                )}
+
                 {/* Divider + register */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#cbd5e1', fontSize: 10, margin: '16px 0' }}>
-                  <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} /> ou <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                </div>
-                <Link
-                  to="/register"
-                  style={{ width: '100%', padding: '12px 20px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, color: '#64748b', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', transition: 'background .15s, color .15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#334155'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
-                >
-                  <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
-                  {t('login.create_account')}
-                </Link>
+                {!import.meta.env.VITE_EMAIL_DOMAIN && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#cbd5e1', fontSize: 10, margin: '16px 0' }}>
+                      <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} /> ou <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                    </div>
+                    <Link
+                      to="/register"
+                      style={{ width: '100%', padding: '12px 20px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, color: '#64748b', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', transition: 'background .15s, color .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#334155'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
+                    >
+                      <Ico path="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" size="w-4 h-4 shrink-0" />
+                      {t('login.create_account')}
+                    </Link>
+                  </>
+                )}
               </form>
             )}
 

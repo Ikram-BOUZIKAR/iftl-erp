@@ -5,7 +5,7 @@ export default function SetupPage() {
     {
       num: 1,
       title: "Aller à Firebase Console",
-      desc: "https://console.firebase.google.com/project/erp-pedago-iftl/settings/general"
+      desc: "https://console.firebase.google.com → votre projet → Paramètres → Configuration",
     },
     {
       num: 2,
@@ -19,10 +19,11 @@ export default function SetupPage() {
     }
   ];
 
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'YOUR_PROJECT_ID';
   const envExample = `VITE_FIREBASE_API_KEY=YOUR_API_KEY_HERE
-VITE_FIREBASE_AUTH_DOMAIN=erp-pedago-iftl.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=erp-pedago-iftl
-VITE_FIREBASE_STORAGE_BUCKET=erp-pedago-iftl.appspot.com
+VITE_FIREBASE_AUTH_DOMAIN=${projectId}.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=${projectId}
+VITE_FIREBASE_STORAGE_BUCKET=${projectId}.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=YOUR_SENDER_ID_HERE
 VITE_FIREBASE_APP_ID=YOUR_APP_ID_HERE`;
 
