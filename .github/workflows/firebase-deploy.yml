@@ -8,6 +8,42 @@ on:
       - claude/scheduling-attendance-app-zxwsP
 
 jobs:
+  deploy-iftl:
+    name: Build & deploy ERP IFTL production
+    runs-on: ubuntu-latest
+    environment: FIREBASE_TOKEN_IFTL
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.IFTL_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: erp-pedago-iftl.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: erp-pedago-iftl
+          VITE_FIREBASE_STORAGE_BUCKET: erp-pedago-iftl.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "938367552509"
+          VITE_FIREBASE_APP_ID: ${{ secrets.IFTL_FIREBASE_APP_ID }}
+
+      - name: Write IFTL service account key
+        run: echo "$FIREBASE_TOKEN_IFTL" > /tmp/sa_iftl.json
+        env:
+          FIREBASE_TOKEN_IFTL: ${{ secrets.FIREBASE_TOKEN_IFTL }}
+
+      - name: Deploy hosting to erp-pedago-iftl
+        run: npx firebase-tools@latest deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
+
   deploy-demo:
     name: Build & deploy Delo ERP demo
     runs-on: ubuntu-latest
