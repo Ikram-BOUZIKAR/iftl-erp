@@ -392,9 +392,8 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
 
   const groupesNiveau = useMemo(() => {
     const ids = new Set(niveauStudents.filter(s => s.groupeId).map(s => s.groupeId));
-    // Use uniqueGroupes to avoid duplicates from hyphen/en-dash Firestore variants
-    return uniqueGroupes.filter(g => ids.has(g.id));
-  }, [niveauStudents, uniqueGroupes]);
+    return groupes.filter(g => ids.has(g.id));
+  }, [niveauStudents, groupes]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

@@ -16,7 +16,8 @@ const TYPES = [
   { value: 'efm',       label: 'EFM',       color: 'bg-orange-500 text-white' },
   { value: 'eff',       label: 'EFF',       color: 'bg-rose-700 text-white'   },
   { value: 'cc',        label: 'Contrôle Continu', color: 'bg-violet-500 text-white' },
-  { value: 'seminaire', label: 'Séminaire', color: 'bg-teal-500 text-white'   },
+  { value: 'seminaire',  label: 'Séminaire',        color: 'bg-teal-500 text-white'    },
+  { value: 'rattrapage', label: 'Examen Rattrapage', color: 'bg-pink-600 text-white'    },
 ];
 const STATUTS = [
   { value: 'planifiee', label: 'Planifiée' },

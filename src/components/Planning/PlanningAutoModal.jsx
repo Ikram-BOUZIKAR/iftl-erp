@@ -52,7 +52,8 @@ const TYPES = [
   { id: 'td',    label: 'TD' },
   { id: 'cc',    label: 'CC' },
   { id: 'efm',   label: 'EFM' },
-  { id: 'eff',   label: 'EFF' },
+  { id: 'eff',        label: 'EFF' },
+  { id: 'rattrapage', label: 'Examen Rattrapage' },
 ];
 
 const ANNEE = '2026-2027';

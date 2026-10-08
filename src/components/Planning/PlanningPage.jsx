@@ -52,7 +52,8 @@ export const TYPE_STYLES = {
   efm:       { bar: '#ea580c', bg: 'rgba(234,88,12,0.08)',  border: 'rgba(234,88,12,0.22)', text: '#c2410c', label: 'EFM'       },
   eff:       { bar: '#9f1239', bg: 'rgba(159,18,57,0.08)',  border: 'rgba(159,18,57,0.22)', text: '#9f1239', label: 'EFF'       },
   cc:        { bar: '#7c3aed', bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.2)', text: '#6d28d9', label: 'CC'        },
-  seminaire: { bar: '#0d9488', bg: 'rgba(13,148,136,0.08)', border: 'rgba(13,148,136,0.2)', text: '#0a7a70', label: 'Séminaire' },
+  seminaire:  { bar: '#0d9488', bg: 'rgba(13,148,136,0.08)', border: 'rgba(13,148,136,0.2)',   text: '#0a7a70', label: 'Séminaire'        },
+  rattrapage: { bar: '#db2777', bg: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.22)', text: '#be185d', label: 'Examen Rattrapage' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -630,7 +631,7 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
   const END_MIN    = 17 * 60 + 30; // 17:30
   const SCALE      = 1.4;          // px per minute
   const TOTAL_H    = (END_MIN - START_MIN) * SCALE; // 798px
-  const DISPLAY_DAYS = 6;
+  const DISPLAY_DAYS = 7;
 
   const toMin     = t => { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
   const slotTop   = slot => (toMin(slot.start) - START_MIN) * SCALE;

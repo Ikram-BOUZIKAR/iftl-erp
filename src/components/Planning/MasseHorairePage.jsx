@@ -40,7 +40,7 @@ function ProgressBar({ done, total }) {
 // ── Modal Édition (affectation simple) ────────────────────────────────────────
 function EditModal({ affectation, intervenants, onSave, onClose }) {
   const [intervenantId, setIntervenantId] = useState(affectation.intervenantId || '');
-  const [masseHoraire, setMasseHoraire]   = useState(affectation.masseHoraire || 24);
+  const [masseHoraire, setMasseHoraire]   = useState(affectation.masseHoraire || 44);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -98,7 +98,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
   const [selectedGroupes, setSelectedGroupes] = useState([]);
   // module name (key) → masseHoraire value; deduped by name to avoid filière duplicates
   const [selectedModules, setSelectedModules] = useState({});
-  const [globalMH, setGlobalMH] = useState('24');
+  const [globalMH, setGlobalMH] = useState('44');
   const [useGlobalMH, setUseGlobalMH] = useState(true);
   const [saving, setSaving] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
@@ -138,7 +138,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
   const toggleModule = (nom) =>
     setSelectedModules(prev => {
       const next = { ...prev };
-      if (next[nom] !== undefined) { delete next[nom]; } else { next[nom] = globalMH || '24'; }
+      if (next[nom] !== undefined) { delete next[nom]; } else { next[nom] = globalMH || '44'; }
       return next;
     });
 
@@ -217,7 +217,7 @@ function BulkAffectationModal({ modules, groupes, intervenants, onSave, onClose 
             {useGlobalMH && (
               <input type="number" min="0" step="0.5" value={globalMH}
                 onChange={e => { setGlobalMH(e.target.value); setSelectedModules(prev => Object.fromEntries(Object.keys(prev).map(k => [k, e.target.value]))); }}
-                placeholder="Nombre d'heures (ex: 24)"
+                placeholder="Nombre d'heures (ex: 44)"
                 className="w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]" />
             )}
           </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { sessionsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
@@ -14,7 +14,8 @@ const TYPES = [
   { value: 'efm',       label: 'EFM'             },
   { value: 'eff',       label: 'EFF'             },
   { value: 'cc',        label: 'Contrôle Continu'},
-  { value: 'seminaire', label: 'Séminaire'       },
+  { value: 'seminaire',  label: 'Séminaire'        },
+  { value: 'rattrapage', label: 'Examen Rattrapage'},
 ];
 const ALL_SLOTS = [
   { label: 'C1 Lun–Jeu',   start: '09:00', end: '10:30' },
@@ -69,11 +70,12 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
   useEffect(() => {
     if (!selectedGroupe?.id) { setModules([]); return; }
     const q = selectedGroupe.filiereCode
-      ? query(collection(db, 'modules'), where('filiereCode', '==', selectedGroupe.filiereCode), orderBy('code', 'asc'))
-      : query(collection(db, 'modules'), orderBy('code', 'asc'));
+      ? query(collection(db, 'modules'), where('filiereCode', '==', selectedGroupe.filiereCode))
+      : query(collection(db, 'modules'));
     getDocs(q).then(snap => {
       const mods = [];
       snap.forEach(d => mods.push({ id: d.id, ...d.data() }));
+      mods.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
       setModules(mods);
     }).catch(() => setModules([]));
   }, [selectedGroupe?.id, selectedGroupe?.filiereCode]);
