@@ -16,6 +16,8 @@ const NIVEAUX = [
   '2ème Année TS',
   '2ème Année T',
   '2ème Année Q',
+  'Licence CNAM ASC',
+  'Licence ISTL TGOP',
   'Mastère 1ère Année',
   'Mastère 2ème Année',
 ];
