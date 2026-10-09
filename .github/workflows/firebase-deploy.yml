@@ -48,8 +48,13 @@ jobs:
           fi
           python3 -c "
           import json, sys
+          with open('/tmp/sa_iftl.json', 'rb') as f:
+              raw = f.read()
+          print('First 20 bytes hex:', raw[:20].hex())
+          print('First 5 chars repr:', repr(raw[:5]))
           try:
-              d = json.load(open('/tmp/sa_iftl.json'))
+              text = raw.decode('utf-8-sig').strip()
+              d = json.loads(text)
               print('type:', d.get('type'))
               print('project_id:', d.get('project_id'))
               print('client_email:', d.get('client_email'))
