@@ -11,7 +11,6 @@ jobs:
   deploy-iftl:
     name: Build & deploy ERP IFTL production
     runs-on: ubuntu-latest
-    environment: FIREBASE_TOKEN_IFTL
     steps:
       - uses: actions/checkout@v4
 
