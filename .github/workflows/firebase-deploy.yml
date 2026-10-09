@@ -34,35 +34,31 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.IFTL_FIREBASE_APP_ID }}
 
       - name: Write IFTL service account key
-        run: python3 -c "import os; v=os.environ['FIREBASE_TOKEN_IFTL'].strip().strip(\"'\").strip('\"'); open('/tmp/sa_iftl.json','w').write(v)"
+        run: |
+          python3 -c "
+          import os, json, sys
+          v = os.environ['FIREBASE_TOKEN_IFTL']
+          start = v.find('{')
+          if start < 0:
+              print('ERROR: no { found in secret'); sys.exit(1)
+          v = v[start:]
+          json.loads(v)
+          open('/tmp/sa_iftl.json', 'w').write(v)
+          print('Written OK, size:', len(v))
+          "
         env:
           FIREBASE_TOKEN_IFTL: ${{ secrets.FIREBASE_TOKEN_IFTL }}
 
       - name: Validate service account key
         run: |
-          SIZE=$(wc -c < /tmp/sa_iftl.json)
-          echo "SA file size: $SIZE bytes"
-          if [ "$SIZE" -lt 100 ]; then
-            echo "ERROR: File too small — secret FIREBASE_TOKEN_IFTL is likely empty or wrong"
-            exit 1
-          fi
           python3 -c "
           import json, sys
-          with open('/tmp/sa_iftl.json', 'rb') as f:
-              raw = f.read()
-          print('First 20 bytes hex:', raw[:20].hex())
-          print('First 5 chars repr:', repr(raw[:5]))
-          try:
-              text = raw.decode('utf-8-sig').strip()
-              d = json.loads(text)
-              print('type:', d.get('type'))
-              print('project_id:', d.get('project_id'))
-              print('client_email:', d.get('client_email'))
-              assert d.get('type') == 'service_account', 'Wrong type: ' + str(d.get('type'))
-              print('JSON valid')
-          except Exception as e:
-              print('ERROR:', e)
-              sys.exit(1)
+          d = json.load(open('/tmp/sa_iftl.json'))
+          print('type:', d.get('type'))
+          print('project_id:', d.get('project_id'))
+          print('client_email:', d.get('client_email'))
+          assert d.get('type') == 'service_account'
+          print('JSON valid')
           "
 
       - name: Deploy hosting to erp-pedago-iftl
