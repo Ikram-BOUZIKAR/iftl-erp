@@ -42,9 +42,9 @@ jobs:
           if start < 0:
               print('ERROR: no { found in secret'); sys.exit(1)
           v = v[start:]
-          json.loads(v)
-          open('/tmp/sa_iftl.json', 'w').write(v)
-          print('Written OK, size:', len(v))
+          d, _ = json.JSONDecoder().raw_decode(v)
+          open('/tmp/sa_iftl.json', 'w').write(json.dumps(d))
+          print('Written OK, type:', d.get('type'))
           "
         env:
           FIREBASE_TOKEN_IFTL: ${{ secrets.FIREBASE_TOKEN_IFTL }}
