@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 130" role="img" aria-label="IFTL">
+  <!-- I -->
+  <rect x="2" y="4" width="20" height="72" rx="1" fill="#E31E24"/>
+  <!-- F -->
+  <rect x="30" y="4" width="20" height="72" rx="1" fill="#E31E24"/>
+  <rect x="30" y="4" width="50" height="20" rx="1" fill="#E31E24"/>
+  <rect x="30" y="34" width="42" height="17" rx="1" fill="#E31E24"/>
+  <!-- T -->
+  <rect x="88" y="4" width="52" height="20" rx="1" fill="#E31E24"/>
+  <rect x="103" y="4" width="22" height="72" rx="1" fill="#E31E24"/>
+  <!-- L -->
+  <rect x="148" y="4" width="20" height="72" rx="1" fill="#E31E24"/>
+  <rect x="148" y="56" width="46" height="20" rx="1" fill="#E31E24"/>
+  <!-- Blue chevron arrow overlapping right side -->
+  <path d="M178 4 L210 4 Q220 4 220 14 L220 50 Q220 60 210 60 L178 60 L205 32 Z" fill="#003d63"/>
+  <!-- Subtitle -->
+  <text x="2" y="100" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#003d63">Institut de Formation Transport &amp; Logistique</text>
+</svg>
