@@ -34,9 +34,31 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.IFTL_FIREBASE_APP_ID }}
 
       - name: Write IFTL service account key
-        run: echo "$FIREBASE_TOKEN_IFTL" > /tmp/sa_iftl.json
+        run: printf '%s' "$FIREBASE_TOKEN_IFTL" > /tmp/sa_iftl.json
         env:
           FIREBASE_TOKEN_IFTL: ${{ secrets.FIREBASE_TOKEN_IFTL }}
+
+      - name: Validate service account key
+        run: |
+          SIZE=$(wc -c < /tmp/sa_iftl.json)
+          echo "SA file size: $SIZE bytes"
+          if [ "$SIZE" -lt 100 ]; then
+            echo "ERROR: File too small — secret FIREBASE_TOKEN_IFTL is likely empty or wrong"
+            exit 1
+          fi
+          python3 -c "
+          import json, sys
+          try:
+              d = json.load(open('/tmp/sa_iftl.json'))
+              print('type:', d.get('type'))
+              print('project_id:', d.get('project_id'))
+              print('client_email:', d.get('client_email'))
+              assert d.get('type') == 'service_account', 'Wrong type: ' + str(d.get('type'))
+              print('JSON valid')
+          except Exception as e:
+              print('ERROR:', e)
+              sys.exit(1)
+          "
 
       - name: Deploy hosting to erp-pedago-iftl
         run: npx firebase-tools@latest deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
