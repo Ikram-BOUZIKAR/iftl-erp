@@ -92,6 +92,7 @@ export default function PlanningPage() {
   const [showNotify, setShowNotify]       = useState(false);
   const [showAuto, setShowAuto]           = useState(false);
   const [activeTab, setActiveTab]         = useState('planning'); // 'planning' | 'calendrier'
+  const [dayView, setDayView]             = useState('tous');     // 'semaine' | 'weekend' | 'tous'
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -389,6 +390,20 @@ export default function PlanningPage() {
               📅 Calendrier
             </button>
           </div>
+          {activeTab === 'planning' && (
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
+              {[
+                { key: 'semaine', label: 'Semaine' },
+                { key: 'weekend', label: 'Weekend' },
+                { key: 'tous',    label: 'Tous' },
+              ].map(({ key, label }, i) => (
+                <button key={key} onClick={() => setDayView(key)}
+                  className={`px-3 py-1 transition-colors ${i > 0 ? 'border-l border-slate-200' : ''} ${dayView === key ? 'bg-slate-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
           <p className="text-xs text-slate-400 mt-0.5">
             Sem. du{' '}
@@ -463,6 +478,7 @@ export default function PlanningPage() {
                 intervenants={intervenants}
                 vacances={vacances}
                 conflictedIds={conflictedSessionIds}
+                dayView={dayView}
                 onAdd={openAdd}
                 onEdit={s => { setEditing(s); setShowForm(true); }}
                 onMove={handleMove}
@@ -623,7 +639,7 @@ function GroupSelector({ groupes, activeGroupId, onSelect, conflictsCount }) {
 }
 
 // ── Timeline Grid (Option A — axe horaire vertical) ───────────────────────────
-function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, conflictedIds, onAdd, onEdit, onMove, onDelete }) {
+function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacances, conflictedIds, dayView, onAdd, onEdit, onMove, onDelete }) {
   const [dragId,    setDragId]    = useState(null);
   const [dropSlot,  setDropSlot]  = useState(null); // { di, si }
 
@@ -631,7 +647,8 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
   const END_MIN    = 17 * 60 + 30; // 17:30
   const SCALE      = 1.4;          // px per minute
   const TOTAL_H    = (END_MIN - START_MIN) * SCALE; // 798px
-  const DISPLAY_DAYS = 7;
+
+  const visibleIndices = dayView === 'semaine' ? [0,1,2,3,4] : dayView === 'weekend' ? [5,6] : [0,1,2,3,4,5,6];
 
   const toMin     = t => { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + m; };
   const slotTop   = slot => (toMin(slot.start) - START_MIN) * SCALE;
@@ -686,17 +703,19 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
           <div style={{ width: 54, flexShrink: 0, background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 4px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
+          {visibleIndices.map((di, idx) => {
+            const day     = weekDays[di];
             const vac     = isVacance(day, vacances);
             const isToday = day.toDateString() === new Date().toDateString();
             const pal     = DAY_PALETTE[di];
             const bg      = vac ? '#374151' : isToday ? pal.header : '#1e293b';
             const accent  = isToday ? '#f5c845' : pal.dot;
+            const isLast  = idx === visibleIndices.length - 1;
             return (
               <div key={di} style={{
                 flex: 1, padding: '10px 6px 8px', textAlign: 'center',
                 background: bg,
-                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)',
                 borderBottom: isToday ? `3px solid ${accent}` : '3px solid transparent',
                 transition: 'background 0.2s',
               }}>
@@ -738,16 +757,18 @@ function TimelineGrid({ groupe, sessions, weekDays, modules, intervenants, vacan
           </div>
 
           {/* Day columns */}
-          {weekDays.slice(0, DISPLAY_DAYS).map((day, di) => {
+          {visibleIndices.map((di, idx) => {
+            const day     = weekDays[di];
             const vac     = isVacance(day, vacances);
             const slots   = DAY_SLOTS[di] || [];
             const isToday = day.toDateString() === new Date().toDateString();
             const pal     = DAY_PALETTE[di];
+            const isLast  = idx === visibleIndices.length - 1;
 
             return (
               <div key={di} style={{
                 flex: 1, position: 'relative', height: TOTAL_H,
-                borderRight: di < DISPLAY_DAYS - 1 ? '1px solid #e9eef4' : 'none',
+                borderRight: isLast ? 'none' : '1px solid #e9eef4',
                 background: vac
                   ? 'repeating-linear-gradient(-45deg,#f1f5f9,#f1f5f9 4px,#e8edf4 4px,#e8edf4 8px)'
                   : isToday
