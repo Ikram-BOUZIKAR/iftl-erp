@@ -47,7 +47,7 @@ function Field({ label, required, error, children }) {
 }
 
 export default function JustificatifPaiementPortail() {
-  const [form, setForm] = useState({ nom: '', prenom: '', niveau: '' });
+  const [form, setForm] = useState({ nom: '', prenom: '', cin: '', niveau: '' });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -61,6 +61,7 @@ export default function JustificatifPaiementPortail() {
     const e = {};
     if (!form.nom.trim())    e.nom    = 'Obligatoire';
     if (!form.prenom.trim()) e.prenom = 'Obligatoire';
+    if (!form.cin.trim())    e.cin    = 'Obligatoire';
     if (!form.niveau)        e.niveau = 'Sélectionner un niveau';
     return e;
   };
@@ -72,12 +73,13 @@ export default function JustificatifPaiementPortail() {
     setSaving(true);
     try {
       await addDoc(collection(db, 'justificatifs_paiement'), {
-        nom:       form.nom.trim().toUpperCase(),
-        prenom:    form.prenom.trim(),
-        niveau:    form.niveau,
+        nom:         form.nom.trim().toUpperCase(),
+        prenom:      form.prenom.trim(),
+        cin:         form.cin.trim().toUpperCase(),
+        niveau:      form.niveau,
         niveauLabel: NIVEAUX.find(n => n.value === form.niveau)?.label || form.niveau,
-        statut:    'en_attente',
-        createdAt: new Date(),
+        statut:      'en_attente',
+        createdAt:   new Date(),
       });
       setDone(true);
     } catch (err) {
@@ -155,6 +157,16 @@ export default function JustificatifPaiementPortail() {
                     onChange={e => set('prenom', e.target.value)}
                     placeholder="Votre prénom"
                     style={{ ...inputS, borderColor: errors.prenom ? tok.error : tok.border }}
+                  />
+                </Field>
+
+                <Field label="CIN" required error={errors.cin}>
+                  <input
+                    type="text" value={form.cin}
+                    onChange={e => set('cin', e.target.value.toUpperCase())}
+                    placeholder="Ex : BE123456"
+                    maxLength={20}
+                    style={{ ...inputS, borderColor: errors.cin ? tok.error : tok.border, textTransform: 'uppercase', letterSpacing: '0.05em' }}
                   />
                 </Field>
 

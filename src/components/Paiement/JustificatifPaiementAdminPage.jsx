@@ -68,6 +68,7 @@ export default function JustificatifPaiementAdminPage() {
       return (
         d.nom?.toLowerCase().includes(q) ||
         d.prenom?.toLowerCase().includes(q) ||
+        d.cin?.toLowerCase().includes(q) ||
         (NIVEAUX_LABELS[d.niveau] || d.niveauLabel || '').toLowerCase().includes(q)
       );
     }
@@ -134,6 +135,7 @@ export default function JustificatifPaiementAdminPage() {
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nom</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Prénom</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">CIN</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Niveau</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
@@ -145,6 +147,7 @@ export default function JustificatifPaiementAdminPage() {
                 <tr key={d.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-4 py-3 font-semibold text-slate-800">{d.nom}</td>
                   <td className="px-4 py-3 text-slate-700">{d.prenom}</td>
+                  <td className="px-4 py-3 font-mono text-sm text-slate-600 tracking-wide">{d.cin || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {NIVEAUX_LABELS[d.niveau] || d.niveauLabel || d.niveau}
                   </td>
