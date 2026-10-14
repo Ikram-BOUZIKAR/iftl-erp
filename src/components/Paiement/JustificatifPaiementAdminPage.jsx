@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, updateDoc, doc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, deleteDoc, doc, orderBy, query } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 
@@ -56,6 +56,17 @@ export default function JustificatifPaiementAdminPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const supprimerDoc = async (id, nom) => {
+    if (!window.confirm(`Supprimer le dépôt de ${nom} ? Cette action est irréversible.`)) return;
+    try {
+      await deleteDoc(doc(db, 'justificatifs_paiement', id));
+      setDocs(prev => prev.filter(d => d.id !== id));
+      toast.success('Dépôt supprimé');
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    }
+  };
 
   const updateStatut = async (id, statut) => {
     try {
@@ -258,27 +269,37 @@ export default function JustificatifPaiementAdminPage() {
                   <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDate(d.createdAt)}</td>
                   <td className="px-4 py-3"><Badge statut={d.statut} /></td>
                   <td className="px-4 py-3">
-                    {d.statut === 'en_attente' && (
-                      <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2 justify-end items-center">
+                      {d.statut === 'en_attente' && (
+                        <>
+                          <button
+                            onClick={() => updateStatut(d.id, 'valide')}
+                            className="px-3 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                            Valider
+                          </button>
+                          <button
+                            onClick={() => updateStatut(d.id, 'refuse')}
+                            className="px-3 py-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                            Refuser
+                          </button>
+                        </>
+                      )}
+                      {d.statut !== 'en_attente' && (
                         <button
-                          onClick={() => updateStatut(d.id, 'valide')}
-                          className="px-3 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-                          Valider
+                          onClick={() => updateStatut(d.id, 'en_attente')}
+                          className="px-3 py-1 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                          Réinitialiser
                         </button>
-                        <button
-                          onClick={() => updateStatut(d.id, 'refuse')}
-                          className="px-3 py-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
-                          Refuser
-                        </button>
-                      </div>
-                    )}
-                    {d.statut !== 'en_attente' && (
+                      )}
                       <button
-                        onClick={() => updateStatut(d.id, 'en_attente')}
-                        className="px-3 py-1 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
-                        Réinitialiser
+                        onClick={() => supprimerDoc(d.id, `${d.nom} ${d.prenom}`)}
+                        title="Supprimer ce dépôt"
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
