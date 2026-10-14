@@ -236,14 +236,23 @@ export default function JustificatifPaiementAdminPage() {
                     {d.montantPaye ? fmtMAD(d.montantPaye) : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    {d.justificatifURL ? (
-                      <a href={d.justificatifURL} target="_blank" rel="noopener noreferrer"
+                    {d.justificatifData ? (
+                      <button
+                        onClick={() => {
+                          const w = window.open('', '_blank');
+                          if (d.justificatifType?.startsWith('image/')) {
+                            w.document.write(`<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${d.justificatifData}" style="max-width:100%;max-height:100vh;object-fit:contain" /></body></html>`);
+                          } else {
+                            w.document.write(`<html><body style="margin:0"><embed src="${d.justificatifData}" width="100%" height="100%" type="application/pdf" /></body></html>`);
+                          }
+                        }}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#005989] hover:underline">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                         Voir
-                      </a>
+                      </button>
                     ) : <span className="text-xs text-slate-400">—</span>}
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDate(d.createdAt)}</td>

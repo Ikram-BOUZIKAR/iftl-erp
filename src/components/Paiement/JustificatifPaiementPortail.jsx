@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { collection, addDoc } from 'firebase/firestore';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { db } from '../../services/firebase';
 
 const NIVEAUX = [
   { value: 'licence_cnam',         label: 'Licence CNAM' },
@@ -17,7 +16,6 @@ const tok = {
   ink:       '#1a2c3d',
   muted:     '#5e7a91',
   border:    '#dce8f0',
-  success:   '#059669',
   error:     '#dc2626',
 };
 
@@ -29,6 +27,36 @@ const inputS = {
   transition: 'border-color .15s',
   boxSizing: 'border-box', appearance: 'none',
 };
+
+// Compress image on canvas or read PDF as base64 data URL
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    if (file.type.startsWith('image/')) {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1400;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
+      };
+      img.onerror = reject;
+      img.src = url;
+    } else {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    }
+  });
+}
 
 function Field({ label, required, error, children }) {
   return (
@@ -48,11 +76,9 @@ function Field({ label, required, error, children }) {
 }
 
 export default function JustificatifPaiementPortail() {
-  const [form, setForm]     = useState({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' });
+  const [form, setForm] = useState({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' });
   const [fichier, setFichier] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [uploadPct, setUploadPct] = useState(0);
-  const [uploading, setUploading] = useState(false);
+  const [errors, setErrors]   = useState({});
   const [saving, setSaving]   = useState(false);
   const [done, setDone]       = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -66,8 +92,13 @@ export default function JustificatifPaiementPortail() {
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (f.size > 10 * 1024 * 1024) {
-      setErrors(er => ({ ...er, fichier: 'Fichier trop lourd (max 10 Mo)' }));
+    // For PDFs limit to 700KB (base64 ~933KB < Firestore 1MB doc limit)
+    if (f.type === 'application/pdf' && f.size > 700 * 1024) {
+      setErrors(er => ({ ...er, fichier: 'PDF trop lourd (max 700 Ko). Prenez une photo du reçu en JPEG/PNG.' }));
+      return;
+    }
+    if (f.size > 8 * 1024 * 1024) {
+      setErrors(er => ({ ...er, fichier: 'Fichier trop lourd (max 8 Mo pour les images)' }));
       return;
     }
     setFichier(f);
@@ -87,38 +118,6 @@ export default function JustificatifPaiementPortail() {
     return e;
   };
 
-  const uploadFichier = () => new Promise((resolve, reject) => {
-    const cin = form.cin.trim().toUpperCase();
-    const ext = fichier.name.split('.').pop();
-    const path = `justificatifs_paiement/${cin}/${Date.now()}.${ext}`;
-    const fileRef2 = storageRef(storage, path);
-    const task = uploadBytesResumable(fileRef2, fichier);
-    setUploading(true);
-    setUploadPct(0);
-    task.on('state_changed',
-      snap => {
-        const pct = snap.totalBytes > 0
-          ? Math.round(snap.bytesTransferred / snap.totalBytes * 100)
-          : 0;
-        setUploadPct(pct);
-      },
-      err => {
-        setUploading(false);
-        reject(err);
-      },
-      async () => {
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          setUploading(false);
-          resolve({ url, nom: fichier.name });
-        } catch (err) {
-          setUploading(false);
-          reject(err);
-        }
-      }
-    );
-  });
-
   const handleSubmit = async (ev) => {
     ev.preventDefault();
     setSubmitError(null);
@@ -126,7 +125,7 @@ export default function JustificatifPaiementPortail() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true);
     try {
-      const { url, nom } = await uploadFichier();
+      const dataUrl = await toBase64(fichier);
       await addDoc(collection(db, 'justificatifs_paiement'), {
         nom:             form.nom.trim().toUpperCase(),
         prenom:          form.prenom.trim(),
@@ -135,31 +134,33 @@ export default function JustificatifPaiementPortail() {
         niveau:          form.niveau,
         niveauLabel:     NIVEAUX.find(n => n.value === form.niveau)?.label || form.niveau,
         montantPaye:     Number(form.montantPaye),
-        justificatifURL: url,
-        justificatifNom: nom,
+        justificatifData: dataUrl,
+        justificatifNom:  fichier.name,
+        justificatifType: fichier.type,
         statut:          'en_attente',
         createdAt:       new Date(),
       });
       setDone(true);
     } catch (err) {
-      const msg = err?.code === 'storage/unauthorized'
-        ? 'Dépôt de fichier non autorisé. Veuillez contacter l\'IFTL.'
-        : err?.message || 'Erreur lors de l\'envoi.';
-      setSubmitError(msg);
+      setSubmitError(err?.message || 'Erreur lors de l\'envoi. Réessayez.');
     } finally {
       setSaving(false);
-      setUploading(false);
     }
   };
 
-  const isLoading = uploading || saving;
+  const reset = () => {
+    setForm({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' });
+    setFichier(null);
+    setErrors({});
+    setSubmitError(null);
+    setDone(false);
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: tok.blueTint, fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-      {/* Header */}
       <header style={{ background: tok.blueDeep, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
         <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ height: 40, objectFit: 'contain' }} />
         <div>
@@ -168,7 +169,6 @@ export default function JustificatifPaiementPortail() {
         </div>
       </header>
 
-      {/* Card */}
       <div style={{ maxWidth: 460, margin: '40px auto', padding: '0 16px 48px' }}>
         <div style={{
           background: tok.surface, borderRadius: 20,
@@ -188,8 +188,7 @@ export default function JustificatifPaiementPortail() {
               <p style={{ margin: '0 0 24px', fontSize: 14, color: tok.muted, lineHeight: 1.6 }}>
                 Votre justificatif a bien été reçu. L'équipe IFTL le traitera dans les plus brefs délais.
               </p>
-              <button
-                onClick={() => { setForm({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' }); setFichier(null); setUploadPct(0); setDone(false); }}
+              <button onClick={reset}
                 style={{
                   background: tok.blue, color: '#fff', border: 'none', borderRadius: 10,
                   padding: '11px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer',
@@ -259,7 +258,7 @@ export default function JustificatifPaiementPortail() {
                   </select>
                 </Field>
 
-                {/* File upload */}
+                {/* File picker */}
                 <Field label="Justificatif de paiement" required error={errors.fichier}>
                   <input ref={fileRef} type="file"
                     accept="image/jpeg,image/png,application/pdf"
@@ -289,28 +288,12 @@ export default function JustificatifPaiementPortail() {
                           Cliquer pour choisir un fichier
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: tok.muted }}>
-                          JPEG · PNG · PDF — max 10 Mo
+                          JPEG · PNG · PDF
                         </p>
                       </div>
                     )}
                   </div>
                 </Field>
-
-                {/* Upload progress bar */}
-                {uploading && (
-                  <div style={{ marginBottom: 18 }}>
-                    <div style={{ height: 6, background: '#e2edf5', borderRadius: 99, overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', width: `${uploadPct}%`,
-                        background: tok.blue, borderRadius: 99,
-                        transition: 'width .3s',
-                      }} />
-                    </div>
-                    <p style={{ margin: '6px 0 0', fontSize: 12, color: tok.muted, textAlign: 'center' }}>
-                      Envoi du fichier… {uploadPct}%
-                    </p>
-                  </div>
-                )}
 
                 {submitError && (
                   <div style={{
@@ -322,16 +305,16 @@ export default function JustificatifPaiementPortail() {
                   </div>
                 )}
 
-                <button type="submit" disabled={isLoading}
+                <button type="submit" disabled={saving}
                   style={{
                     width: '100%', marginTop: 8,
-                    background: isLoading ? '#7aafcc' : tok.blue,
+                    background: saving ? '#7aafcc' : tok.blue,
                     color: '#fff', border: 'none', borderRadius: 12,
                     padding: '13px 0', fontSize: 15, fontWeight: 700,
-                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    cursor: saving ? 'not-allowed' : 'pointer',
                     transition: 'background .2s',
                   }}>
-                  {uploading ? `Envoi du fichier… ${uploadPct}%` : saving ? 'Enregistrement…' : 'Déposer le justificatif'}
+                  {saving ? 'Envoi en cours…' : 'Déposer le justificatif'}
                 </button>
               </form>
             </>
