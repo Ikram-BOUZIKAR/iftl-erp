@@ -64,6 +64,7 @@ jobs:
           "
 
       - name: Deploy Firestore rules to erp-pedago-iftl
+        continue-on-error: true
         run: npx firebase-tools@latest deploy --only firestore:rules --project erp-pedago-iftl --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
