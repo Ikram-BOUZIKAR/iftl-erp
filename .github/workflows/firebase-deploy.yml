@@ -32,6 +32,8 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: erp-pedago-iftl.firebasestorage.app
           VITE_FIREBASE_MESSAGING_SENDER_ID: "938367552509"
           VITE_FIREBASE_APP_ID: "1:938367552509:web:60bc41fdc15daa86a02794"
+          VITE_DEFAULT_LOGO_URL: "/logo-iftl.png"
+          VITE_DEFAULT_INSTITUTE_NAME: "IFTL"
 
       - name: Write IFTL service account key
         run: |
