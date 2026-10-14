@@ -70,6 +70,14 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // ── Justificatifs de paiement (portail public) ────────────────────────
+    match /justificatifs_paiement/{cin}/{fileName} {
+      allow read:   if isStaff();
+      allow create: if request.resource.size < 10 * 1024 * 1024
+                       && request.resource.contentType.matches('image/.*|application/pdf');
+      allow delete: if isAdmin();
+    }
+
     // ── Par défaut : refuser tout accès non couvert ────────────────────────
     match /{allPaths=**} {
       allow read:  if isAuth();
