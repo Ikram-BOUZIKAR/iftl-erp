@@ -55,6 +55,7 @@ export default function JustificatifPaiementPortail() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [done, setDone]       = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const fileRef = useRef(null);
 
   const set = (k, v) => {
@@ -88,23 +89,39 @@ export default function JustificatifPaiementPortail() {
 
   const uploadFichier = () => new Promise((resolve, reject) => {
     const cin = form.cin.trim().toUpperCase();
-    const path = `justificatifs_paiement/${cin}/${Date.now()}_${fichier.name}`;
+    const ext = fichier.name.split('.').pop();
+    const path = `justificatifs_paiement/${cin}/${Date.now()}.${ext}`;
     const fileRef2 = storageRef(storage, path);
     const task = uploadBytesResumable(fileRef2, fichier);
     setUploading(true);
+    setUploadPct(0);
     task.on('state_changed',
-      snap => setUploadPct(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-      err  => { setUploading(false); reject(err); },
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref);
+      snap => {
+        const pct = snap.totalBytes > 0
+          ? Math.round(snap.bytesTransferred / snap.totalBytes * 100)
+          : 0;
+        setUploadPct(pct);
+      },
+      err => {
         setUploading(false);
-        resolve({ url, nom: fichier.name });
+        reject(err);
+      },
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          setUploading(false);
+          resolve({ url, nom: fichier.name });
+        } catch (err) {
+          setUploading(false);
+          reject(err);
+        }
       }
     );
   });
 
   const handleSubmit = async (ev) => {
     ev.preventDefault();
+    setSubmitError(null);
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setSaving(true);
@@ -125,9 +142,13 @@ export default function JustificatifPaiementPortail() {
       });
       setDone(true);
     } catch (err) {
-      alert('Erreur lors de l\'envoi : ' + err.message);
+      const msg = err?.code === 'storage/unauthorized'
+        ? 'Dépôt de fichier non autorisé. Veuillez contacter l\'IFTL.'
+        : err?.message || 'Erreur lors de l\'envoi.';
+      setSubmitError(msg);
     } finally {
       setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -288,6 +309,16 @@ export default function JustificatifPaiementPortail() {
                     <p style={{ margin: '6px 0 0', fontSize: 12, color: tok.muted, textAlign: 'center' }}>
                       Envoi du fichier… {uploadPct}%
                     </p>
+                  </div>
+                )}
+
+                {submitError && (
+                  <div style={{
+                    marginBottom: 14, padding: '12px 14px',
+                    background: '#fef2f2', border: `1.5px solid ${tok.error}`,
+                    borderRadius: 10, fontSize: 13, color: tok.error, fontWeight: 600,
+                  }}>
+                    ⚠️ {submitError}
                   </div>
                 )}
 
