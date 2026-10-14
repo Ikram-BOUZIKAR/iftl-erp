@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { collection, writeBatch, doc, getDocs, query } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { SEED_GROUPES, SEED_STUDENTS } from '../../data/seedData';
+import { SEED_GROUPES, SEED_STUDENTS, SEED_JUSTIFICATIFS } from '../../data/seedData';
 
 const BRAND = { blue: '#005989', yellow: '#f5c845', red: '#c8141b', green: '#c8d45d', orange: '#d75930' };
 
@@ -68,8 +68,8 @@ async function checkExisting(collectionName) {
 }
 
 export default function ImportDataPage() {
-  const [steps, setSteps] = useState({ groupes: 'idle', students: 'idle' });
-  const [loading, setLoading] = useState({ groupes: false, students: false });
+  const [steps, setSteps] = useState({ groupes: 'idle', students: 'idle', paiements: 'idle' });
+  const [loading, setLoading] = useState({ groupes: false, students: false, paiements: false });
   const [results, setResults] = useState({});
   const [log, setLog] = useState([]);
 
@@ -105,6 +105,17 @@ export default function ImportDataPage() {
         }
       }
 
+      if (step === 'paiements') {
+        const existing = await checkExisting('justificatifs_paiement');
+        if (existing > 0) {
+          addLog(`⚠ ${existing} dépôts déjà présents — import ignoré`, 'warn');
+        } else {
+          const count = await batchWrite('justificatifs_paiement', SEED_JUSTIFICATIFS);
+          addLog(`✓ ${count} dépôts de paiement importés`, 'ok');
+          setResults(prev => ({ ...prev, paiements: count }));
+        }
+      }
+
       setSteps(prev => ({ ...prev, [step]: 'done' }));
     } catch (err) {
       console.error(err);
@@ -118,6 +129,7 @@ export default function ImportDataPage() {
   const runAll = async () => {
     await runStep('groupes');
     await runStep('students');
+    await runStep('paiements');
   };
 
   const logColors = { info: 'text-slate-600', ok: 'text-green-700', warn: 'text-amber-700', error: 'text-red-700' };
@@ -158,6 +170,11 @@ export default function ImportDataPage() {
           num="2" title="Import des apprenants" status={steps.students} loading={loading.students}
           desc={`346 apprenants avec CIN, code, filière et groupe — ${SEED_STUDENTS.length} entrées`}
           onRun={() => runStep('students')}
+        />
+        <Step
+          num="3" title="Import des dépôts de paiement" status={steps.paiements} loading={loading.paiements}
+          desc={`${SEED_JUSTIFICATIFS.length} dépôts démo — 3 soldés · 5 partiels · 2 en attente/refusés`}
+          onRun={() => runStep('paiements')}
         />
       </div>
 
