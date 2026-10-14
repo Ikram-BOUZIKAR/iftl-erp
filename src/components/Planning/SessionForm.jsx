@@ -190,6 +190,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     ? format(toJsDate(initial.date) || new Date(), 'yyyy-MM-dd')
     : (defaultDate ? format(toJsDate(defaultDate) || new Date(), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
 
+  const isEdit = !!initial?.id;
   const [form, setForm] = useState({
     date:               resolvedDate,
     heureDebut:         initial?.heureDebut || '08:00',
@@ -197,6 +198,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     module:             initial?.moduleId   || initial?.module || '',
     type:               initial?.type       || 'cours',
     groupeId:           initial?.groupeId   || '',
+    groupeIds:          initial?.groupeId ? [initial.groupeId] : [],
     intervenantId:      initial?.intervenantId || '',
     salle:              initial?.salle      || '',
     statut:             initial?.statut     || 'planifiee',
@@ -220,27 +222,28 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
   const [groupAffectations, setGroupAffectations] = useState([]);
   const [loadingAff, setLoadingAff] = useState(false);
 
+  const primaryGroupeId = isEdit ? form.groupeId : (form.groupeIds[0] || '');
   useEffect(() => {
-    if (!form.groupeId) { setGroupAffectations([]); return; }
+    if (!primaryGroupeId) { setGroupAffectations([]); return; }
     let cancelled = false;
     setLoadingAff(true);
     affectationsService.getAll(ANNEE_COURANTE)
-      .then(all => { if (!cancelled) setGroupAffectations(all.filter(a => a.groupeId === form.groupeId)); })
+      .then(all => { if (!cancelled) setGroupAffectations(all.filter(a => a.groupeId === primaryGroupeId)); })
       .catch(() => { if (!cancelled) setGroupAffectations([]); })
       .finally(() => { if (!cancelled) setLoadingAff(false); });
     return () => { cancelled = true; };
-  }, [form.groupeId]);
+  }, [primaryGroupeId]);
 
-  // Modules available for the selected group (filtered by affectations when configured)
+  // Modules available for the selected group(s) (filtered by affectations when configured)
   const filteredModules = useMemo(() => {
-    if (!form.groupeId || loadingAff || groupAffectations.length === 0) return modules;
+    if (!primaryGroupeId || loadingAff || groupAffectations.length === 0) return modules;
     const moduleIds = new Set(groupAffectations.map(a => a.moduleId));
     return modules.filter(m => moduleIds.has(m.id));
-  }, [form.groupeId, groupAffectations, loadingAff, modules]);
+  }, [primaryGroupeId, groupAffectations, loadingAff, modules]);
 
   const handleModuleChange = (moduleId) => {
     set('module', moduleId);
-    if (moduleId && form.groupeId && groupAffectations.length > 0) {
+    if (moduleId && primaryGroupeId && groupAffectations.length > 0) {
       const aff = groupAffectations.find(a => a.moduleId === moduleId);
       if (aff?.intervenantId) set('intervenantId', aff.intervenantId);
     }
@@ -256,7 +259,8 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     const e = {};
     if (!form.module.trim()) e.module   = 'Obligatoire';
     if (!form.date)           e.date    = 'Obligatoire';
-    if (!form.groupeId)       e.groupeId = 'Obligatoire';
+    if (isEdit && !form.groupeId) e.groupeId = 'Obligatoire';
+    if (!isEdit && form.groupeIds.length === 0) e.groupeIds = 'Sélectionner au moins un groupe';
     return e;
   };
 
@@ -283,6 +287,20 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     } catch { return null; }
   };
 
+  const doSave = async () => {
+    const { groupeIds, ...rest } = form;
+    const data = { ...rest };
+    if (modules.length > 0 && form.module) {
+      const mod = modules.find(m => m.id === form.module);
+      if (mod) {
+        data.module = `${mod.code} — ${mod.nom}`;
+        data.moduleId = mod.id;
+      }
+    }
+    if (!isEdit) data.groupeIds = groupeIds;
+    await onSave(data);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
@@ -292,17 +310,8 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     setChecking(false);
     if (conflict) { setConflicts(conflict); return; }
     setSaving(true);
-    try {
-      const data = { ...form };
-      if (modules.length > 0 && form.module) {
-        const mod = modules.find(m => m.id === form.module);
-        if (mod) {
-          data.module = `${mod.code} — ${mod.nom}`;
-          data.moduleId = mod.id;
-        }
-      }
-      await onSave(data);
-    } finally { setSaving(false); }
+    await doSave();
+    setSaving(false);
   };
 
   const set = (key, val) => {
@@ -381,7 +390,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
               {t('session_form.module')} <span className="text-red-500">*</span>
             </label>
             {/* No-affectation banner */}
-            {form.groupeId && !loadingAff && groupAffectations.length === 0 && modules.length > 0 && (
+            {primaryGroupeId && !loadingAff && groupAffectations.length === 0 && modules.length > 0 && (
               <div className="mb-2 flex items-start gap-2 rounded-xl border border-orange-300 bg-orange-50 px-3 py-2.5">
                 <span className="text-orange-500 mt-0.5 text-sm shrink-0">⚠</span>
                 <div className="flex-1 text-xs text-orange-800">
@@ -458,12 +467,38 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
                 {t('session_form.groupe')} <span className="text-red-500">*</span>
               </label>
-              <select value={form.groupeId} onChange={e => set('groupeId', e.target.value)}
-                className={inputCls('groupeId')}>
-                <option value="">{t('session_form.select_groupe')}</option>
-                {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
-              </select>
+              {isEdit ? (
+                <select value={form.groupeId} onChange={e => set('groupeId', e.target.value)}
+                  className={inputCls('groupeId')}>
+                  <option value="">{t('session_form.select_groupe')}</option>
+                  {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+                </select>
+              ) : (
+                <div className={`rounded-xl border p-2 flex flex-wrap gap-1.5 ${errors.groupeIds ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                  {groupes.map(g => {
+                    const selected = form.groupeIds.includes(g.id);
+                    return (
+                      <button key={g.id} type="button"
+                        onClick={() => {
+                          const next = selected
+                            ? form.groupeIds.filter(id => id !== g.id)
+                            : [...form.groupeIds, g.id];
+                          set('groupeIds', next);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                          selected
+                            ? 'bg-[#005989] text-white border-[#005989]'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-[#005989]/40'
+                        }`}>
+                        {g.nom}
+                      </button>
+                    );
+                  })}
+                  {groupes.length === 0 && <span className="text-xs text-slate-400 px-1">Aucun groupe</span>}
+                </div>
+              )}
               {errors.groupeId && <p className="text-xs text-red-500 mt-1">{errors.groupeId}</p>}
+              {errors.groupeIds && <p className="text-xs text-red-500 mt-1">{errors.groupeIds}</p>}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">{t('session_form.salle')}</label>
@@ -650,23 +685,37 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
 
           {/* Conflict banner */}
           {conflicts && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-1.5">
-              <p className="text-sm font-bold text-amber-800 flex items-center gap-1.5">⚠️ Conflit détecté sur ce créneau</p>
+            <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 px-5 py-4 space-y-3">
+              <p className="text-base font-bold text-amber-900 flex items-center gap-2">
+                <span className="text-xl">⚠️</span> Conflit détecté sur ce créneau
+              </p>
               {conflicts.salle && (
-                <p className="text-xs text-amber-700">
-                  <strong>Salle "{conflicts.salle.salle}"</strong> déjà réservée — {conflicts.salle.module} ({conflicts.salle.heure})
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  <strong>Salle "{conflicts.salle.salle}"</strong> déjà réservée pour{' '}
+                  <strong>{conflicts.salle.module}</strong> ({conflicts.salle.heure})
                 </p>
               )}
               {conflicts.intervenant && (
-                <p className="text-xs text-amber-700">
-                  <strong>Intervenant</strong> déjà affecté à une autre séance — {conflicts.intervenant.module} ({conflicts.intervenant.heure})
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  <strong>L'intervenant</strong> est déjà affecté à{' '}
+                  <strong>{conflicts.intervenant.module}</strong> ({conflicts.intervenant.heure})
                 </p>
               )}
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setConflicts(null)}
-                  className="text-xs font-semibold text-amber-700 underline">Modifier les champs</button>
-                <button type="button" onClick={async () => { setConflicts(null); setSaving(true); try { const data={...form}; if(modules.length>0&&form.module){const mod=modules.find(m=>m.id===form.module);if(mod){data.module=`${mod.code} — ${mod.nom}`;data.moduleId=mod.id;}} await onSave(data); } finally { setSaving(false); } }}
-                  className="text-xs font-semibold text-red-600 underline">Créer quand même</button>
+                  className="flex-1 px-4 py-2 text-sm font-semibold text-amber-800 border-2 border-amber-400 rounded-xl hover:bg-amber-100 transition-colors">
+                  Modifier les champs
+                </button>
+                <button type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    setConflicts(null);
+                    setSaving(true);
+                    try { await doSave(); } finally { setSaving(false); }
+                  }}
+                  className="flex-1 px-4 py-2 text-sm font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-60">
+                  {saving ? 'Enregistrement…' : 'Créer quand même'}
+                </button>
               </div>
             </div>
           )}

@@ -280,8 +280,10 @@ export default function PlanningPage() {
         await sessionsService.update(editing.id, data);
         toast.success('Séance modifiée');
       } else {
-        await sessionsService.create(data);
-        toast.success('Séance créée');
+        const { groupeIds, ...sessionData } = data;
+        const ids = groupeIds && groupeIds.length > 0 ? groupeIds : [sessionData.groupeId];
+        await Promise.all(ids.map(gId => sessionsService.create({ ...sessionData, groupeId: gId })));
+        toast.success(ids.length > 1 ? `${ids.length} séances créées (multi-groupes)` : 'Séance créée');
       }
       setShowForm(false); setEditing(null); setDefaultSlot(null);
       fetchWeekSessions();
