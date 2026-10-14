@@ -213,6 +213,7 @@ export default function JustificatifPaiementAdminPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nom</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Prénom</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">CIN</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Téléphone</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Niveau</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Montant</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Justificatif</th>
@@ -227,6 +228,7 @@ export default function JustificatifPaiementAdminPage() {
                   <td className="px-4 py-3 font-semibold text-slate-800">{d.nom}</td>
                   <td className="px-4 py-3 text-slate-700">{d.prenom}</td>
                   <td className="px-4 py-3 font-mono text-sm text-slate-600 tracking-wide">{d.cin || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{d.telephone || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {NIVEAUX_LABELS[d.niveau] || d.niveauLabel || d.niveau}
                   </td>

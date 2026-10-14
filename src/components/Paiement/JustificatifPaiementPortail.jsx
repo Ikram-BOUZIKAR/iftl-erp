@@ -48,7 +48,7 @@ function Field({ label, required, error, children }) {
 }
 
 export default function JustificatifPaiementPortail() {
-  const [form, setForm]     = useState({ nom: '', prenom: '', cin: '', niveau: '', montantPaye: '' });
+  const [form, setForm]     = useState({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' });
   const [fichier, setFichier] = useState(null);
   const [errors, setErrors] = useState({});
   const [uploadPct, setUploadPct] = useState(0);
@@ -78,6 +78,7 @@ export default function JustificatifPaiementPortail() {
     if (!form.nom.trim())    e.nom     = 'Obligatoire';
     if (!form.prenom.trim()) e.prenom  = 'Obligatoire';
     if (!form.cin.trim())    e.cin     = 'Obligatoire';
+    if (!form.telephone.trim()) e.telephone = 'Obligatoire';
     if (!form.niveau)        e.niveau  = 'Sélectionner un niveau';
     if (!form.montantPaye || isNaN(Number(form.montantPaye)) || Number(form.montantPaye) <= 0)
       e.montantPaye = 'Indiquer le montant payé';
@@ -113,6 +114,7 @@ export default function JustificatifPaiementPortail() {
         nom:             form.nom.trim().toUpperCase(),
         prenom:          form.prenom.trim(),
         cin:             form.cin.trim().toUpperCase(),
+        telephone:       form.telephone.trim(),
         niveau:          form.niveau,
         niveauLabel:     NIVEAUX.find(n => n.value === form.niveau)?.label || form.niveau,
         montantPaye:     Number(form.montantPaye),
@@ -166,7 +168,7 @@ export default function JustificatifPaiementPortail() {
                 Votre justificatif a bien été reçu. L'équipe IFTL le traitera dans les plus brefs délais.
               </p>
               <button
-                onClick={() => { setForm({ nom: '', prenom: '', cin: '', niveau: '', montantPaye: '' }); setFichier(null); setUploadPct(0); setDone(false); }}
+                onClick={() => { setForm({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' }); setFichier(null); setUploadPct(0); setDone(false); }}
                 style={{
                   background: tok.blue, color: '#fff', border: 'none', borderRadius: 10,
                   padding: '11px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer',
@@ -204,6 +206,13 @@ export default function JustificatifPaiementPortail() {
                     placeholder="Ex : BE123456"
                     maxLength={20}
                     style={{ ...inputS, borderColor: errors.cin ? tok.error : tok.border, textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                </Field>
+
+                <Field label="Téléphone" required error={errors.telephone}>
+                  <input type="tel" value={form.telephone}
+                    onChange={e => set('telephone', e.target.value)}
+                    placeholder="Ex : 06 12 34 56 78"
+                    style={{ ...inputS, borderColor: errors.telephone ? tok.error : tok.border }} />
                 </Field>
 
                 <Field label="Montant payé (MAD)" required error={errors.montantPaye}>
