@@ -52,8 +52,8 @@ function Ico({ k, cls = 'w-[18px] h-[18px] shrink-0' }) {
 // ── Role visibility ───────────────────────────────────────────────────────────
 const ACCESS = {
   admin:       null,  // null = all
-  direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
-  scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
+  direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
+  scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
   intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/apprenants', '/annonces'],
   apprenant:   ['/', '/planning', '/notes', '/annonces'],
   parent:      ['/', '/notes', '/annonces'],
@@ -97,7 +97,8 @@ const SECTIONS = [
     items: [
       { to: '/candidatures',   labelKey: 'nav.candidatures',   icon: 'inbox',     badge: true },
       { to: '/inscriptions',   labelKey: 'nav.inscriptions',   icon: 'doc' },
-      { to: '/reinscriptions', labelKey: 'nav.reinscriptions', icon: 'refresh' },
+      { to: '/reinscriptions',        labelKey: 'nav.reinscriptions',        icon: 'refresh' },
+      { to: '/justificatifs-paiement', labelKey: 'nav.justificatifsPaiement', icon: 'card' },
       { to: '/facturation',         labelKey: 'nav.facturation',         icon: 'card' },
       { to: '/rh',                  labelKey: 'nav.rh',                  icon: 'rh' },
       { to: '/formation-continue',  labelKey: 'nav.formationContinue',   icon: 'fc' },

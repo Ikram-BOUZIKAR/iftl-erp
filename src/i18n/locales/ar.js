@@ -25,8 +25,9 @@ const ar = {
 
     candidatures:     'الترشيحات',
     inscriptions:     'التسجيلات',
-    reinscriptions:   'إعادة التسجيل',
-    facturation:      'الفوترة',
+    reinscriptions:        'إعادة التسجيل',
+    justificatifsPaiement: 'إيصالات الدفع',
+    facturation:           'الفوترة',
     formationContinue:'التكوين المستمر',
     stages:           'التدريب والتمرين',
     documents:        'الوثائق',

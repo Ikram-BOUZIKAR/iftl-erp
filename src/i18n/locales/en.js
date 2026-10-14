@@ -25,8 +25,9 @@ const en = {
 
     candidatures:     'Applications',
     inscriptions:     'Enrolments',
-    reinscriptions:   'Re-Enrolments',
-    facturation:      'Billing',
+    reinscriptions:        'Re-Enrolments',
+    justificatifsPaiement: 'Payment Receipts',
+    facturation:           'Billing',
     formationContinue:'Continuing Education',
     stages:           'Internships & Apprenticeships',
     documents:        'Documents',

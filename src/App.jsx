@@ -50,6 +50,8 @@ import EDTImportPage        from './components/Admin/EDTImportPage';
 import RelevesPage          from './components/Releves/RelevesPage';
 import ReinscriptionPortail  from './components/Reinscription/ReinscriptionPortail';
 import ReinscriptionAdminPage from './components/Reinscription/ReinscriptionAdminPage';
+import JustificatifPaiementPortail   from './components/Paiement/JustificatifPaiementPortail';
+import JustificatifPaiementAdminPage from './components/Paiement/JustificatifPaiementAdminPage';
 import { BrandingProvider } from './contexts/BrandingContext';
 import './App.css';
 
@@ -82,6 +84,7 @@ function App() {
             <Route path="/candidature" element={<CandidaturePage />} />
             <Route path="/suivi-candidature" element={<SuiviCandidaturePage />} />
             <Route path="/reinscription" element={<ReinscriptionPortail />} />
+            <Route path="/justificatif-paiement" element={<JustificatifPaiementPortail />} />
             <Route path="/resultats" element={<PortailResultats />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/portail-apprenant" element={
@@ -139,6 +142,7 @@ function App() {
                         <Route path="/candidatures"  element={<CandidaturesAdminPage />} />
                         <Route path="/inscriptions"  element={<InscriptionsPage />} />
                         <Route path="/reinscriptions" element={<ReinscriptionAdminPage />} />
+                        <Route path="/justificatifs-paiement" element={<JustificatifPaiementAdminPage />} />
                         <Route path="/facturation"   element={<FacturationPage />} />
                         <Route path="/stages"        element={<StagesPage />} />
                         <Route path="/documents"     element={<DocumentsPage />} />

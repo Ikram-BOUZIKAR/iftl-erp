@@ -25,8 +25,9 @@ const fr = {
 
     candidatures:     'Candidatures',
     inscriptions:     'Inscriptions',
-    reinscriptions:   'Réinscriptions',
-    facturation:      'Facturation',
+    reinscriptions:        'Réinscriptions',
+    justificatifsPaiement: 'Justificatifs paiement',
+    facturation:           'Facturation',
     formationContinue:'Formation continue',
     stages:           'Stages & Alternance',
     documents:        'Documents',
