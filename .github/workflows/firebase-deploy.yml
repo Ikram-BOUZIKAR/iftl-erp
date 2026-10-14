@@ -63,6 +63,11 @@ jobs:
           print('JSON valid')
           "
 
+      - name: Deploy Firestore rules to erp-pedago-iftl
+        run: npx firebase-tools@latest deploy --only firestore:rules --project erp-pedago-iftl --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
+
       - name: Deploy hosting to erp-pedago-iftl
         run: npx firebase-tools@latest deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
         env:

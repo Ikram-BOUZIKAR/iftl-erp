@@ -104,6 +104,13 @@ service cloud.firestore {
       allow delete: if hasRole(['admin', 'direction']);
     }
 
+    // ── Justificatifs de paiement ───────────────────────────────────────────────
+    match /justificatifs_paiement/{docId} {
+      allow create: if true;  // portail public (NOM / PRÉNOM / CIN / Niveau)
+      allow read, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
     // ── Paramètres ─────────────────────────────────────────────────────────────
     match /settings/{docId} {
       // Brevo API key stored here — restrict to admin/direction only
