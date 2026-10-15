@@ -592,6 +592,11 @@ function SaisieTab({ evaluations, modules, groupes }) {
               );
             })}
           </select>
+          {evaluations.length === 0 && (
+            <p className="mt-1.5 text-xs text-amber-600">
+              Aucune évaluation disponible — créez-en une dans l'onglet <strong>Évaluations</strong>.
+            </p>
+          )}
         </div>
         {selectedEval && (
           <div className="flex items-center gap-4 text-xs text-slate-500">
@@ -1217,6 +1222,7 @@ function PvTab({ evaluations, modules, groupes }) {
 
 export default function NotesPage() {
   const { t } = useTranslation();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('evaluations');
   const { data: groupes } = useGroupes();
 
@@ -1232,12 +1238,12 @@ export default function NotesPage() {
       snap.forEach(d => data.push({ id: d.id, ...d.data() }));
       data.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       setEvaluations(data);
-    } catch {
-      // silent
+    } catch (err) {
+      toast.error('Impossible de charger les évaluations : ' + err.message);
     } finally {
       setLoadingEval(false);
     }
-  }, []);
+  }, [toast]);
 
   const fetchModules = useCallback(async () => {
     try {
@@ -1246,10 +1252,10 @@ export default function NotesPage() {
       snap.forEach(d => data.push({ id: d.id, ...d.data() }));
       data.sort((a, b) => (a.code || a.nom || '').localeCompare(b.code || b.nom || ''));
       setModules(data);
-    } catch {
-      // silent
+    } catch (err) {
+      toast.error('Impossible de charger les modules : ' + err.message);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchEvaluations();
