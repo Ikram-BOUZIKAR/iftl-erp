@@ -257,6 +257,7 @@ export default function JustificatifPaiementAdminPage() {
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState({}); // CIN → bool
   const [showBourseModal, setShowBourseModal] = useState(false);
+  const [editingAmount, setEditingAmount] = useState(null); // { id, value }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -277,6 +278,19 @@ export default function JustificatifPaiementAdminPage() {
       await updateDoc(doc(db, 'justificatifs_paiement', id), { statut, updatedAt: new Date() });
       setDocs(prev => prev.map(d => d.id === id ? { ...d, statut } : d));
       toast.success(statut === 'valide' ? 'Validé' : statut === 'refuse' ? 'Refusé' : 'Remis en attente');
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    }
+  };
+
+  const saveMontant = async (id) => {
+    const val = Number(editingAmount.value);
+    if (isNaN(val) || val < 0) { toast.error('Montant invalide'); return; }
+    try {
+      await updateDoc(doc(db, 'justificatifs_paiement', id), { montantPaye: val, updatedAt: new Date() });
+      setDocs(prev => prev.map(d => d.id === id ? { ...d, montantPaye: val } : d));
+      setEditingAmount(null);
+      toast.success('Montant mis à jour');
     } catch (err) {
       toast.error('Erreur : ' + err.message);
     }
@@ -515,9 +529,41 @@ export default function JustificatifPaiementAdminPage() {
                                   {d.type === 'bourse' && d.organismeBoursier && (
                                     <span className="text-xs text-violet-600 font-medium">{d.organismeBoursier}</span>
                                   )}
-                                  <span className={`font-semibold tabular-nums ml-auto ${d.type === 'bourse' ? 'text-violet-700' : 'text-slate-800'}`}>
-                                    {fmtMAD(d.montantPaye)}
-                                  </span>
+                                  {editingAmount?.id === d.id ? (
+                                    <div className="flex items-center gap-1.5 ml-auto" onClick={ev => ev.stopPropagation()}>
+                                      <input
+                                        type="number" min="0" autoFocus
+                                        value={editingAmount.value}
+                                        onChange={e => setEditingAmount(prev => ({ ...prev, value: e.target.value }))}
+                                        onKeyDown={e => { if (e.key === 'Enter') saveMontant(d.id); if (e.key === 'Escape') setEditingAmount(null); }}
+                                        className="w-28 text-sm border border-[#005989] rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 tabular-nums text-right"
+                                      />
+                                      <button onClick={() => saveMontant(d.id)}
+                                        className="px-2 py-1 text-xs font-semibold text-white bg-[#005989] rounded-lg hover:bg-[#005989]/90">
+                                        ✓
+                                      </button>
+                                      <button onClick={() => setEditingAmount(null)}
+                                        className="px-2 py-1 text-xs text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200">
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1 ml-auto" onClick={ev => ev.stopPropagation()}>
+                                      <span className={`font-semibold tabular-nums ${d.type === 'bourse' ? 'text-violet-700' : 'text-slate-800'}`}>
+                                        {fmtMAD(d.montantPaye)}
+                                      </span>
+                                      {d.type !== 'bourse' && (
+                                        <button
+                                          onClick={() => setEditingAmount({ id: d.id, value: d.montantPaye ?? '' })}
+                                          className="p-1 text-slate-300 hover:text-[#005989] transition-colors"
+                                          title="Modifier le montant">
+                                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                   {d.justificatifData && (
                                     <button onClick={ev => { ev.stopPropagation(); const w = window.open('', '_blank'); d.justificatifType?.startsWith('image/') ? w.document.write(`<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${d.justificatifData}" style="max-width:100%;max-height:100vh" /></body></html>`) : w.document.write(`<html><body style="margin:0"><embed src="${d.justificatifData}" width="100%" height="100%" /></body></html>`); }}
                                       className="text-xs text-[#005989] hover:underline font-semibold">
@@ -593,7 +639,37 @@ export default function JustificatifPaiementAdminPage() {
                     <td className="px-4 py-3 font-mono text-xs text-slate-600 tracking-wide">{d.cin || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{d.telephone || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{NIVEAUX_LABELS[d.niveau] || d.niveauLabel || d.niveau}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-800 tabular-nums">{d.montantPaye ? fmtMAD(d.montantPaye) : '—'}</td>
+                    <td className="px-4 py-3 text-right">
+                      {editingAmount?.id === d.id ? (
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <input
+                            type="number" min="0" autoFocus
+                            value={editingAmount.value}
+                            onChange={e => setEditingAmount(prev => ({ ...prev, value: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') saveMontant(d.id); if (e.key === 'Escape') setEditingAmount(null); }}
+                            className="w-28 text-sm border border-[#005989] rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 tabular-nums text-right"
+                          />
+                          <button onClick={() => saveMontant(d.id)}
+                            className="px-2 py-1 text-xs font-semibold text-white bg-[#005989] rounded-lg hover:bg-[#005989]/90">✓</button>
+                          <button onClick={() => setEditingAmount(null)}
+                            className="px-2 py-1 text-xs text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200">✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 justify-end">
+                          <span className="font-semibold text-slate-800 tabular-nums">{d.montantPaye ? fmtMAD(d.montantPaye) : '—'}</span>
+                          {d.type !== 'bourse' && (
+                            <button
+                              onClick={() => setEditingAmount({ id: d.id, value: d.montantPaye ?? '' })}
+                              className="p-1 text-slate-300 hover:text-[#005989] transition-colors"
+                              title="Modifier le montant">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       {d.justificatifData ? (
                         <button onClick={() => { const w = window.open('', '_blank'); d.justificatifType?.startsWith('image/') ? w.document.write(`<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${d.justificatifData}" style="max-width:100%;max-height:100vh" /></body></html>`) : w.document.write(`<html><body style="margin:0"><embed src="${d.justificatifData}" width="100%" height="100%" /></body></html>`); }}
