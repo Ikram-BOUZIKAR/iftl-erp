@@ -688,12 +688,12 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
     if (height < 1) return;
 
     // Color: group palette in multi-group mode, session-type colors in single-group mode
+    const type = (s.type || '').toUpperCase();
     let col;
     if (isMulti) {
       const gi = (s.id ? sessionGroupIndex[s.id] : undefined) ?? 0;
       col = GROUP_PALETTES[gi % GROUP_PALETTES.length];
     } else {
-      const type = (s.type || '').toUpperCase();
       col = SESSION_COLORS[type] || SESSION_COLORS._default;
     }
 
