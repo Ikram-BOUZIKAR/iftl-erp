@@ -548,18 +548,15 @@ export default function JustificatifPaiementAdminPage() {
                                       </button>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-1 ml-auto" onClick={ev => ev.stopPropagation()}>
+                                    <div className="flex items-center gap-2 ml-auto" onClick={ev => ev.stopPropagation()}>
                                       <span className={`font-semibold tabular-nums ${d.type === 'bourse' ? 'text-violet-700' : 'text-slate-800'}`}>
                                         {fmtMAD(d.montantPaye)}
                                       </span>
                                       {d.type !== 'bourse' && (
                                         <button
                                           onClick={() => setEditingAmount({ id: d.id, value: d.montantPaye ?? '' })}
-                                          className="p-1 text-slate-300 hover:text-[#005989] transition-colors"
-                                          title="Modifier le montant">
-                                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                          </svg>
+                                          className="px-2 py-0.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors">
+                                          Modifier
                                         </button>
                                       )}
                                     </div>
@@ -655,16 +652,13 @@ export default function JustificatifPaiementAdminPage() {
                             className="px-2 py-1 text-xs text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200">✕</button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 justify-end">
+                        <div className="flex items-center gap-2 justify-end">
                           <span className="font-semibold text-slate-800 tabular-nums">{d.montantPaye ? fmtMAD(d.montantPaye) : '—'}</span>
                           {d.type !== 'bourse' && (
                             <button
                               onClick={() => setEditingAmount({ id: d.id, value: d.montantPaye ?? '' })}
-                              className="p-1 text-slate-300 hover:text-[#005989] transition-colors"
-                              title="Modifier le montant">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
+                              className="px-2 py-0.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors">
+                              Modifier
                             </button>
                           )}
                         </div>
