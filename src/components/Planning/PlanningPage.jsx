@@ -29,6 +29,34 @@ const DAYS      = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MAX_SLOTS = Math.max(...DAY_SLOTS.map(d => d.length));
 
+const ANNEES_ACADEMIQUES = ['2023-2024', '2024-2025', '2025-2026', '2026-2027', '2027-2028'];
+
+const FILIERE_NIVEAU_MAP = {
+  TMLI: 'TS', LIPF: 'TS', GOL: 'TS', ECMD: 'TS', DMVT: 'TS',
+  LE: 'T',
+  CTM: 'Q', CTP: 'Q',
+};
+
+const NIVEAU_COLORS = {
+  TS:      { active: '#1d4ed8', light: '#dbeafe' },
+  T:       { active: '#7c3aed', light: '#ede9fe' },
+  Q:       { active: '#0d9488', light: '#ccfbf1' },
+  FQ:      { active: '#b45309', light: '#fef3c7' },
+  Licence: { active: '#065f46', light: '#d1fae5' },
+  Mastère: { active: '#6b21a8', light: '#f3e8ff' },
+  Autres:  { active: '#374151', light: '#f1f5f9' },
+};
+
+function getNiveauGroupe(g) {
+  if (g.filiere && FILIERE_NIVEAU_MAP[g.filiere]) return FILIERE_NIVEAU_MAP[g.filiere];
+  const n = normalizeDash(g.nom || '').toUpperCase();
+  if (n.includes('MASTERE') || n.includes('MASTÈRE') || n.includes('MASTER ')) return 'Mastère';
+  if (n.includes('LICENCE') || n.includes('CNAM') || n.startsWith('LIC ')) return 'Licence';
+  if (n.startsWith('FQ ') || n.endsWith(' FQ') || n.includes(' FQ ') || n.includes('QUAL')) return 'FQ';
+  if (n.startsWith('1A TS') || n.startsWith('2A TS') || n.startsWith('TS.') || n.startsWith('TS ')) return 'TS';
+  return 'Autres';
+}
+
 // Subtle per-day color identity (header accent + column tint)
 const DAY_PALETTE = [
   { header: '#1d4ed8', tint: 'rgba(29,78,216,0.035)' },  // Lun — blue
@@ -93,6 +121,7 @@ export default function PlanningPage() {
   const [showAuto, setShowAuto]           = useState(false);
   const [activeTab, setActiveTab]         = useState('planning'); // 'planning' | 'calendrier'
   const [dayView, setDayView]             = useState('tous');     // 'semaine' | 'weekend' | 'tous'
+  const [anneeAcademique, setAnneeAcademique] = useState('2025-2026');
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -105,6 +134,13 @@ export default function PlanningPage() {
     });
     return Array.from(seen.values());
   }, [groupes]);
+
+  // Filter groupes by academic year (if groups carry the anneeAcademique field)
+  const groupesFiltres = useMemo(() => {
+    const hasYearField = uniqueGroupes.some(g => g.anneeAcademique);
+    if (!hasYearField) return uniqueGroupes;
+    return uniqueGroupes.filter(g => !g.anneeAcademique || g.anneeAcademique === anneeAcademique);
+  }, [uniqueGroupes, anneeAcademique]);
 
   // All Firestore IDs for the active group (includes both dash variants)
   const activeGroupIds = useMemo(() => {
@@ -456,10 +492,16 @@ export default function PlanningPage() {
 
       {/* ── Group selector ── */}
       <GroupSelector
-        groupes={uniqueGroupes}
+        groupes={groupesFiltres}
         activeGroupId={activeGroupId}
         onSelect={setActiveGroupId}
         conflictsCount={conflictsThisGroup}
+        anneeAcademique={anneeAcademique}
+        onAnneeChange={(y) => {
+          setAnneeAcademique(y);
+          const startYear = parseInt(y.split('-')[0]);
+          setWeekStart(startOfWeek(new Date(startYear, 8, 1), { weekStartsOn: 1 }));
+        }}
       />
 
       {/* ── Main content ── */}
@@ -504,10 +546,11 @@ export default function PlanningPage() {
       {showForm && (
         <SessionForm
           initial={editing || defaultSlot}
-          groupes={uniqueGroupes}
+          groupes={groupesFiltres}
           intervenants={intervenants}
           modules={modules}
           defaultDate={defaultSlot?.date ? new Date(defaultSlot.date) : weekStart}
+          anneeAcademique={anneeAcademique}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditing(null); setDefaultSlot(null); }}
           onIntervenantCreated={refetchIntervenants}
@@ -540,101 +583,89 @@ export default function PlanningPage() {
 }
 
 // ── Group Selector ────────────────────────────────────────────────────────────
-function GroupSelector({ groupes, activeGroupId, onSelect, conflictsCount }) {
-  const [filter, setFilter] = useState('');
+function GroupSelector({ groupes, activeGroupId, onSelect, conflictsCount, anneeAcademique, onAnneeChange }) {
+  const [search, setSearch]             = useState('');
+  const [niveauFilter, setNiveauFilter] = useState('');
 
-  // Detect category from name prefix
-  function getCategory(nom) {
-    const n = normalizeDash(nom).toUpperCase();
-    if (n.startsWith('1A TS') || n.startsWith('TS.') || n.includes('1ERE ANNEE') || n.includes('1A ')) return '1A TS';
-    if (n.startsWith('2A TS') || n.startsWith('TS 2A') || n.includes('2EME ANNEE') || n.includes('2A ')) return '2A TS';
-    if (n.startsWith('LICENCE') || n.startsWith('MASTER') || n.startsWith('LIC ')) return 'Licences';
-    return 'Autres';
-  }
-
-  const categories = ['1A TS', '2A TS', 'Licences', 'Autres'];
-  const byCategory = {};
+  // Build niveau → groups map
+  const byNiveau = {};
   groupes.forEach(g => {
-    const cat = getCategory(g.nom);
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push(g);
+    const niv = getNiveauGroupe(g);
+    if (!byNiveau[niv]) byNiveau[niv] = [];
+    byNiveau[niv].push(g);
   });
+  const NIVEAUX_ORDER = ['TS', 'T', 'Q', 'FQ', 'Licence', 'Mastère', 'Autres'];
+  const availableNiveaux = NIVEAUX_ORDER.filter(n => byNiveau[n]?.length > 0);
 
-  const CAT_COLORS = {
-    '1A TS':    { active: '#1d4ed8', hover: '#1d4ed820', dot: '#93c5fd' },
-    '2A TS':    { active: '#7c3aed', hover: '#7c3aed20', dot: '#c4b5fd' },
-    'Licences': { active: '#0d9488', hover: '#0d948820', dot: '#5eead4' },
-    'Autres':   { active: '#374151', hover: '#37415120', dot: '#9ca3af' },
-  };
-
-  const displayed = filter
-    ? groupes.filter(g => normalizeDash(g.nom).includes(normalizeDash(filter)))
-    : null;
+  // Groups to show in the pills row
+  const displayedGroups = groupes.filter(g => {
+    if (niveauFilter && getNiveauGroupe(g) !== niveauFilter) return false;
+    if (search && !normalizeDash(g.nom).includes(normalizeDash(search))) return false;
+    return true;
+  });
 
   return (
     <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
-      {/* Search + conflict row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px 0' }}>
-        <input
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          placeholder="Filtrer groupes…"
-          style={{ flex: '0 0 180px', fontSize: 11, padding: '4px 10px', border: '1px solid #e2e8f0', borderRadius: 20, outline: 'none', color: '#334155', background: '#f8fafc' }}
+      {/* Row 1 : année · niveau tabs · recherche · conflits */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px 0', flexWrap: 'wrap' }}>
+        {/* Année académique */}
+        <select value={anneeAcademique} onChange={e => onAnneeChange?.(e.target.value)}
+          style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px 3px 10px', border: '1.5px solid #005989', borderRadius: 20, background: '#f0f9ff', color: '#005989', cursor: 'pointer', outline: 'none', fontFamily: 'Outfit,sans-serif', flexShrink: 0 }}>
+          {ANNEES_ACADEMIQUES.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+
+        {/* Séparateur */}
+        <div style={{ width: 1, height: 16, background: '#e2e8f0', flexShrink: 0 }} />
+
+        {/* Niveau tabs */}
+        {availableNiveaux.map(niv => {
+          const col = NIVEAU_COLORS[niv] || NIVEAU_COLORS.Autres;
+          const isActive = niveauFilter === niv;
+          return (
+            <button key={niv} onClick={() => setNiveauFilter(isActive ? '' : niv)}
+              style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 10px', borderRadius: 20, border: `1.5px solid ${isActive ? col.active : '#e2e8f0'}`, background: isActive ? col.active : '#f8fafc', color: isActive ? '#fff' : '#64748b', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {niv} <span style={{ fontWeight: 400, opacity: 0.75 }}>({byNiveau[niv]?.length})</span>
+            </button>
+          );
+        })}
+
+        {/* Recherche */}
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher…"
+          style={{ flex: '0 0 130px', fontSize: 11, padding: '4px 10px', border: '1px solid #e2e8f0', borderRadius: 20, outline: 'none', color: '#334155', background: '#f8fafc', marginLeft: 'auto' }}
           onFocus={e => { e.target.style.borderColor = '#005989'; e.target.style.background = '#fff'; }}
           onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; }}
         />
+
+        {/* Conflits */}
         {conflictsCount > 0 && (
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: 10.5, fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: 10.5, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
             ⚠ {conflictsCount} conflit{conflictsCount > 1 ? 's' : ''}
           </div>
         )}
       </div>
 
-      {/* Group pills */}
-      <div style={{ padding: '6px 14px 8px', overflowX: 'auto' }}>
-        {displayed ? (
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {displayed.map(g => {
-              const cat = g.nom ? Object.keys(CAT_COLORS).find(c => getCategory(g.nom) === c) || 'Autres' : 'Autres';
-              const colors = CAT_COLORS[cat];
-              const isActive = activeGroupId === g.id;
-              return (
-                <button key={g.id} onClick={() => onSelect(g.id)}
-                  style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20, border: `1px solid ${isActive ? colors.active : '#e2e8f0'}`, background: isActive ? colors.active : '#f8fafc', color: isActive ? '#fff' : '#475569', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif' }}>
-                  {g.nom}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: 12 }}>
-            {categories.filter(cat => byCategory[cat]?.length).map(cat => {
-              const colors = CAT_COLORS[cat];
-              return (
-                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: colors.active, textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{cat}</span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {byCategory[cat].map(g => {
-                      const isActive = activeGroupId === g.id;
-                      // Extract short label: "Gr. A", "Gr. 1", etc.
-                      const short = g.nom.match(/[Gg]r(?:oupe)?\.?\s*(\w+)/)?.[1]
-                        || g.nom.match(/[Gg]roupe\s+(\w+)/)?.[1]
-                        || g.nom.match(/[–\-]\s*(.{1,8})$/)?.[1]?.trim()
-                        || g.nom.slice(-4);
-                      return (
-                        <button key={g.id} onClick={() => onSelect(g.id)}
-                          title={g.nom}
-                          style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20, border: `1.5px solid ${isActive ? colors.active : '#e2e8f0'}`, background: isActive ? colors.active : '#fff', color: isActive ? '#fff' : '#64748b', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif', whiteSpace: 'nowrap' }}>
-                          {short}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* Row 2 : pills groupes */}
+      <div style={{ padding: '5px 14px 8px', display: 'flex', gap: 4, flexWrap: 'wrap', overflowX: 'auto' }}>
+        {displayedGroups.length === 0 ? (
+          <span style={{ fontSize: 11, color: '#94a3b8', padding: '4px 0' }}>
+            Aucun groupe{niveauFilter ? ` pour le niveau ${niveauFilter}` : ''}
+          </span>
+        ) : displayedGroups.map(g => {
+          const niv   = getNiveauGroupe(g);
+          const col   = NIVEAU_COLORS[niv] || NIVEAU_COLORS.Autres;
+          const isActive = activeGroupId === g.id;
+          const short = g.nom.match(/[Gg]r(?:oupe)?\.?\s*(\w+)/)?.[1]
+            || g.nom.match(/[Gg]roupe\s+(\w+)/)?.[1]
+            || g.nom.match(/[–\-]\s*(.{1,8})$/)?.[1]?.trim()
+            || g.nom.slice(-4);
+          return (
+            <button key={g.id} onClick={() => onSelect(g.id)} title={g.nom}
+              style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 11px', borderRadius: 20, border: `1.5px solid ${isActive ? col.active : '#e2e8f0'}`, background: isActive ? col.active : '#fff', color: isActive ? '#fff' : '#64748b', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {isActive ? g.nom : short}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

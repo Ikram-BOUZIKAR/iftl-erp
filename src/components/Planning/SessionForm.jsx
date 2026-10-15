@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
+import { DAY_SLOTS } from './PlanningPage';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
@@ -31,21 +32,19 @@ const SPECIALITES = [
   'Algorithmique', 'Gestion de projet', 'Marketing Digital', 'Comptabilité', 'Autre',
 ];
 
-// Créneaux prédéfinis
-const PLANNING_SLOTS = [
-  { label: 'C1 Lun–Jeu', start: '09:00', end: '10:30' },
-  { label: 'C2 Lun–Jeu', start: '10:45', end: '12:15' },
-  { label: 'C3 Lun–Jeu', start: '13:15', end: '14:45' },
-  { label: 'C4 Lun–Jeu', start: '15:00', end: '16:30' },
-  { label: 'C3 Ven',     start: '14:15', end: '15:45' },
-  { label: 'C4 Ven',     start: '16:00', end: '17:30' },
-  { label: 'C1 Sam',     start: '09:00', end: '11:00' },
-  { label: 'C2 Sam',     start: '11:15', end: '13:15' },
-  { label: 'C3 Sam',     start: '14:15', end: '17:30' },
-  { label: 'Dim matin',  start: '09:00', end: '13:00' },
-];
+const DAYS_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-const ALL_TIMES = [...new Set(PLANNING_SLOTS.flatMap(s => [s.start, s.end]))].sort();
+// Tous les horaires de 08:00 à 20:00 par pas de 15 min pour les sélecteurs personnalisés
+const ALL_TIMES = (() => {
+  const t = [];
+  for (let h = 8; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      if (h === 20 && m > 0) break;
+      t.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return t;
+})();
 
 function CloseIcon() {
   return (
@@ -178,7 +177,7 @@ function NouvelIntervenantModal({ onClose, onCreated }) {
 }
 
 // ── SessionForm ───────────────────────────────────────────────────────────────
-export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, onSave, onClose, onIntervenantCreated }) {
+export default function SessionForm({ initial, groupes, intervenants, modules = [], defaultDate, anneeAcademique = ANNEE_COURANTE, onSave, onClose, onIntervenantCreated }) {
   const { t } = useTranslation();
   const toJsDate = (v) => {
     if (!v) return null;
@@ -227,7 +226,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
     if (!primaryGroupeId) { setGroupAffectations([]); return; }
     let cancelled = false;
     setLoadingAff(true);
-    affectationsService.getAll(ANNEE_COURANTE)
+    affectationsService.getAll(anneeAcademique)
       .then(all => { if (!cancelled) setGroupAffectations(all.filter(a => a.groupeId === primaryGroupeId)); })
       .catch(() => { if (!cancelled) setGroupAffectations([]); })
       .finally(() => { if (!cancelled) setLoadingAff(false); });
@@ -427,23 +426,33 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
             {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
           </div>
 
-          {/* Créneau quick-select */}
+          {/* Créneau horaire — adaptatif selon le jour, sans label de jour */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
               Créneau horaire
+              {form.date && (() => {
+                const d = new Date(form.date + 'T00:00:00');
+                const dow = (d.getDay() + 6) % 7;
+                return <span className="ml-1.5 text-[10px] font-normal normal-case text-slate-400">— {DAYS_FULL[dow]}</span>;
+              })()}
             </label>
             <div className="flex flex-wrap gap-1.5 mb-3">
-              {PLANNING_SLOTS.map(sl => (
-                <button key={sl.label} type="button"
-                  onClick={() => { set('heureDebut', sl.start); set('heureFin', sl.end); }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                    form.heureDebut === sl.start && form.heureFin === sl.end
-                      ? 'bg-[#005989] text-white border-[#005989]'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#005989]/40'
-                  }`}>
-                  {sl.label} ({sl.start}–{sl.end})
-                </button>
-              ))}
+              {(() => {
+                const dow = form.date
+                  ? (new Date(form.date + 'T00:00:00').getDay() + 6) % 7
+                  : 0;
+                return (DAY_SLOTS[dow] || DAY_SLOTS[0]).map((sl, i) => (
+                  <button key={i} type="button"
+                    onClick={() => { set('heureDebut', sl.start); set('heureFin', sl.end); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      form.heureDebut === sl.start && form.heureFin === sl.end
+                        ? 'bg-[#005989] text-white border-[#005989]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-[#005989]/40'
+                    }`}>
+                    {sl.start} – {sl.end}
+                  </button>
+                ));
+              })()}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
