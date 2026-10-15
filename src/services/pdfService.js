@@ -488,6 +488,18 @@ const SESSION_COLORS = {
   _default: { fill: [71, 85, 105], text: [255, 255, 255], bar: [51, 65, 85] },
 };
 
+// Palettes distinctes pour multi-groupes (8 couleurs)
+export const GROUP_PALETTES = [
+  { fill: [0,  89, 137], text: [255,255,255], bar: [0,  58,  90] },  // IFTL Blue
+  { fill: [13,148, 136], text: [255,255,255], bar: [0, 100,  90] },  // Teal
+  { fill: [124, 58, 237],text: [255,255,255], bar: [91,  33, 182] }, // Violet
+  { fill: [220, 38,  38],text: [255,255,255], bar: [185, 20,  20] }, // Red
+  { fill: [180, 83,   9],text: [255,255,255], bar: [146, 64,  14] }, // Amber
+  { fill: [ 22,163,  74],text: [255,255,255], bar: [ 15,118,  55] }, // Green
+  { fill: [190, 24,  93],text: [255,255,255], bar: [157,  9,  72] }, // Pink
+  { fill: [ 71, 85, 105],text: [255,255,255], bar: [ 51, 65,  85] }, // Slate
+];
+
 function toMinutes(hhmm) {
   if (!hhmm) return 0;
   const [h, m] = hhmm.split(':').map(Number);
@@ -495,23 +507,35 @@ function toMinutes(hhmm) {
 }
 
 /**
- * Generates a visual weekly timetable grid PDF — matches the on-screen layout.
+ * Generates a visual weekly timetable grid PDF.
+ * Supports single-group (legacy) and multi-group export with color coding per group.
  *
- * @param {Array}  sessions     - Session objects with date, heureDebut, heureFin, module/moduleId, intervenantId, salle, type
+ * @param {Array}  sessionsByGroupOrSessions
+ *   New format: [{ groupe: {id, nom}, sessions: [...] }]
+ *   Old format: session objects array (single group — backward compatible)
  * @param {Array}  groupes      - { id, nom }
  * @param {Array}  intervenants - { id, prenom, nom }
- * @param {Array}  modules      - { id, nom } (optional, for moduleId lookup)
+ * @param {Array}  modules      - { id, nom }
  * @param {string} weekLabel    - e.g. "Semaine du 19 au 25 mai 2025"
  * @param {Date[]} weekDays     - Array of 6 Date objects (Mon–Sat)
- * @param {string} groupeNom   - Active group name for title
+ * @param {string} groupeNom   - (legacy) Active group name for title
  */
-export function generatePlanningPDF(sessions, groupes, intervenants, modules, weekLabel, weekDays, groupeNom) {
+export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, intervenants, modules, weekLabel, weekDays, groupeNom) {
+  // Normalize: new format = [{groupe, sessions}], old format = sessions array
+  const isNewFormat = Array.isArray(sessionsByGroupOrSessions)
+    && sessionsByGroupOrSessions.length > 0
+    && sessionsByGroupOrSessions[0]?.groupe !== undefined;
+  const sessionsByGroup = isNewFormat
+    ? sessionsByGroupOrSessions
+    : [{ groupe: { id: '', nom: groupeNom || '' }, sessions: sessionsByGroupOrSessions || [] }];
+  const isMulti = sessionsByGroup.length > 1;
+  const sessions = sessionsByGroup.flatMap(sg => sg.sessions || []);
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const PW = 297; const PH = 210;
 
-  const groupeMap = Object.fromEntries((groupes || []).map(g => [g.id, g.nom]));
-  const intMap    = Object.fromEntries((intervenants || []).map(i => [i.id, `${i.prenom?.[0] || ''}. ${i.nom || ''}`]));
-  const modMap    = Object.fromEntries((modules || []).map(m => [m.id, m.nom]));
+  const intMap = Object.fromEntries((intervenants || []).map(i => [i.id, `${i.prenom?.[0] || ''}. ${i.nom || ''}`]));
+  const modMap = Object.fromEntries((modules || []).map(m => [m.id, m.nom]));
 
   // ── Header ──────────────────────────────────────────────────────────────────
   doc.setFillColor(...BRAND.blue);
@@ -528,10 +552,13 @@ export function generatePlanningPDF(sessions, groupes, intervenants, modules, we
   doc.setTextColor(255, 255, 255);
   doc.text('EMPLOI DU TEMPS', PW - 10, 10, { align: 'right' });
 
-  if (groupeNom) {
-    doc.setFontSize(8);
+  const titleNom = isMulti
+    ? sessionsByGroup.map(sg => sg.groupe.nom).join(' · ').slice(0, 80)
+    : (groupeNom || sessionsByGroup[0]?.groupe?.nom || '');
+  if (titleNom) {
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(groupeNom, PW - 10, 16, { align: 'right' });
+    doc.text(titleNom, PW - 10, 16, { align: 'right' });
   }
   if (weekLabel) {
     doc.setFontSize(7);
@@ -540,7 +567,8 @@ export function generatePlanningPDF(sessions, groupes, intervenants, modules, we
   }
 
   // ── Grid geometry ────────────────────────────────────────────────────────────
-  const ML = 8; const MR = 8; const MT = 27; const MB = 12;
+  const ML = 8; const MR = 8; const MT = 27;
+  const MB = isMulti ? 20 : 12;
   const GRID_W = PW - ML - MR;
   const GRID_H = PH - MT - MB;
 
@@ -630,8 +658,22 @@ export function generatePlanningPDF(sessions, groupes, intervenants, modules, we
     });
   }
 
+  // Map session id → group index for color assignment (multi-group mode)
+  const sessionGroupIndex = {};
+  sessionsByGroup.forEach((sg, gi) => {
+    (sg.sessions || []).forEach(s => { if (s.id) sessionGroupIndex[s.id] = gi; });
+  });
+
   (sessions || []).forEach(s => {
-    const di = dayIndexMap[s.date];
+    // Normalize s.date → 'yyyy-MM-dd' string
+    let dateStr;
+    const sd = s.date;
+    if (typeof sd === 'string') dateStr = sd;
+    else if (sd?.toDate) dateStr = format(sd.toDate(), 'yyyy-MM-dd');
+    else if (sd instanceof Date) dateStr = format(sd, 'yyyy-MM-dd');
+    else return;
+
+    const di = dayIndexMap[dateStr];
     if (di === undefined || di < 0 || di >= DAY_COUNT) return;
 
     const startMin = toMinutes(s.heureDebut);
@@ -645,8 +687,15 @@ export function generatePlanningPDF(sessions, groupes, intervenants, modules, we
     const width  = DAY_W - PAD * 2;
     if (height < 1) return;
 
-    const type = (s.type || '').toUpperCase();
-    const col  = SESSION_COLORS[type] || SESSION_COLORS._default;
+    // Color: group palette in multi-group mode, session-type colors in single-group mode
+    let col;
+    if (isMulti) {
+      const gi = (s.id ? sessionGroupIndex[s.id] : undefined) ?? 0;
+      col = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+    } else {
+      const type = (s.type || '').toUpperCase();
+      col = SESSION_COLORS[type] || SESSION_COLORS._default;
+    }
 
     // Block background
     doc.setFillColor(...col.fill);
@@ -699,18 +748,35 @@ export function generatePlanningPDF(sessions, groupes, intervenants, modules, we
 
   // ── Legend ───────────────────────────────────────────────────────────────────
   const legendY = bodyTop + bodyH + 3;
-  const typesInUse = [...new Set((sessions || []).map(s => (s.type || '').toUpperCase()).filter(Boolean))];
-  let lx = ML + TIME_COL_W;
-  typesInUse.forEach(type => {
-    const col = SESSION_COLORS[type] || SESSION_COLORS._default;
-    doc.setFillColor(...col.fill);
-    doc.rect(lx, legendY, 3, 3, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(5.5);
-    doc.setTextColor(60, 70, 90);
-    doc.text(type === 'CM' ? 'Cours Magistral' : type === 'TD' ? 'Travaux Dirigés' : type === 'TP' ? 'Travaux Pratiques' : type === 'DS' ? 'Devoir Surveillé' : type, lx + 4, legendY + 2.2);
-    lx += 40;
-  });
+  if (isMulti) {
+    // One color swatch + group name per group
+    let lx = ML + TIME_COL_W;
+    sessionsByGroup.forEach((sg, gi) => {
+      const pal = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+      doc.setFillColor(...pal.fill);
+      doc.roundedRect(lx, legendY, 4, 4, 0.5, 0.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(5.5);
+      doc.setTextColor(60, 70, 90);
+      doc.text(sg.groupe.nom, lx + 5.5, legendY + 3);
+      lx += 5.5 + Math.min(doc.getTextWidth(sg.groupe.nom) + 8, 48);
+      if (lx > PW - 50) lx = ML + TIME_COL_W;
+    });
+  } else {
+    // Session type legend (single group — existing behaviour)
+    const typesInUse = [...new Set((sessions || []).map(s => (s.type || '').toUpperCase()).filter(Boolean))];
+    let lx = ML + TIME_COL_W;
+    typesInUse.forEach(type => {
+      const col = SESSION_COLORS[type] || SESSION_COLORS._default;
+      doc.setFillColor(...col.fill);
+      doc.rect(lx, legendY, 3, 3, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(5.5);
+      doc.setTextColor(60, 70, 90);
+      doc.text(type === 'CM' ? 'Cours Magistral' : type === 'TD' ? 'Travaux Dirigés' : type === 'TP' ? 'Travaux Pratiques' : type === 'DS' ? 'Devoir Surveillé' : type, lx + 4, legendY + 2.2);
+      lx += 40;
+    });
+  }
 
   // ── Footer ────────────────────────────────────────────────────────────────────
   doc.setFillColor(...BRAND.green);
@@ -722,7 +788,10 @@ export function generatePlanningPDF(sessions, groupes, intervenants, modules, we
   const dateStr = format(new Date(), 'yyyyMMdd');
   doc.text(`Imprimé le ${format(new Date(), 'dd/MM/yyyy')}`, PW - 10, PH - 3, { align: 'right' });
 
-  doc.save(`EDT_${(groupeNom || 'groupe').replace(/[^a-z0-9]/gi, '_')}_${dateStr}.pdf`);
+  const saveNom = isMulti
+    ? `multi_${sessionsByGroup.length}groupes`
+    : (groupeNom || sessionsByGroup[0]?.groupe?.nom || 'groupe');
+  doc.save(`EDT_${saveNom.replace(/[^a-z0-9]/gi, '_')}_${dateStr}.pdf`);
 }
 
 // ─── Legacy exports (kept intact) ────────────────────────────────────────────

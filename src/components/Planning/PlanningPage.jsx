@@ -11,7 +11,7 @@ import PlanningNotificationModal from '../Notifications/PlanningNotificationModa
 import CalendrierAcademique from './CalendrierAcademique';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
-import { generatePlanningPDF } from '../../services/pdfService';
+import { generatePlanningPDF, GROUP_PALETTES } from '../../services/pdfService';
 import { useTranslation } from 'react-i18next';
 
 // ── Créneaux horaires par jour (0=Lun … 6=Dim) ───────────────────────────────
@@ -119,6 +119,7 @@ export default function PlanningPage() {
   const [defaultSlot, setDefaultSlot]     = useState(null);
   const [showNotify, setShowNotify]       = useState(false);
   const [showAuto, setShowAuto]           = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab]         = useState('planning'); // 'planning' | 'calendrier'
   const [dayView, setDayView]             = useState('tous');     // 'semaine' | 'weekend' | 'tous'
   const [anneeAcademique, setAnneeAcademique] = useState('2025-2026');
@@ -464,13 +465,9 @@ export default function PlanningPage() {
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors">
             ⧉ Dupliquer S+1
           </button>
-          <button onClick={() => {
-            const groupe = groupes.find(g => g.id === activeGroupId);
-            const weekLabel = `Semaine du ${format(weekStart, 'dd MMMM', { locale: fr })} au ${format(addDays(weekStart, 5), 'dd MMMM yyyy', { locale: fr })}`;
-            generatePlanningPDF(sessions, groupes, intervenants, modules, weekLabel, weekDays.slice(0, 6), groupe?.nom || '');
-          }}
+          <button onClick={() => setShowExportModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors"
-            title="Exporter l'emploi du temps en PDF">
+            title="Exporter le planning PDF (un ou plusieurs groupes)">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             PDF
           </button>
@@ -578,6 +575,132 @@ export default function PlanningPage() {
           onCreated={() => { fetchWeekSessions(); }}
         />
       )}
+
+      {showExportModal && (
+        <PlanningExportModal
+          groupes={groupesFiltres}
+          allSessions={allSessions}
+          intervenants={intervenants}
+          modules={modules}
+          weekLabel={`Semaine du ${format(weekStart, 'dd MMMM', { locale: fr })} au ${format(addDays(weekStart, 5), 'dd MMMM yyyy', { locale: fr })}`}
+          weekDays={weekDays.slice(0, 6)}
+          initialGroupId={activeGroupId}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Planning Export Modal ─────────────────────────────────────────────────────
+function PlanningExportModal({ groupes, allSessions, intervenants, modules, weekLabel, weekDays, initialGroupId, onClose }) {
+  const [selectedIds, setSelectedIds] = useState(() => new Set(initialGroupId ? [initialGroupId] : []));
+
+  const toggle = id => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const selectedGroups = groupes.filter(g => selectedIds.has(g.id));
+
+  const handleGenerate = () => {
+    const weekLabelFull = weekLabel;
+    const sessionsByGroup = selectedGroups.map(g => ({
+      groupe: g,
+      sessions: allSessions.filter(s => s.groupeId === g.id),
+    }));
+    generatePlanningPDF(sessionsByGroup, groupes, intervenants, modules, weekLabelFull, weekDays);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Exporter le planning PDF</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{weekLabel}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* Quick actions */}
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setSelectedIds(new Set(groupes.map(g => g.id)))}
+              className="text-xs text-[#005989] hover:underline font-semibold">
+              Tout sélectionner
+            </button>
+            <span className="text-slate-300">·</span>
+            <button type="button" onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-slate-400 hover:underline">
+              Tout désélectionner
+            </button>
+          </div>
+
+          {/* Group pills */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Groupes à inclure</label>
+            <div className="flex flex-wrap gap-2">
+              {groupes.map((g, gi) => {
+                const pal = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+                const isSelected = selectedIds.has(g.id);
+                const fillRgb = `rgb(${pal.fill.join(',')})`;
+                return (
+                  <button key={g.id} type="button" onClick={() => toggle(g.id)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all"
+                    style={{ background: isSelected ? fillRgb : '#f8fafc', color: isSelected ? '#fff' : '#64748b', borderColor: isSelected ? fillRgb : '#e2e8f0' }}>
+                    {g.nom}
+                  </button>
+                );
+              })}
+              {groupes.length === 0 && <span className="text-xs text-slate-400 italic">Aucun groupe disponible pour cette semaine.</span>}
+            </div>
+          </div>
+
+          {/* Color legend for selected groups */}
+          {selectedGroups.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Légende couleurs du PDF</label>
+              <div className="flex flex-wrap gap-3">
+                {selectedGroups.map(g => {
+                  const gi = groupes.indexOf(g);
+                  const pal = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+                  return (
+                    <div key={g.id} className="flex items-center gap-1.5">
+                      <div className="w-3.5 h-3.5 rounded" style={{ background: `rgb(${pal.fill.join(',')})` }} />
+                      <span className="text-xs text-slate-700 font-medium">{g.nom}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Session count */}
+          {selectedGroups.length > 0 && (
+            <p className="text-xs text-slate-500">
+              {selectedGroups.reduce((n, g) => n + allSessions.filter(s => s.groupeId === g.id).length, 0)} séance(s) cette semaine pour {selectedGroups.length} groupe(s)
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+            Annuler
+          </button>
+          <button type="button" onClick={handleGenerate} disabled={selectedGroups.length === 0}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-[#005989] hover:bg-[#004a73] disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Générer PDF{selectedGroups.length > 0 ? ` · ${selectedGroups.length} groupe${selectedGroups.length > 1 ? 's' : ''}` : ''}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
