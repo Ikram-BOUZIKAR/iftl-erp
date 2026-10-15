@@ -594,7 +594,13 @@ export default function PlanningPage() {
 
 // ── Planning Export Modal ─────────────────────────────────────────────────────
 function PlanningExportModal({ groupes, allSessions, intervenants, modules, weekLabel, weekDays, initialGroupId, onClose }) {
-  const [selectedIds, setSelectedIds] = useState(() => new Set(initialGroupId ? [initialGroupId] : []));
+  const [selectedIds, setSelectedIds] = useState(() => {
+    // Pre-select active group if it exists in the list, otherwise select all
+    if (initialGroupId && groupes.some(g => g.id === initialGroupId)) {
+      return new Set([initialGroupId]);
+    }
+    return new Set(groupes.map(g => g.id));
+  });
 
   const toggle = id => setSelectedIds(prev => {
     const next = new Set(prev);
