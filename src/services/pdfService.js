@@ -528,8 +528,9 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
   const sessionsByGroup = isNewFormat
     ? sessionsByGroupOrSessions
     : [{ groupe: { id: '', nom: groupeNom || '' }, sessions: sessionsByGroupOrSessions || [] }];
-  const isMulti = sessionsByGroup.length > 1;
-  const sessions = sessionsByGroup.flatMap(sg => sg.sessions || []);
+  const isMulti    = sessionsByGroup.length > 1;
+  const groupCount = sessionsByGroup.length;
+  const sessions   = sessionsByGroup.flatMap(sg => sg.sessions || []);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const PW = 297; const PH = 210;
@@ -575,6 +576,7 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
   const TIME_COL_W = 14;
   const DAY_COUNT  = 6;
   const DAY_W = (GRID_W - TIME_COL_W) / DAY_COUNT;
+  const PAD   = 0.8;
 
   const START = 8 * 60;   // 08:00
   const END   = 17 * 60 + 30; // 17:30
@@ -612,6 +614,16 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
       doc.setTextColor(BRAND.yellow[0], BRAND.yellow[1], BRAND.yellow[2]);
       doc.text(format(weekDays[di], 'dd/MM'), x + DAY_W / 2, MT + 7, { align: 'center' });
     }
+
+    // Multi-group: colored sub-column indicator at bottom of day header
+    if (isMulti) {
+      const subW = (DAY_W - PAD * 2) / groupCount;
+      sessionsByGroup.forEach((sg, gi) => {
+        const pal = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+        doc.setFillColor(...pal.fill);
+        doc.rect(x + PAD + gi * subW, MT + HDR_H - 1.8, subW - 0.3, 1.8, 'F');
+      });
+    }
   }
 
   // ── Grid body ─────────────────────────────────────────────────────────────────
@@ -647,8 +659,21 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
     doc.line(x, bodyTop, x, bodyTop + bodyH);
   }
 
+  // Multi-group: sub-column dividers within each day column
+  if (isMulti) {
+    const subW = (DAY_W - PAD * 2) / groupCount;
+    doc.setLineWidth(0.12);
+    for (let di = 0; di < DAY_COUNT; di++) {
+      const dayX = ML + TIME_COL_W + di * DAY_W;
+      for (let gi = 1; gi < groupCount; gi++) {
+        const sx = dayX + PAD + gi * subW;
+        doc.setDrawColor(180, 195, 215);
+        doc.line(sx, bodyTop, sx, bodyTop + bodyH);
+      }
+    }
+  }
+
   // ── Session blocks ───────────────────────────────────────────────────────────
-  const PAD = 0.8;
 
   // Build date→dayIndex map from weekDays
   const dayIndexMap = {};
@@ -683,18 +708,21 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
 
     const top    = bodyTop + (Math.max(startMin, START) - START) * SCALE;
     const height = (Math.min(endMin, END) - Math.max(startMin, START)) * SCALE;
-    const left   = ML + TIME_COL_W + di * DAY_W + PAD;
-    const width  = DAY_W - PAD * 2;
     if (height < 1) return;
 
-    // Color: group palette in multi-group mode, session-type colors in single-group mode
+    // Position + color: one fixed sub-column per group in multi mode, full column in single
     const type = (s.type || '').toUpperCase();
-    let col;
+    let col, left, width;
     if (isMulti) {
-      const gi = (s.id ? sessionGroupIndex[s.id] : undefined) ?? 0;
-      col = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+      const gi  = (s.id ? sessionGroupIndex[s.id] : undefined) ?? 0;
+      col       = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+      const subW = (DAY_W - PAD * 2) / groupCount;
+      left  = ML + TIME_COL_W + di * DAY_W + PAD + gi * subW;
+      width = subW - 0.8;
     } else {
-      col = SESSION_COLORS[type] || SESSION_COLORS._default;
+      col   = SESSION_COLORS[type] || SESSION_COLORS._default;
+      left  = ML + TIME_COL_W + di * DAY_W + PAD;
+      width = DAY_W - PAD * 2;
     }
 
     // Block background
