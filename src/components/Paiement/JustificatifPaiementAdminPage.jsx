@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, updateDoc, deleteDoc, doc, orderBy, query, addDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const TARIFS = {
   licence_cnam:        30000,
@@ -245,6 +247,166 @@ function exportCSV(rows, niveauFilter) {
   a.download = `paiements_${niveauFilter}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function generateRecu(etudiant) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const today = new Date();
+  const dateEdition = today.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dateSlug = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const refRecu = `REC-${etudiant.cin}-${dateSlug}`;
+  const PW = 210;
+  const M = 20;
+  const CW = PW - M * 2;
+
+  // ── En-tête ──────────────────────────────────────────────────────────
+  doc.setFillColor(0, 89, 137);
+  doc.rect(0, 0, PW, 36, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Institut de Formation', M, 15);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.text('REÇU DE PAIEMENT', M, 22);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(refRecu, PW - M, 15, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text(`Date d'édition : ${dateEdition}`, PW - M, 22, { align: 'right' });
+
+  // ── Bloc apprenant ────────────────────────────────────────────────────
+  let y = 44;
+  doc.setFillColor(240, 246, 252);
+  doc.roundedRect(M, y, CW, 28, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(0, 89, 137);
+  doc.text('INFORMATIONS APPRENANT', M + 5, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Nom & Prénom : ${etudiant.nom} ${etudiant.prenom}`, M + 5, y + 14);
+  doc.text(`CIN : ${etudiant.cin}`, M + 5, y + 20);
+  doc.text(`Niveau : ${etudiant.niveauLabel}`, M + 70, y + 14);
+  if (etudiant.telephone) doc.text(`Tél. : ${etudiant.telephone}`, M + 70, y + 20);
+
+  // ── Tableau dépôts validés ────────────────────────────────────────────
+  y += 36;
+  const depotsValides = (etudiant.depots || [])
+    .filter(d => d.statut === 'valide' && d.type !== 'bourse')
+    .sort((a, b) => {
+      const ta = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt ?? 0);
+      const tb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt ?? 0);
+      return ta - tb;
+    });
+  const depotsEnAttente = (etudiant.depots || []).filter(d => d.statut === 'en_attente' && d.type !== 'bourse');
+
+  const tableRows = depotsValides.map((d, i) => {
+    const refDep = `DEP-${(d.id || '').substring(0, 8).toUpperCase()}`;
+    const dt = d.createdAt?.toDate ? d.createdAt.toDate() : new Date(d.createdAt ?? 0);
+    return [
+      String(i + 1).padStart(2, '0'),
+      dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+      refDep,
+      fmtMAD(Number(d.montantPaye) || 0),
+    ];
+  });
+  if (etudiant.hasBourse) {
+    const bd = (etudiant.depots || []).find(d => d.type === 'bourse');
+    const lbl = bd?.typeBourse === 'totale' ? 'Exonération totale' : 'Bourse partielle';
+    const org = bd?.organismeBoursier ? ` — ${bd.organismeBoursier}` : '';
+    const dtB = bd?.createdAt?.toDate ? bd.createdAt.toDate() : new Date(bd?.createdAt ?? 0);
+    tableRows.push([
+      '—',
+      bd ? dtB.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+      lbl + org,
+      fmtMAD(etudiant.montantBourse),
+    ]);
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 89, 137);
+  doc.text('DÉTAIL DES PAIEMENTS VALIDÉS', M, y + 5);
+  y += 9;
+
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Date', 'Référence dépôt', 'Montant']],
+    body: tableRows.length > 0 ? tableRows : [['—', '—', 'Aucun paiement validé', '0 MAD']],
+    styles: { fontSize: 8.5, cellPadding: 3, textColor: [51, 65, 85] },
+    headStyles: { fillColor: [0, 89, 137], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 34 },
+      2: { cellWidth: 90 },
+      3: { cellWidth: 36, halign: 'right', fontStyle: 'bold' },
+    },
+    margin: { left: M, right: M },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Récapitulatif ─────────────────────────────────────────────────────
+  const summaryH = etudiant.hasBourse ? 40 : 32;
+  doc.setFillColor(240, 246, 252);
+  doc.roundedRect(M, y, CW, summaryH, 3, 3, 'F');
+  const col2 = PW - M - 6;
+  let yy = y + 8;
+  const summaryLines = [
+    ['Tarif de la formation', fmtMAD(etudiant.tarif)],
+    ['Cash encaissé (paiements validés)', fmtMAD(etudiant.totalValide)],
+  ];
+  if (etudiant.hasBourse) summaryLines.push(['Exonération / bourse', fmtMAD(etudiant.montantBourse)]);
+  doc.setFontSize(8.5);
+  summaryLines.forEach(([label, val]) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text(label, M + 5, yy);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text(val, col2, yy, { align: 'right' });
+    yy += 7;
+  });
+  const rc = etudiant.restant === 0 ? [5, 150, 105] : [220, 38, 38];
+  doc.setDrawColor(...rc);
+  doc.line(M + 5, yy - 1, col2, yy - 1);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...rc);
+  const restantLabel = etudiant.restant === 0 ? 'Soldé — Aucun montant dû ✓' : 'Montant restant à régler';
+  doc.text(restantLabel, M + 5, yy + 6);
+  if (etudiant.restant > 0) doc.text(fmtMAD(etudiant.restant), col2, yy + 6, { align: 'right' });
+
+  y = yy + 18;
+
+  // Note dépôts en attente
+  if (depotsEnAttente.length > 0) {
+    const totalAtt = depotsEnAttente.reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
+    doc.setFontSize(7.5);
+    doc.setTextColor(146, 64, 14);
+    doc.setFont('helvetica', 'italic');
+    doc.text(
+      `Note : ${depotsEnAttente.length} dépôt(s) en cours de vérification (${fmtMAD(totalAtt)}) ne sont pas comptabilisés dans ce reçu.`,
+      M, y, { maxWidth: CW }
+    );
+    y += 10;
+  }
+
+  // ── Pied de page ─────────────────────────────────────────────────────
+  y = Math.max(y + 4, 268);
+  doc.setDrawColor(210, 225, 240);
+  doc.line(M, y, PW - M, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Document généré le ${dateEdition}  ·  Réf. ${refRecu}`, M, y + 5);
+  doc.text('Ce document est généré automatiquement par EduCloud ERP Pédagogique.', M, y + 10);
+
+  doc.save(`Recu_${etudiant.cin}_${today.toISOString().slice(0, 10)}.pdf`);
 }
 
 export default function JustificatifPaiementAdminPage() {
@@ -512,9 +674,16 @@ export default function JustificatifPaiementAdminPage() {
                       <tr key={`${e.cin}-detail`}>
                         <td colSpan={7} className="px-0 py-0 bg-slate-50 border-b border-slate-200">
                           <div className="px-12 py-3">
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                              {e.depots.length} dépôt(s)
-                            </p>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                                {e.depots.length} dépôt(s)
+                              </p>
+                              <button
+                                onClick={ev => { ev.stopPropagation(); generateRecu(e); }}
+                                className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#005989] border border-[#005989]/30 rounded-lg hover:bg-[#005989]/8 transition-colors">
+                                📄 Reçu PDF
+                              </button>
+                            </div>
                             <div className="space-y-1.5">
                               {e.depots.map(d => (
                                 <div key={d.id} className={`flex items-center gap-3 rounded-lg px-3 py-2 border ${d.type === 'bourse' ? 'bg-violet-50 border-violet-100' : 'bg-white border-slate-100'}`}>
