@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, deleteDoc, doc, orderBy, query, addDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 
@@ -58,18 +58,170 @@ function groupByCin(docs) {
       };
     }
     map[key].depots.push(d);
-    // Keep most recent info
     if (!map[key].nom && d.nom) map[key].nom = d.nom;
   });
   return Object.values(map).map(e => {
     const tarif = TARIFS[e.niveau] || 0;
+    // Cash réel encaissé (dépôts validés, hors bourse)
     const totalValide = e.depots
-      .filter(d => d.statut === 'valide')
+      .filter(d => d.statut === 'valide' && d.type !== 'bourse')
       .reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
-    const totalTous = e.depots.reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
-    const restant = Math.max(0, tarif - totalValide);
-    return { ...e, tarif, totalValide, totalTous, restant };
+    // Montant exonéré (bourses/exonérations — distinct du cash)
+    const montantBourse = e.depots
+      .filter(d => d.type === 'bourse')
+      .reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
+    const totalTous = e.depots.filter(d => d.type !== 'bourse').reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
+    // Restant = tarif − cash encaissé − montant exonéré
+    const restant = Math.max(0, tarif - totalValide - montantBourse);
+    const hasBourse = montantBourse > 0;
+    return { ...e, tarif, totalValide, totalTous, restant, hasBourse, montantBourse };
   });
+}
+
+function BourseModal({ onClose, onSaved }) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    nom: '', prenom: '', cin: '', telephone: '',
+    niveau: 'licence_cnam', typeBourse: 'totale',
+    montantBourse: TARIFS.licence_cnam, organismeBoursier: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const set = (k, v) => setForm(prev => {
+    const next = { ...prev, [k]: v };
+    if (k === 'niveau' && next.typeBourse === 'totale') next.montantBourse = TARIFS[v] || 0;
+    if (k === 'typeBourse' && v === 'totale') next.montantBourse = TARIFS[next.niveau] || 0;
+    return next;
+  });
+
+  const handleSave = async () => {
+    if (!form.nom.trim() || !form.cin.trim() || !form.niveau) {
+      toast.error('Nom, CIN et niveau sont obligatoires'); return;
+    }
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'justificatifs_paiement'), {
+        type: 'bourse',
+        nom: form.nom.toUpperCase().trim(),
+        prenom: form.prenom.trim(),
+        cin: form.cin.toUpperCase().trim(),
+        telephone: form.telephone.trim(),
+        niveau: form.niveau,
+        niveauLabel: NIVEAUX_LABELS[form.niveau],
+        montantPaye: Number(form.montantBourse) || 0,
+        typeBourse: form.typeBourse,
+        organismeBoursier: form.organismeBoursier.trim(),
+        statut: 'valide',
+        createdAt: new Date(),
+      });
+      toast.success('Bourse enregistrée');
+      onSaved(); onClose();
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 className="font-bold text-slate-800 text-base">Nouvelle exonération / bourse</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Validé automatiquement · aucun justificatif requis</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Nom *</label>
+              <input value={form.nom} onChange={e => set('nom', e.target.value.toUpperCase())}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 uppercase"
+                placeholder="NOM" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Prénom</label>
+              <input value={form.prenom} onChange={e => set('prenom', e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400"
+                placeholder="Prénom" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">CIN *</label>
+              <input value={form.cin} onChange={e => set('cin', e.target.value.toUpperCase())}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 uppercase font-mono"
+                placeholder="AB123456" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Téléphone</label>
+              <input value={form.telephone} onChange={e => set('telephone', e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400"
+                placeholder="06XXXXXXXX" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Niveau *</label>
+            <select value={form.niveau} onChange={e => set('niveau', e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 bg-white">
+              <option value="licence_cnam">Licence CNAM — 30 000 MAD</option>
+              <option value="licence_transitaire">Licence Transitaire — 34 000 MAD</option>
+              <option value="mastere_mlai">Mastère MLAI — 43 500 MAD</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Type d'exonération</label>
+            <div className="flex gap-2">
+              {[
+                { v: 'totale',    label: 'Totale', desc: fmtMAD(TARIFS[form.niveau]) + ' exonérés' },
+                { v: 'partielle', label: 'Partielle', desc: 'Montant personnalisé' },
+              ].map(opt => (
+                <button key={opt.v} type="button" onClick={() => set('typeBourse', opt.v)}
+                  className={`flex-1 text-left px-3 py-2.5 rounded-xl border-2 transition-all ${
+                    form.typeBourse === opt.v
+                      ? 'border-violet-500 bg-violet-50 text-violet-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                  }`}>
+                  <p className="text-xs font-bold">{opt.label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Montant exonéré (MAD)</label>
+              <input type="number" min="0" value={form.montantBourse}
+                onChange={e => set('montantBourse', e.target.value)}
+                disabled={form.typeBourse === 'totale'}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 tabular-nums disabled:bg-slate-50 disabled:text-slate-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Organisme / Motif</label>
+              <input value={form.organismeBoursier} onChange={e => set('organismeBoursier', e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400"
+                placeholder="Ex: Bourse ONOUSC" />
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
+            Annuler
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-5 py-2 text-sm font-semibold text-white rounded-xl transition-all disabled:opacity-50 bg-violet-600 hover:bg-violet-700">
+            {saving ? 'Enregistrement…' : 'Enregistrer la bourse'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function exportCSV(rows, niveauFilter) {
@@ -104,6 +256,7 @@ export default function JustificatifPaiementAdminPage() {
   const [statutFilter, setStatutFilter] = useState('tous'); // pour vue dépôts
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState({}); // CIN → bool
+  const [showBourseModal, setShowBourseModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -153,11 +306,13 @@ export default function JustificatifPaiementAdminPage() {
   });
 
   // Summary stats
-  const totalEncaisse = filteredStudents.reduce((s, e) => s + e.totalValide, 0);
-  const totalRestant  = filteredStudents.reduce((s, e) => s + e.restant, 0);
-  const nPayes        = filteredStudents.filter(e => e.restant === 0 && e.tarif > 0).length;
-  const nPartiel      = filteredStudents.filter(e => e.restant > 0 && e.totalValide > 0).length;
-  const nRien         = filteredStudents.filter(e => e.totalValide === 0).length;
+  const totalEncaisse  = filteredStudents.reduce((s, e) => s + e.totalValide, 0);
+  const totalExonere   = filteredStudents.reduce((s, e) => s + e.montantBourse, 0);
+  const totalRestant   = filteredStudents.reduce((s, e) => s + e.restant, 0);
+  const nPayes         = filteredStudents.filter(e => e.restant === 0 && e.tarif > 0).length;
+  const nPartiel       = filteredStudents.filter(e => e.restant > 0 && (e.totalValide > 0 || e.montantBourse > 0)).length;
+  const nRien          = filteredStudents.filter(e => e.totalValide === 0 && e.montantBourse === 0).length;
+  const nBoursiers     = filteredStudents.filter(e => e.hasBourse).length;
 
   // ── Vue par dépôt ───────────────────────────────────────────────────────────
   const filteredDepots = docs.filter(d => {
@@ -189,6 +344,10 @@ export default function JustificatifPaiementAdminPage() {
           <p className="text-sm text-slate-500 mt-0.5">Licence CNAM · Licence Transitaire · Mastère MLAI</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setShowBourseModal(true)}
+            className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-colors bg-violet-600 hover:bg-violet-700">
+            + Bourse / Exonération
+          </button>
           <button onClick={() => exportCSV(filteredStudents, niveauFilter)}
             className="px-4 py-2 text-sm font-semibold text-emerald-700 border border-emerald-300 rounded-xl hover:bg-emerald-50 transition-colors">
             ↓ Exporter CSV
@@ -202,13 +361,14 @@ export default function JustificatifPaiementAdminPage() {
 
       {/* Summary cards */}
       {view === 'etudiants' && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Total encaissé',   value: fmtMAD(totalEncaisse), color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-            { label: 'Restant à payer',  value: fmtMAD(totalRestant),  color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
-            { label: 'Soldés',           value: nPayes,                 color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-            { label: 'Paiement partiel', value: nPartiel,               color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-            { label: 'Aucun paiement',   value: nRien,                  color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+            { label: 'Cash encaissé',       value: fmtMAD(totalEncaisse), color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+            { label: 'Total exonéré',        value: fmtMAD(totalExonere),  color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200' },
+            { label: 'Restant à régler',     value: fmtMAD(totalRestant),  color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+            { label: 'Soldés / Exonérés',    value: nPayes,                color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+            { label: 'Paiement partiel',     value: nPartiel,              color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
+            { label: 'Aucun règlement',      value: nRien,                 color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
           ].map(c => (
             <div key={c.label} className={`rounded-xl border p-3 ${c.bg}`}>
               <p className={`text-xl font-black ${c.color} tabular-nums`}>{c.value}</p>
@@ -290,11 +450,13 @@ export default function JustificatifPaiementAdminPage() {
               </thead>
               <tbody>
                 {filteredStudents.map(e => {
-                  const pct     = e.tarif > 0 ? Math.min(100, Math.round(e.totalValide / e.tarif * 100)) : 0;
-                  const solde   = e.restant === 0 && e.tarif > 0;
-                  const partiel = !solde && e.totalValide > 0;
-                  const rowBg   = solde ? 'bg-emerald-50/40' : partiel ? 'bg-amber-50/30' : '';
-                  const open    = expanded[e.cin];
+                  const pct          = e.tarif > 0 ? Math.min(100, Math.round(e.totalValide / e.tarif * 100)) : 0;
+                  const solde        = e.restant === 0 && e.tarif > 0;
+                  const partiel      = !solde && e.totalValide > 0;
+                  const exoTotal     = solde && e.hasBourse && e.montantBourse >= e.tarif;
+                  const exoPartiel   = e.hasBourse && !exoTotal;
+                  const rowBg        = solde ? 'bg-emerald-50/40' : partiel ? 'bg-amber-50/30' : '';
+                  const open         = expanded[e.cin];
                   return [
                     <tr key={e.cin} onClick={() => toggle(e.cin)}
                       className={`border-b border-slate-100 cursor-pointer hover:bg-slate-50/80 transition-colors ${rowBg}`}>
@@ -304,14 +466,23 @@ export default function JustificatifPaiementAdminPage() {
                         </svg>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-800">{e.nom} {e.prenom}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-slate-800">{e.nom} {e.prenom}</p>
+                          {exoTotal  && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 tracking-wide">EXONÉRÉ TOTAL</span>}
+                          {exoPartiel && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 tracking-wide">BOURSE PARTIELLE</span>}
+                        </div>
                         <p className="text-xs text-slate-500 font-mono">{e.cin} {e.telephone ? `· ${e.telephone}` : ''}</p>
                       </td>
                       <td className="px-4 py-3 text-slate-600 hidden sm:table-cell">{e.niveauLabel}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-emerald-700 tabular-nums">{fmtMAD(e.totalValide)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        <p className="font-semibold text-emerald-700">{fmtMAD(e.totalValide)}</p>
+                        {e.hasBourse && (
+                          <p className="text-[10px] text-violet-600 font-semibold mt-0.5">+ {fmtMAD(e.montantBourse)} exo</p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right text-slate-500 tabular-nums">{fmtMAD(e.tarif)}</td>
                       <td className={`px-4 py-3 text-right font-bold tabular-nums ${solde ? 'text-emerald-600' : partiel ? 'text-amber-600' : 'text-red-600'}`}>
-                        {solde ? '✓ Soldé' : fmtMAD(e.restant)}
+                        {exoTotal ? '✓ Exonéré' : solde ? '✓ Soldé' : fmtMAD(e.restant)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -332,10 +503,21 @@ export default function JustificatifPaiementAdminPage() {
                             </p>
                             <div className="space-y-1.5">
                               {e.depots.map(d => (
-                                <div key={d.id} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-slate-100">
-                                  <Badge statut={d.statut} />
+                                <div key={d.id} className={`flex items-center gap-3 rounded-lg px-3 py-2 border ${d.type === 'bourse' ? 'bg-violet-50 border-violet-100' : 'bg-white border-slate-100'}`}>
+                                  {d.type === 'bourse' ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
+                                      {d.typeBourse === 'totale' ? 'Exonération totale' : 'Bourse partielle'}
+                                    </span>
+                                  ) : (
+                                    <Badge statut={d.statut} />
+                                  )}
                                   <span className="text-xs text-slate-500">{formatDate(d.createdAt)}</span>
-                                  <span className="font-semibold text-slate-800 tabular-nums ml-auto">{fmtMAD(d.montantPaye)}</span>
+                                  {d.type === 'bourse' && d.organismeBoursier && (
+                                    <span className="text-xs text-violet-600 font-medium">{d.organismeBoursier}</span>
+                                  )}
+                                  <span className={`font-semibold tabular-nums ml-auto ${d.type === 'bourse' ? 'text-violet-700' : 'text-slate-800'}`}>
+                                    {fmtMAD(d.montantPaye)}
+                                  </span>
                                   {d.justificatifData && (
                                     <button onClick={ev => { ev.stopPropagation(); const w = window.open('', '_blank'); d.justificatifType?.startsWith('image/') ? w.document.write(`<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${d.justificatifData}" style="max-width:100%;max-height:100vh" /></body></html>`) : w.document.write(`<html><body style="margin:0"><embed src="${d.justificatifData}" width="100%" height="100%" /></body></html>`); }}
                                       className="text-xs text-[#005989] hover:underline font-semibold">
@@ -343,7 +525,7 @@ export default function JustificatifPaiementAdminPage() {
                                     </button>
                                   )}
                                   <div className="flex gap-1 ml-2" onClick={ev => ev.stopPropagation()}>
-                                    {d.statut === 'en_attente' && <>
+                                    {d.type !== 'bourse' && d.statut === 'en_attente' && <>
                                       <button onClick={() => updateStatut(d.id, 'valide')}
                                         className="px-2 py-0.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100">
                                         Valider
@@ -353,7 +535,7 @@ export default function JustificatifPaiementAdminPage() {
                                         Refuser
                                       </button>
                                     </>}
-                                    {d.statut !== 'en_attente' && (
+                                    {d.type !== 'bourse' && d.statut !== 'en_attente' && (
                                       <button onClick={() => updateStatut(d.id, 'en_attente')}
                                         className="px-2 py-0.5 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded hover:bg-slate-100">
                                         Réinitialiser
@@ -452,6 +634,13 @@ export default function JustificatifPaiementAdminPage() {
             </table>
           </div>
         )
+      )}
+
+      {showBourseModal && (
+        <BourseModal
+          onClose={() => setShowBourseModal(false)}
+          onSaved={fetchData}
+        />
       )}
     </div>
   );
