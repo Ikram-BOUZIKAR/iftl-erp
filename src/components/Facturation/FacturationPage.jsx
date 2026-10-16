@@ -6,7 +6,7 @@ import {
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
-import { generateRecu } from '../../services/pdfService';
+import { generateRecu, generateSuiviPaiementPDF } from '../../services/pdfService';
 import { useTranslation } from 'react-i18next';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -55,6 +55,14 @@ function DocumentIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
     </svg>
   );
 }
@@ -599,13 +607,28 @@ export default function FacturationPage() {
             {loading ? 'Chargement…' : `${factures.length} reçu${factures.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <button
-          onClick={() => setShowNouvelleFacture(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
-        >
-          <PlusIcon />
-          {t('facturation.add_invoice')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => generateSuiviPaiementPDF(filtered, {
+              anneeAcademique: filterAnnee || undefined,
+              filterStatut: filterStatut || undefined,
+              filterFiliere: filterFiliere || undefined,
+            })}
+            disabled={filtered.length === 0}
+            title="Exporter le suivi des paiements en PDF"
+            className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-40"
+          >
+            <DownloadIcon />
+            Export PDF
+          </button>
+          <button
+            onClick={() => setShowNouvelleFacture(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl hover:bg-[#004a73] text-sm font-medium transition-colors shadow-sm"
+          >
+            <PlusIcon />
+            {t('facturation.add_invoice')}
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

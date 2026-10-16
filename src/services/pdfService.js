@@ -2050,3 +2050,192 @@ export async function generateFicheApprenant(student, userProfile, groupe) {
   const safeName = fullName.replace(/\s+/g, '_') || 'Apprenant';
   doc.save(`Fiche_Apprenant_${safeName}_${codeApprenant}.pdf`);
 }
+
+// ─── generateSuiviPaiementPDF ─────────────────────────────────────────────────
+
+/**
+ * Generates a payment tracking report PDF for a list of factures.
+ *
+ * @param {object[]} factures - Filtered factures array
+ * @param {object}   opts     - { anneeAcademique, filterStatut, filterFiliere, title }
+ */
+export function generateSuiviPaiementPDF(factures, opts = {}) {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+  const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
+
+  const fmtDH = (n) =>
+    n != null ? new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(Number(n) || 0) + ' DH' : '—';
+  const fmtDate = (str) => (str ? format(new Date(str), 'dd/MM/yyyy') : '—');
+
+  // ── KPIs ─────────────────────────────────────────────────────────────────────
+  const totalFacture  = factures.reduce((s, f) => s + (f.montantTotal || 0), 0);
+  const totalEncaisse = factures.reduce((s, f) => s + (f.montantPaye  || 0), 0);
+  const soldeImpaye   = totalFacture - totalEncaisse;
+  const taux = totalFacture > 0 ? Math.round((totalEncaisse / totalFacture) * 100) : 0;
+  const nbPayees      = factures.filter(f => f.statut === 'payee').length;
+  const nbPartielles  = factures.filter(f => f.statut === 'partiellement_payee').length;
+  const nbImpayees    = factures.filter(f => f.statut === 'impayee').length;
+
+  // ── Header ───────────────────────────────────────────────────────────────────
+  let y = drawIftlHeader(
+    doc,
+    opts.title || 'SUIVI DES PAIEMENTS',
+    `Généré le ${today}${opts.anneeAcademique ? ' · ' + opts.anneeAcademique : ''}`,
+  );
+
+  // Subtitle filters line
+  const filtreParts = [];
+  if (opts.anneeAcademique) filtreParts.push(`Année : ${opts.anneeAcademique}`);
+  if (opts.filterStatut)    filtreParts.push(`Statut : ${opts.filterStatut}`);
+  if (opts.filterFiliere)   filtreParts.push(`Filière : ${opts.filterFiliere}`);
+  filtreParts.push(`${factures.length} reçu${factures.length !== 1 ? 's' : ''}`);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.grey);
+  doc.text(filtreParts.join('   ·   '), 14, y);
+  y += 8;
+
+  // ── KPI summary band ─────────────────────────────────────────────────────────
+  const kpis = [
+    { label: 'Total émis',       value: fmtDH(totalFacture),  color: BRAND.blue },
+    { label: 'Total encaissé',   value: fmtDH(totalEncaisse), color: [22, 163, 74]  },
+    { label: 'Solde impayé',     value: fmtDH(soldeImpaye),   color: [220, 38, 38]  },
+    { label: 'Taux recouvrement',value: `${taux}%`,            color: [180, 83, 9]   },
+    { label: 'Payées',           value: String(nbPayees),      color: [22, 163, 74]  },
+    { label: 'Partielles',       value: String(nbPartielles),  color: [180, 83, 9]   },
+    { label: 'Impayées',         value: String(nbImpayees),    color: [220, 38, 38]  },
+  ];
+
+  const kpiW = (w - 28) / kpis.length;
+  const kpiH = 20;
+  kpis.forEach((k, i) => {
+    const kx = 14 + i * kpiW;
+    doc.setFillColor(k.color[0], k.color[1], k.color[2]);
+    doc.roundedRect(kx, y, kpiW - 2, kpiH, 2, 2, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...BRAND.white);
+    doc.text(k.label.toUpperCase(), kx + (kpiW - 2) / 2, y + 6, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(k.value, kx + (kpiW - 2) / 2, y + 14, { align: 'center' });
+  });
+  y += kpiH + 6;
+
+  // ── Table ─────────────────────────────────────────────────────────────────────
+  const STATUT_LABELS_FR = {
+    payee: 'Payée',
+    partiellement_payee: 'Partielle',
+    impayee: 'Impayée',
+  };
+
+  const rows = factures.map((f, idx) => {
+    const solde = (f.montantTotal || 0) - (f.montantPaye || 0);
+    const pctPaye = f.montantTotal > 0
+      ? Math.round(((f.montantPaye || 0) / f.montantTotal) * 100)
+      : 0;
+    const overdue = f.dateEcheance && f.statut !== 'payee' && new Date(f.dateEcheance) < new Date();
+    const statutLabel = (STATUT_LABELS_FR[f.statut] || f.statut || '—') + (overdue ? ' ⚠' : '');
+    const nbVersements = (f.paiements || []).length;
+    return [
+      idx + 1,
+      f.reference || '—',
+      `${f.studentNom || ''} ${f.studentPrenom || ''}`.trim() || '—',
+      f.filiere || '—',
+      f.anneeAcademique || '—',
+      fmtDH(f.montantTotal),
+      fmtDH(f.montantPaye || 0),
+      fmtDH(solde),
+      `${pctPaye}%`,
+      statutLabel,
+      fmtDate(f.dateEcheance),
+      nbVersements > 0 ? String(nbVersements) : '—',
+    ];
+  });
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 14, right: 14 },
+    head: [['#', 'Référence', 'Apprenant', 'Filière', 'Année', 'Total', 'Payé', 'Solde', '%', 'Statut', 'Échéance', 'Vers.']],
+    body: rows,
+    styles: {
+      fontSize: 7.5,
+      cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+      lineColor: [220, 230, 240],
+      lineWidth: 0.2,
+      overflow: 'ellipsize',
+    },
+    headStyles: {
+      fillColor: BRAND.blue,
+      textColor: BRAND.white,
+      fontStyle: 'bold',
+      fontSize: 7,
+      halign: 'center',
+    },
+    columnStyles: {
+      0:  { halign: 'center', cellWidth: 8 },
+      1:  { halign: 'left',   cellWidth: 26, font: 'courier', fontSize: 7 },
+      2:  { halign: 'left',   cellWidth: 42 },
+      3:  { halign: 'left',   cellWidth: 22 },
+      4:  { halign: 'center', cellWidth: 20 },
+      5:  { halign: 'right',  cellWidth: 24 },
+      6:  { halign: 'right',  cellWidth: 24, textColor: [22, 163, 74] },
+      7:  { halign: 'right',  cellWidth: 24 },
+      8:  { halign: 'center', cellWidth: 12 },
+      9:  { halign: 'center', cellWidth: 22 },
+      10: { halign: 'center', cellWidth: 20 },
+      11: { halign: 'center', cellWidth: 12 },
+    },
+    alternateRowStyles: { fillColor: [245, 250, 255] },
+    didParseCell(data) {
+      if (data.section !== 'body') return;
+      const f = factures[data.row.index];
+      if (!f) return;
+      const overdue = f.dateEcheance && f.statut !== 'payee' && new Date(f.dateEcheance) < new Date();
+      if (f.statut === 'payee') {
+        if (data.column.index === 6 || data.column.index === 9) {
+          data.cell.styles.textColor = [22, 163, 74];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      } else if (f.statut === 'partiellement_payee') {
+        if (data.column.index === 9) {
+          data.cell.styles.textColor = [180, 83, 9];
+          data.cell.styles.fontStyle = 'bold';
+        }
+        if (data.column.index === 7) data.cell.styles.textColor = [180, 83, 9];
+      } else if (f.statut === 'impayee') {
+        if (data.column.index === 9 || data.column.index === 7) {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+      if (overdue && data.column.index === 9) {
+        data.cell.styles.fillColor = [255, 237, 237];
+      }
+    },
+    didDrawPage(data) {
+      drawIftlHeader(doc, opts.title || 'SUIVI DES PAIEMENTS', `Généré le ${today}`);
+    },
+  });
+
+  // ── Summary footer row ────────────────────────────────────────────────────────
+  const finalY = doc.lastAutoTable.finalY + 5;
+  if (finalY < doc.internal.pageSize.getHeight() - 20) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BRAND.darkBlue);
+    doc.text(
+      `TOTAL : ${fmtDH(totalFacture)} émis · ${fmtDH(totalEncaisse)} encaissé · ${fmtDH(soldeImpaye)} restant · Taux : ${taux}%`,
+      w / 2,
+      finalY,
+      { align: 'center' },
+    );
+  }
+
+  drawFooter(doc);
+
+  const dateStr = format(new Date(), 'yyyyMMdd');
+  doc.save(`Suivi_Paiements_${dateStr}.pdf`);
+}
