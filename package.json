@@ -12,7 +12,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "firebase:deploy": "firebase deploy --project erp-pedago-iftl",
-    "firebase:deploy:demo": "firebase deploy --project edupilot-demo --only hosting:edupilot-demo"
+    "firebase:deploy:demo": "firebase deploy --project edupilot-demo --only hosting:edupilot-demo",
+    "cap:sync": "cap sync",
+    "cap:android": "cap open android",
+    "cap:ios": "cap open ios",
+    "cap:build": "npm run build && cap sync",
+    "cap:build:demo": "npm run build:demo && cap sync --inline"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

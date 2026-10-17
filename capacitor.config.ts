@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'IFTL ERP',
   webDir: 'dist',
   server: {
+    androidScheme: 'https',
     // En développement: pointe vers le serveur live pour rechargement à chaud
     // Commentez/décommentez selon l'environnement
     // url: 'https://erp-pedago-iftl.web.app',
@@ -16,6 +17,7 @@ const config: CapacitorConfig = {
   ios: {
     backgroundColor: '#003d63',
     contentInset: 'automatic',
+    scheme: 'EduCloud',
   },
   plugins: {
     SplashScreen: {

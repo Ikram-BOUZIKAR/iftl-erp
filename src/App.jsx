@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/UI/Toast';
+import { initPushNotifications } from './services/pushNotificationService';
 import { ConfirmProvider } from './components/UI/ConfirmDialog';
 import LoginPage from './components/Auth/LoginPage';
 import MainLayout from './components/Layout/MainLayout';
@@ -61,6 +63,12 @@ function App() {
   const hasFirebaseConfig =
     import.meta.env.VITE_FIREBASE_API_KEY &&
     import.meta.env.VITE_FIREBASE_PROJECT_ID;
+
+  useEffect(() => {
+    if (auth.user?.uid) {
+      initPushNotifications(auth.user.uid);
+    }
+  }, [auth.user?.uid]);
 
   if (auth.loading) {
     return (
