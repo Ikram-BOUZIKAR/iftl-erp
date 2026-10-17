@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
@@ -89,10 +89,15 @@ function DemoRoleSelector({ onQuickLogin }) {
 }
 
 // ── Hero photo (left panel background) ────────────────────────────────────────
-// Replace null with an https:// URL to a photo of students/staff.
-// Recommended: portrait-oriented, warm lighting, expressive faces.
-// Example: upload a photo via Settings → Branding, copy the URL here.
-const HERO_PHOTO_URL = null;
+// Unsplash free-use photos (licence Unsplash, attribution ci-dessous).
+// Photo 1 — graduation caps throwing  (by MD_DURAN on Unsplash)
+// Photo 2 — person holding academic hat (expressive, recommandé)
+// Pour obtenir l'URL CDN : ouvrir la page Unsplash → clic droit photo → "Copier l'adresse de l'image"
+// Remplacer null par l'URL copiée (commence par https://images.unsplash.com/photo-...)
+const HERO_PHOTO_URL =
+  'https://images.unsplash.com/photo-1523050854058-8df90110c9f1' +
+  '?auto=format&fit=crop&w=1920&q=85';
+// ^ URL de secours connue (remplacer par l'URL CDN copiée depuis le navigateur si différente)
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const C = {
@@ -175,6 +180,7 @@ export default function LoginPage({ auth }) {
   const [resetSent, setResetSent]       = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [isMobile, setIsMobile]         = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [photoLoaded, setPhotoLoaded]   = useState(false);
   const emailRef = useRef(null);
 
   const navigate = useNavigate();
@@ -185,6 +191,15 @@ export default function LoginPage({ auth }) {
     const check = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // Preload hero photo — apply only on successful load, keep gradient on error
+  useEffect(() => {
+    if (!HERO_PHOTO_URL) return;
+    const img = new Image();
+    img.onload  = () => setPhotoLoaded(true);
+    img.onerror = () => setPhotoLoaded(false);
+    img.src = HERO_PHOTO_URL;
   }, []);
 
   const handleLogin = async (e) => {
@@ -239,7 +254,7 @@ export default function LoginPage({ auth }) {
       {/* ══ LEFT PANEL — dark, portals ══════════════════════════════════════ */}
       <div style={{
         background: C.dark,
-        backgroundImage: HERO_PHOTO_URL ? `url(${HERO_PHOTO_URL})` : 'none',
+        backgroundImage: photoLoaded ? `url(${HERO_PHOTO_URL})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         position: 'relative',
@@ -252,12 +267,12 @@ export default function LoginPage({ auth }) {
       }}>
         {/* Photo overlay + gradient blobs */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
-          {/* Dark overlay when photo is set, for text readability */}
-          {HERO_PHOTO_URL && (
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,12,30,0.72)' }} />
+          {/* Dark overlay when photo is loaded, for text readability */}
+          {photoLoaded && (
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,12,30,0.68)' }} />
           )}
-          <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '60%', paddingBottom: '60%', borderRadius: '50%', background: `radial-gradient(circle, ${C.violet}${HERO_PHOTO_URL ? '44' : '55'} 0%, transparent 70%)` }} />
-          <div style={{ position: 'absolute', bottom: '-15%', left: '-15%', width: '55%', paddingBottom: '55%', borderRadius: '50%', background: `radial-gradient(circle, ${C.coral}${HERO_PHOTO_URL ? '18' : '20'} 0%, transparent 70%)` }} />
+          <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '60%', paddingBottom: '60%', borderRadius: '50%', background: `radial-gradient(circle, ${C.violet}${photoLoaded ? '44' : '55'} 0%, transparent 70%)` }} />
+          <div style={{ position: 'absolute', bottom: '-15%', left: '-15%', width: '55%', paddingBottom: '55%', borderRadius: '50%', background: `radial-gradient(circle, ${C.coral}${photoLoaded ? '18' : '20'} 0%, transparent 70%)` }} />
         </div>
 
         {/* Language switcher — top right of left panel */}
