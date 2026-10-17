@@ -4,6 +4,7 @@ import { sessionsService, presencesService, studentsService, groupesService, int
 import { doc, updateDoc, collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { generateFeuillEmargement } from '../../services/pdfService';
+import { useBranding } from '../../contexts/BrandingContext';
 import { computeAbsenceScore } from '../../services/absenceService';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,7 @@ export default function SessionAttendance() {
   const { t } = useTranslation();
   const { id } = useParams();
   const toast = useToast();
+  const { branding } = useBranding();
   const [session, setSession] = useState(null);
   const [students, setStudents] = useState([]); // all students (all groups merged for grande salle)
   const [studentGroupMap, setStudentGroupMap] = useState({}); // studentId → groupe name
@@ -187,7 +189,7 @@ export default function SessionAttendance() {
       statut: attendance[s.id]?.statut || 'present',
       heureArrivee: attendance[s.id]?.heureArrivee || '',
     }));
-    generateFeuillEmargement({ session: { ...session, contenuSeance, objectifs }, students, presences, intervenant, groupe });
+    generateFeuillEmargement({ session: { ...session, contenuSeance, objectifs }, students, presences, intervenant, groupe }, branding);
   };
 
   const stats = {

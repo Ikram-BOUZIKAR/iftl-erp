@@ -15,6 +15,7 @@ import { useGroupes } from '../../hooks/useData';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateBulletin, generatePV } from '../../services/pdfService';
+import { useBranding } from '../../contexts/BrandingContext';
 import { useTranslation } from 'react-i18next';
 
 // ── Helpers: group deduplication (hyphen vs en-dash) ─────────────────────────
@@ -880,7 +881,8 @@ function BulletinsTab({ evaluations, modules, groupes }) {
                     selectedStudent,
                     groupes.find(g => g.id === selectedGroupeId)?.nom || '',
                     bulletin,
-                    '2025-2026'
+                    '2025-2026',
+                    branding
                   )}
                   title="Télécharger le bulletin PDF"
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#005989] border border-[#005989]/30 rounded-xl hover:bg-[#005989]/10 transition-colors whitespace-nowrap"
@@ -1066,7 +1068,7 @@ function PvTab({ evaluations, modules, groupes }) {
     if (!groupe || students.length === 0) return;
     setGenerating(true);
     try {
-      generatePV(groupe, students, groupeModules, notesByStudent, '2025-2026');
+      generatePV(groupe, students, groupeModules, notesByStudent, '2025-2026', branding);
     } catch (err) {
       toast.error('Erreur génération PV : ' + err.message);
     } finally {
@@ -1223,6 +1225,7 @@ function PvTab({ evaluations, modules, groupes }) {
 export default function NotesPage() {
   const { t } = useTranslation();
   const toast = useToast();
+  const { branding } = useBranding();
   const [activeTab, setActiveTab] = useState('evaluations');
   const { data: groupes } = useGroupes();
 

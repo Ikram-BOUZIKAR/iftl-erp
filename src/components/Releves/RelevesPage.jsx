@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { generateReleve1A, generateReleve2A } from '../../services/pdfService';
+import { useBranding } from '../../contexts/BrandingContext';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
 
@@ -38,6 +39,7 @@ function inputCls() {
 export default function RelevesPage() {
   const { showToast } = useToast();
   const { t } = useTranslation();
+  const { branding } = useBranding();
 
   const [students, setStudents] = useState([]);
   const [allModules, setAllModules] = useState([]);
@@ -190,7 +192,7 @@ export default function RelevesPage() {
           moyenneGenerale: bul?.moyenneGenerale,
           mention: bul?.mention,
           decision: bul?.decision === 'admis' ? 'ADMIS(E)' : bul?.decision === 'non_admis' ? 'NON ADMIS(E)' : undefined,
-        });
+        }, branding);
         showToast('Relevé 1A généré', 'success');
       } else {
         if (!modules2A.length) { showToast('Aucune note 2A trouvée pour cet apprenant', 'error'); return; }
@@ -200,7 +202,7 @@ export default function RelevesPage() {
           moy1A:    moy1A    ? parseFloat(moy1A)    : null,
           moyStage: moyStage ? parseFloat(moyStage) : null,
           moyEFF:   moyEFF   ? parseFloat(moyEFF)   : null,
-        });
+        }, branding);
         showToast('Relevé 2A généré', 'success');
       }
     } catch (e) {

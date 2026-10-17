@@ -462,6 +462,7 @@ function BadgesSection({ studentId, studentCode }) {
 
 function AttestationsSection({ student, userProfile, groupe }) {
   const [downloading, setDownloading] = useState(null);
+  const { branding } = useBranding();
 
   const handleSoutenance = async () => {
     setDownloading('soutenance');
@@ -472,7 +473,7 @@ function AttestationsSection({ student, userProfile, groupe }) {
         anneeFormation: student?.anneeAcademique || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
         datesSoutenance: '—',
         dateFait: new Date(),
-      });
+      }, branding);
     } catch (e) {
       console.error('Attestation soutenance error:', e);
     } finally {
@@ -489,7 +490,7 @@ function AttestationsSection({ student, userProfile, groupe }) {
         anneeAcademique: student?.anneeAcademique || '—',
         dateDeliberation: '—',
         dateFait: new Date(),
-      });
+      }, branding);
     } catch (e) {
       console.error('Attestation réussite error:', e);
     } finally {
@@ -500,7 +501,7 @@ function AttestationsSection({ student, userProfile, groupe }) {
   const handleFiche = async () => {
     setDownloading('fiche');
     try {
-      await generateFicheApprenant(student, userProfile, groupe);
+      await generateFicheApprenant(student, userProfile, groupe, branding);
     } catch (e) {
       console.error('Fiche apprenant error:', e);
     } finally {

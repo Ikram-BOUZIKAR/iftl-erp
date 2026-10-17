@@ -487,11 +487,12 @@ export default function HelpGuide({ role = 'admin', onClose }) {
   const [downloading, setDownloading] = useState(false);
 
   const filtered = search.trim()
-    ? guide.sections.filter(s =>
-        s.title.toLowerCase().includes(search.toLowerCase()) ||
-        s.description.toLowerCase().includes(search.toLowerCase()) ||
-        s.steps.some(step => step.label.toLowerCase().includes(search.toLowerCase()) || step.detail.toLowerCase().includes(search.toLowerCase()))
-      )
+    ? guide.sections.filter(s => {
+        const q = search.toLowerCase();
+        return (s.title || '').toLowerCase().includes(q) ||
+          (s.description || '').toLowerCase().includes(q) ||
+          (s.steps || []).some(step => (step.label || '').toLowerCase().includes(q) || (step.detail || '').toLowerCase().includes(q));
+      })
     : guide.sections;
 
   const handleDownload = async () => {

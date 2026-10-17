@@ -9,6 +9,7 @@ import { useConfirm } from '../UI/ConfirmDialog';
 import { useGroupes } from '../../hooks/useData';
 import { generateDocumentAdministratif } from '../../services/pdfService';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,7 @@ export default function DocumentsPage() {
   const confirm = useConfirm();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const { t } = useTranslation();
+  const { branding } = useBranding();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -285,7 +287,7 @@ export default function DocumentsPage() {
 
   const handleImprimer = (doc_) => {
     try {
-      generateDocumentAdministratif(doc_);
+      generateDocumentAdministratif(doc_, branding);
     } catch (err) {
       toast.error('Erreur lors de la génération du PDF : ' + err.message);
     }

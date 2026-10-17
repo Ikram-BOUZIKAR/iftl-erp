@@ -9,21 +9,62 @@ const INSTITUTE_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
 const INSTITUTE_SHORT = INSTITUTE_NAME.split(/\s+/).slice(0, 2).join(' ');
 const IS_DEMO = import.meta.env.MODE === 'demo';
 
-// ─── Brand constants — Direction B (Impulsion) ────────────────────────────────
+// ─── Brand helpers ────────────────────────────────────────────────────────────
 
-const BRAND = {
-  blue: [27, 20, 100],        // #1B1464 violet foncé
-  darkBlue: [18, 12, 72],     // violet très foncé
-  yellow: [255, 107, 53],     // #FF6B35 corail (accent)
-  green: [0, 149, 125],       // #00957D teal foncé
-  lightBlue: [237, 235, 254], // violet très clair (fonds info)
-  white: [255, 255, 255],
-  black: [26, 26, 46],        // #1A1A2E
-  grey: [107, 114, 128],      // #6B7280
-  lightGrey: [244, 245, 247],
-  coral: [255, 107, 53],      // #FF6B35
-  teal: [0, 201, 167],        // #00C9A7
-};
+function hexToRgbArr(hex) {
+  const h = (hex || '#1B1464').replace('#', '');
+  const full = h.length === 3
+    ? h.split('').map(c => c + c).join('')
+    : h;
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+function darkenRgb([r, g, b], amt = 30) {
+  return [Math.max(0, r - amt), Math.max(0, g - amt), Math.max(0, b - amt)];
+}
+
+function lightenToTint([r, g, b], mix = 0.92) {
+  return [
+    Math.round(r + (255 - r) * mix),
+    Math.round(g + (255 - g) * mix),
+    Math.round(b + (255 - b) * mix),
+  ];
+}
+
+// Constantes Direction B par défaut (fallback si aucun branding fourni)
+const BRAND_DEFAULT_PRIMARY = '#1B1464';
+const BRAND_DEFAULT_ACCENT  = '#FF6B35';
+
+function buildBrand(branding) {
+  const primary = hexToRgbArr(branding?.primaryColor || BRAND_DEFAULT_PRIMARY);
+  const accent  = hexToRgbArr(branding?.accentColor  || BRAND_DEFAULT_ACCENT);
+  return {
+    blue:      primary,
+    darkBlue:  darkenRgb(primary, 25),
+    yellow:    accent,           // accent = barre colorée (ancien "yellow")
+    green:     darkenRgb(accent, 20),
+    lightBlue: lightenToTint(primary, 0.92),
+    white:     [255, 255, 255],
+    black:     [26, 26, 46],
+    grey:      [107, 114, 128],
+    lightGrey: [244, 245, 247],
+    coral:     accent,           // alias
+    teal:      [0, 201, 167],
+  };
+}
+
+// BRAND global (Direction B) — utilisé par les helpers partagés via closure
+// Chaque fonction exportée appelle _setBrand(branding) en entrée pour le surcharger
+let BRAND = buildBrand(null);
+
+function _setBrand(branding) {
+  if (branding) BRAND = buildBrand(branding);
+  else BRAND = buildBrand(null);
+}
 
 const STATUT_LABELS = {
   present: 'P',
@@ -198,7 +239,8 @@ function sectionTitle(doc, text, y) {
  * @param {object} facture - Firestore facture document
  * @param {object} etudiant - { nom, prenom, cin, groupeId }
  */
-export function generateRecu(facture, etudiant, devise = 'MAD') {
+export function generateRecu(facture, etudiant, devise = 'MAD', branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
@@ -336,7 +378,8 @@ export function generateRecu(facture, etudiant, devise = 'MAD') {
  * @param {Array}  bulletin - [{ moduleName, coeff, notes:[{evalTitre, evalType, evalCoeff, note, absent, bareme}], moyenne }]
  * @param {string} anneeAcad - e.g. '2025-2026'
  */
-export function generateBulletin(student, groupeNom, bulletin, anneeAcad = '2025-2026') {
+export function generateBulletin(student, groupeNom, bulletin, anneeAcad = '2025-2026', branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
@@ -544,7 +587,8 @@ function toMinutes(hhmm) {
  * @param {Date[]} weekDays     - Array of 6 Date objects (Mon–Sat)
  * @param {string} groupeNom   - (legacy) Active group name for title
  */
-export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, intervenants, modules, weekLabel, weekDays, groupeNom) {
+export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, intervenants, modules, weekLabel, weekDays, groupeNom, branding = null) {
+  _setBrand(branding);
   // Normalize: new format = [{groupe, sessions}], old format = sessions array
   const isNewFormat = Array.isArray(sessionsByGroupOrSessions)
     && sessionsByGroupOrSessions.length > 0
@@ -860,7 +904,8 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
 
 // ─── Legacy exports (kept intact) ────────────────────────────────────────────
 
-export function generateFeuillEmargement({ session, students, presences, intervenant, groupe }) {
+export function generateFeuillEmargement({ session, students, presences, intervenant, groupe }, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const dateStr = session.date
@@ -969,7 +1014,8 @@ export function generateFeuillEmargement({ session, students, presences, interve
   doc.save(filename);
 }
 
-export function generateAbsenceReport({ students, absencesByStudent, academicYear }) {
+export function generateAbsenceReport({ students, absencesByStudent, academicYear }, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
   const subtitle = `Année académique : ${academicYear || '—'} · Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm')}`;
@@ -1022,7 +1068,8 @@ export function generateAbsenceReport({ students, absencesByStudent, academicYea
  * @param {object} notesByStudent - { studentId: { moduleId: { moyenne, notes:[{type,note,bareme,absent}] } } }
  * @param {string} anneeAcad
  */
-export function generatePV(groupe, students, modules, notesByStudent, anneeAcad = '2025-2026') {
+export function generatePV(groupe, students, modules, notesByStudent, anneeAcad = '2025-2026', branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const autoTableMod = require('jspdf-autotable');
   const autoTable = autoTableMod.default || autoTableMod;
@@ -1214,7 +1261,8 @@ function moyGenFromModules(modules) {
  * @param {Array}  modules  [{ ref?, nom, note, coeff }]
  * @param {object} summary  { moyenneGenerale?, mention?, decision? }  — overrides computed values if provided
  */
-export function generateReleve1A(student, info, modules, summary = {}) {
+export function generateReleve1A(student, info, modules, summary = {}, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const annee = info.anneeAcademique || '2025-2026';
@@ -1363,7 +1411,8 @@ export function generateReleve1A(student, info, modules, summary = {}) {
  *   moyEFF,          // Examen de Fin de Formation (soutenance)
  * }
  */
-export function generateReleve2A(student, info, modules, summary2A = {}) {
+export function generateReleve2A(student, info, modules, summary2A = {}, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const annee = info.anneeAcademique || '2025-2026';
@@ -1537,7 +1586,8 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
  *   datesSoutenance : human-readable string, e.g. 'les 12 et 13 juin 2027'
  *   dateFait : Date or string
  */
-export function generateAttestationSoutenance(student, opts = {}) {
+export function generateAttestationSoutenance(student, opts = {}, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   drawPageBorder(doc);
   const w = doc.internal.pageSize.getWidth();
@@ -1651,7 +1701,8 @@ export function generateAttestationSoutenance(student, opts = {}) {
  * @param {object} student  - { nom, prenom, dateNaissance, cin, codeApprenant }
  * @param {object} opts     - { niveau, filiere, anneeAcademique, dateDeliberation, dateFait, competencesMetier? }
  */
-export function generateAttestationReussite(student, opts = {}) {
+export function generateAttestationReussite(student, opts = {}, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   drawPageBorder(doc);
   const w = doc.internal.pageSize.getWidth();
@@ -1866,7 +1917,8 @@ function drawSignatureBlock(doc, y, dateFait) {
 
 // ─── Document administratif générique ────────────────────────────────────────
 
-export function generateDocumentAdministratif(doc_) {
+export function generateDocumentAdministratif(doc_, branding = null) {
+  _setBrand(branding);
   const TYPE_LABELS = {
     attestation_scolarite: 'ATTESTATION DE SCOLARITÉ',
     attestation_stage: 'ATTESTATION DE STAGE',
@@ -1973,7 +2025,8 @@ export function generateDocumentAdministratif(doc_) {
  * @param {object} userProfile - Firestore `users` document fields
  * @param {object} groupe    - { nom } — group name
  */
-export async function generateFicheApprenant(student, userProfile, groupe) {
+export async function generateFicheApprenant(student, userProfile, groupe, branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
@@ -2141,7 +2194,8 @@ export async function generateFicheApprenant(student, userProfile, groupe) {
  * @param {object[]} factures - Filtered factures array
  * @param {object}   opts     - { anneeAcademique, filterStatut, filterFiliere, title }
  */
-export function generateSuiviPaiementPDF(factures, opts = {}, devise = 'MAD') {
+export function generateSuiviPaiementPDF(factures, opts = {}, devise = 'MAD', branding = null) {
+  _setBrand(branding);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });

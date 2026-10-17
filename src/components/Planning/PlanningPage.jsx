@@ -12,6 +12,7 @@ import CalendrierAcademique from './CalendrierAcademique';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generatePlanningPDF, GROUP_PALETTES } from '../../services/pdfService';
+import { useBranding } from '../../contexts/BrandingContext';
 import { useTranslation } from 'react-i18next';
 
 // ── Créneaux horaires par jour (0=Lun … 6=Dim) ───────────────────────────────
@@ -102,6 +103,7 @@ export default function PlanningPage() {
   const { t }    = useTranslation();
   const toast   = useToast();
   const confirm = useConfirm();
+  const { branding } = useBranding();
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const { data: groupes }         = useGroupes();
@@ -616,7 +618,7 @@ function PlanningExportModal({ groupes, allSessions, intervenants, modules, week
       groupe: g,
       sessions: allSessions.filter(s => s.groupeId === g.id),
     }));
-    generatePlanningPDF(sessionsByGroup, groupes, intervenants, modules, weekLabelFull, weekDays);
+    generatePlanningPDF(sessionsByGroup, groupes, intervenants, modules, weekLabelFull, weekDays, undefined, branding);
     onClose();
   };
 

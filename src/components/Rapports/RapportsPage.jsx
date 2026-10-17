@@ -3,6 +3,7 @@ import { useStudents, useSessions, useGroupes } from '../../hooks/useData';
 import { presencesService } from '../../services/firestore';
 import { computeStudentAbsencesByModule, getAlertColor } from '../../services/absenceService';
 import { generateAbsenceReport } from '../../services/pdfService';
+import { useBranding } from '../../contexts/BrandingContext';
 import { useAppStore } from '../../store/appStore';
 import { Link } from 'react-router-dom';
 import { useToast } from '../UI/Toast';
@@ -19,6 +20,7 @@ function SearchIcon() {
 export default function RapportsPage() {
   const toast = useToast();
   const { t } = useTranslation();
+  const { branding } = useBranding();
   const { data: students } = useStudents();
   const { data: sessions } = useSessions();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
@@ -66,7 +68,7 @@ export default function RapportsPage() {
     try {
       const absencesByStudent = {};
       for (const s of filtered) absencesByStudent[s.id] = s.byModule;
-      generateAbsenceReport({ students: filtered, absencesByStudent, academicYear });
+      generateAbsenceReport({ students: filtered, absencesByStudent, academicYear }, branding);
       toast.success('Rapport PDF généré avec succès');
     } catch (err) {
       toast.error('Erreur lors de la génération : ' + err.message);
