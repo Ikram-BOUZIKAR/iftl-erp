@@ -270,9 +270,27 @@ export const candidaturesService = {
     });
     return { id: docRef.id, ...data };
   },
-  async updateStatus(id, newStatus) {
+  async updateStatus(id, newStatus, { ancienStatut = null, note = null, adminId = null } = {}) {
     await updateDoc(doc(db, 'candidatures', id), { statut: newStatus, dateTraitement: new Date() });
+    if (ancienStatut !== null) {
+      await historiqueService.add(id, { action: 'status_change', ancienStatut, nouveauStatut: newStatus, note, adminId });
+    }
     return { id, statut: newStatus };
+  },
+  async requestComplement(id, { docsManquants = [], deadline = null, note = null, ancienStatut = null, adminId = null } = {}) {
+    await updateDoc(doc(db, 'candidatures', id), {
+      statut: 'incomplet',
+      complementDocs: docsManquants,
+      complementDeadline: deadline,
+      complementNote: note,
+      dateTraitement: new Date(),
+    });
+    await historiqueService.add(id, { action: 'complement_request', ancienStatut, nouveauStatut: 'incomplet', docsManquants, note, adminId });
+    return { id, statut: 'incomplet' };
+  },
+  async updateDocs(id, docsValidation) {
+    await updateDoc(doc(db, 'candidatures', id), { docsValidation, updatedAt: new Date() });
+    return { id, docsValidation };
   },
   async convertToStudent(candidatureId, extraData = {}) {
     const candSnap = await getDoc(doc(db, 'candidatures', candidatureId));
@@ -295,6 +313,20 @@ export const candidaturesService = {
     await updateDoc(doc(db, 'candidatures', candidatureId), { statut: 'accepte', studentId: studentRef.id, dateTraitement: new Date() });
     return { id: studentRef.id, ...studentData };
   }
+};
+
+// ─── Historique candidature ───────────────────────────────────────────────────
+export const historiqueService = {
+  async add(candidatureId, entry) {
+    const col = collection(db, 'candidatures', candidatureId, 'historique_candidature');
+    await addDoc(col, { ...entry, createdAt: new Date() });
+  },
+  async getAll(candidatureId) {
+    const col = collection(db, 'candidatures', candidatureId, 'historique_candidature');
+    const q = query(col, orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
 };
 
 // ─── Affectations (Masse Horaire) ────────────────────────────────────────────
@@ -362,6 +394,7 @@ export default {
   sessions: sessionsService,
   presences: presencesService,
   candidatures: candidaturesService,
+  historique: historiqueService,
   affectations: affectationsService,
   logs: logsService
 };

@@ -86,6 +86,12 @@ service cloud.firestore {
       allow create: if true;  // formulaire public
       allow update: if hasRole(['admin', 'scolarite']);
       allow delete: if hasRole(['admin']);
+
+      match /historique_candidature/{histId} {
+        allow read: if hasRole(['admin', 'scolarite', 'direction']);
+        allow create: if hasRole(['admin', 'scolarite']);
+        allow update, delete: if false;
+      }
     }
 
     // Index CIN→docId pour le portail suivi sans exposer la collection entière
