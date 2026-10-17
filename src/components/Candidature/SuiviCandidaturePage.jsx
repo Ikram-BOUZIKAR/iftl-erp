@@ -3,19 +3,34 @@ import { useTranslation } from 'react-i18next';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
+// ── Statuts (nouveaux + aliases legacy) ──────────────────────────────────────
 const STATUTS = {
-  recu:          { label: 'Reçu',          color: '#2563eb', step: 1 },
-  en_cours:      { label: 'En traitement', color: '#d97706', step: 2 },
-  accepte:       { label: 'Admis',         color: '#16a34a', step: 3 },
-  refuse:        { label: 'Refusé',        color: '#dc2626', step: 3 },
-  liste_attente: { label: 'Liste attente', color: '#7c3aed', step: 3 },
-  doublon:       { label: 'Doublon',       color: '#64748b', step: 3 },
+  soumise:        { label: 'Soumise',           color: '#2563eb', step: 1 },
+  en_verification:{ label: 'En vérification',   color: '#d97706', step: 2 },
+  incomplet:      { label: 'Compléments requis', color: '#ea580c', step: 2 },
+  complet:        { label: 'Dossier complet',   color: '#0d9488', step: 3 },
+  non_eligible:   { label: 'Non éligible',      color: '#64748b', step: 5 },
+  valide:         { label: 'Dossier validé',    color: '#059669', step: 4 },
+  convoque:       { label: 'Convoqué(e)',       color: '#7c3aed', step: 4 },
+  admis:          { label: 'Admis(e) ✓',       color: '#16a34a', step: 5 },
+  liste_attente:  { label: 'Liste d\'attente',  color: '#7c3aed', step: 5 },
+  refuse:         { label: 'Refusé(e)',         color: '#dc2626', step: 5 },
+  retire:         { label: 'Dossier retiré',    color: '#64748b', step: 5 },
+  brouillon:      { label: 'Brouillon',         color: '#94a3b8', step: 0 },
+  // Legacy
+  recu:           { label: 'Soumise',           color: '#2563eb', step: 1 },
+  en_cours:       { label: 'En vérification',   color: '#d97706', step: 2 },
+  accepte:        { label: 'Admis(e) ✓',       color: '#16a34a', step: 5 },
+  doublon:        { label: 'Doublon',           color: '#64748b', step: 5 },
 };
 
+// ── Timeline : 5 étapes ───────────────────────────────────────────────────────
 const TIMELINE = [
-  { key: 'recu',     label: 'Dossier reçu' },
-  { key: 'en_cours', label: 'En traitement' },
-  { key: 'final',    label: 'Décision finale' },
+  { key: 'soumise',       label: 'Soumis' },
+  { key: 'verification',  label: 'Vérification' },
+  { key: 'complet',       label: 'Complet' },
+  { key: 'valide',        label: 'Validé' },
+  { key: 'decision',      label: 'Décision' },
 ];
 
 const DOCS_LABELS = {
@@ -33,16 +48,75 @@ function fmtDate(val) {
   return new Date(val).toLocaleDateString('fr-FR');
 }
 
+// ── Messages contextuels selon le statut ──────────────────────────────────────
+function StatusMessage({ candidature }) {
+  const st = candidature.statut;
+
+  if (st === 'admis' || st === 'accepte') return (
+    <div className="rounded-2xl p-4 mb-4 border border-green-200 bg-green-50">
+      <p className="text-xs font-bold text-green-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+        🎓 Félicitations !
+      </p>
+      <p className="text-sm text-green-800 leading-relaxed">
+        Votre candidature a été acceptée. L&apos;établissement vous contactera prochainement pour les démarches d&apos;inscription.
+      </p>
+    </div>
+  );
+
+  if (st === 'convoque') return (
+    <div className="rounded-2xl p-4 mb-4 border border-purple-200 bg-purple-50">
+      <p className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+        📅 Convocation
+      </p>
+      <p className="text-sm text-purple-800 leading-relaxed">
+        Vous avez été convoqué(e) pour un entretien ou un test d&apos;admission. Consultez vos emails ou contactez l&apos;établissement pour les détails.
+      </p>
+    </div>
+  );
+
+  if (st === 'valide') return (
+    <div className="rounded-2xl p-4 mb-4 border border-emerald-200 bg-emerald-50">
+      <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1">
+        ✔ Dossier validé
+      </p>
+      <p className="text-sm text-emerald-800 leading-relaxed">
+        Votre dossier a été validé. Vous serez prochainement convoqué(e) pour la suite du processus d&apos;admission.
+      </p>
+    </div>
+  );
+
+  if (st === 'refuse') return (
+    <div className="rounded-2xl p-4 mb-4 border border-red-200 bg-red-50">
+      <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Décision défavorable</p>
+      <p className="text-sm text-red-700 leading-relaxed">
+        Votre candidature n&apos;a pas été retenue pour cette session.
+        {candidature.motifRefus && <span className="block mt-1 font-medium">Motif : {candidature.motifRefus}</span>}
+      </p>
+    </div>
+  );
+
+  if (st === 'liste_attente') return (
+    <div className="rounded-2xl p-4 mb-4 border border-purple-200 bg-purple-50">
+      <p className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1">Liste d&apos;attente</p>
+      <p className="text-sm text-purple-800 leading-relaxed">
+        Votre dossier est sur liste d&apos;attente. Vous serez contacté(e) en cas de place disponible.
+      </p>
+    </div>
+  );
+
+  return null;
+}
+
 export default function SuiviCandidaturePage() {
   const { t } = useTranslation();
-  const params = new URLSearchParams(window.location.search);
+  const params    = new URLSearchParams(window.location.search);
   const cinFromUrl = params.get('cin') || '';
 
-  const [inputCin, setInputCin]     = useState(cinFromUrl);
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState('');
+  const [inputCin, setInputCin]       = useState(cinFromUrl);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState('');
   const [candidature, setCandidature] = useState(null);
-  const [searched, setSearched]     = useState(false);
+  const [searched, setSearched]       = useState(false);
 
   useEffect(() => {
     if (cinFromUrl) handleSearch(cinFromUrl);
@@ -57,7 +131,6 @@ export default function SuiviCandidaturePage() {
     setCandidature(null);
     setSearched(true);
     try {
-      // Lookup via index first (O(1) get, no collection listing)
       const indexSnap = await getDoc(doc(db, 'candidature_index', cinNorm));
       const candidatureId = indexSnap.exists() ? indexSnap.data().candidatureId : cinNorm;
       const candidatureSnap = await getDoc(doc(db, 'candidatures', candidatureId));
@@ -75,7 +148,7 @@ export default function SuiviCandidaturePage() {
 
   const st     = candidature ? (STATUTS[candidature.statut] || STATUTS.recu) : null;
   const stStep = st?.step || 1;
-  const isFinal = candidature && ['accepte', 'refuse', 'liste_attente', 'doublon'].includes(candidature.statut);
+  const isFinalStep = candidature && ['admis','accepte','refuse','liste_attente','retire','non_eligible','doublon'].includes(candidature.statut);
 
   return (
     <div className="min-h-screen py-10 px-4" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e8f4fd 100%)' }}>
@@ -90,7 +163,7 @@ export default function SuiviCandidaturePage() {
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900">{t('candidaturePublic.track_title')}</h1>
-          <p className="text-slate-400 text-sm mt-1">Consultez l'état de votre dossier</p>
+          <p className="text-slate-400 text-sm mt-1">Consultez l&apos;état de votre dossier</p>
         </div>
 
         {/* CIN search */}
@@ -112,7 +185,7 @@ export default function SuiviCandidaturePage() {
               className="px-5 py-2.5 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-bold rounded-xl transition disabled:opacity-60 flex items-center gap-2"
             >
               {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {loading ? t('candidaturePublic.track_search') : t('candidaturePublic.track_search')}
+              {t('candidaturePublic.track_search')}
             </button>
           </div>
           {error && (
@@ -141,41 +214,43 @@ export default function SuiviCandidaturePage() {
                     <p className="text-white font-bold text-base truncate">{candidature.prenom} {candidature.nom}</p>
                     <p className="text-white/60 text-xs truncate">{candidature.filiere || candidature.niveauFormation || '—'}</p>
                   </div>
-                  <span className="ml-auto shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-white/20 text-white">
+                  <span className="ml-auto shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-white/25 text-white">
                     {st?.label}
                   </span>
                 </div>
               </div>
 
-              {/* Timeline */}
-              <div className="p-5">
+              {/* Timeline 5 étapes */}
+              <div className="px-4 pt-5 pb-4">
                 <div className="flex items-start">
-                  {TIMELINE.map((t, i) => {
-                    const isDone   = stStep > i + 1 || (stStep === i + 1 && isFinal && i === 2);
-                    const isActive = stStep === i + 1;
-                    const isFinalStep = i === 2;
-                    const activeSt = isFinalStep && isFinal ? st : { color: '#005989', label: t.label };
-                    const dotBg = (isDone || isActive) ? activeSt.color : undefined;
+                  {TIMELINE.map((step, i) => {
+                    const stepNum  = i + 1;
+                    const isDone   = stStep > stepNum;
+                    const isActive = stStep === stepNum;
+                    const isFinal  = i === TIMELINE.length - 1;
+                    const dotColor = isDone || isActive
+                      ? (isFinal && isFinalStep ? st?.color : '#005989')
+                      : undefined;
 
                     return (
-                      <div key={t.key} className="flex items-start flex-1">
-                        <div className="flex flex-col items-center gap-1.5 shrink-0">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-                            style={{ background: isDone || isActive ? dotBg : '#f1f5f9' }}>
+                      <div key={step.key} className="flex items-start flex-1">
+                        <div className="flex flex-col items-center gap-1 shrink-0">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center transition-all"
+                            style={{ background: isDone || isActive ? dotColor : '#f1f5f9' }}>
                             {isDone ? (
-                              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
+                              <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
                             ) : isActive ? (
-                              <span className="w-2 h-2 rounded-full bg-white" />
+                              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                             ) : (
                               <span className="w-2 h-2 rounded-full bg-slate-300" />
                             )}
                           </div>
-                          <span className={`text-[10px] font-semibold text-center w-16 leading-tight ${isDone || isActive ? 'text-slate-700' : 'text-slate-400'}`}>
-                            {isFinalStep && isFinal ? activeSt.label : t.label}
+                          <span className={`text-[9px] font-semibold text-center leading-tight w-12 ${isDone || isActive ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {isFinal && isFinalStep ? st?.label : step.label}
                           </span>
                         </div>
                         {i < TIMELINE.length - 1 && (
-                          <div className={`flex-1 h-0.5 mx-2 mt-4 rounded-full transition-all ${stStep > i + 1 ? 'bg-[#005989]' : 'bg-slate-200'}`} />
+                          <div className={`flex-1 h-0.5 mx-1 mt-3.5 rounded-full transition-all ${stStep > stepNum ? 'bg-[#005989]' : 'bg-slate-200'}`} />
                         )}
                       </div>
                     );
@@ -184,45 +259,91 @@ export default function SuiviCandidaturePage() {
               </div>
             </div>
 
-            {/* Admin message */}
+            {/* Message contextuel selon statut */}
+            <StatusMessage candidature={candidature} />
+
+            {/* ── Compléments requis ── */}
+            {candidature.statut === 'incomplet' && candidature.complementDocs?.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4">
+                <p className="text-xs font-bold text-orange-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                  Documents manquants
+                </p>
+                {candidature.complementDeadline && (
+                  <p className="text-xs text-orange-600 mb-2 font-medium">
+                    📅 Date limite : <strong>{fmtDate(candidature.complementDeadline)}</strong>
+                  </p>
+                )}
+                <ul className="space-y-1 mb-3">
+                  {candidature.complementDocs.map(d => (
+                    <li key={d} className="flex items-center gap-2 text-sm text-orange-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+                      {DOCS_LABELS[d] || d}
+                    </li>
+                  ))}
+                </ul>
+                {candidature.complementNote && (
+                  <p className="text-sm text-orange-700 italic border-t border-orange-200 pt-2 mt-2">
+                    &ldquo;{candidature.complementNote}&rdquo;
+                  </p>
+                )}
+                <p className="text-xs text-orange-600 mt-2">
+                  Merci de contacter l&apos;établissement ou de déposer vos documents complétés.
+                </p>
+              </div>
+            )}
+
+            {/* Message de l'établissement */}
             {candidature.adminMessage && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
                 <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  Message de l'établissement
+                  Message de l&apos;établissement
                 </p>
                 <p className="text-sm text-amber-800 leading-relaxed">{candidature.adminMessage}</p>
               </div>
             )}
 
-            {/* Documents */}
+            {/* Documents envoyés + état de validation */}
             {candidature.fichierUrls && Object.keys(candidature.fichierUrls).length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-4">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Documents envoyés</p>
                 <div className="space-y-2">
-                  {Object.entries(candidature.fichierUrls).map(([key, url]) => (
-                    <a key={key} href={url} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 hover:border-[#005989]/30 hover:bg-blue-50/30 transition group">
-                      <span className="w-7 h-7 rounded-lg bg-[#005989]/10 flex items-center justify-center shrink-0">
-                        <svg className="w-3.5 h-3.5 text-[#005989]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </span>
-                      <span className="text-sm text-slate-600 group-hover:text-[#005989] font-medium transition flex-1">
-                        {DOCS_LABELS[key] || key}
-                      </span>
-                      <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#005989] transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                    </a>
-                  ))}
+                  {Object.entries(candidature.fichierUrls).map(([key, url]) => {
+                    const valState = candidature.docsValidation?.[key];
+                    const valStyles = {
+                      valide:     { cls: 'text-green-600 bg-green-50',  label: '✓ Validé' },
+                      refuse:     { cls: 'text-red-500 bg-red-50',     label: '✗ Rejeté' },
+                      en_attente: { cls: 'text-amber-600 bg-amber-50', label: '… En attente' },
+                    };
+                    const vs = valStyles[valState];
+                    return (
+                      <div key={key} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100">
+                        <span className="w-7 h-7 rounded-lg bg-[#005989]/10 flex items-center justify-center shrink-0">
+                          <svg className="w-3.5 h-3.5 text-[#005989]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </span>
+                        <span className="text-sm text-slate-600 font-medium flex-1">{DOCS_LABELS[key] || key}</span>
+                        <div className="flex items-center gap-2">
+                          {vs && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${vs.cls}`}>{vs.label}</span>
+                          )}
+                          <a href={url} target="_blank" rel="noreferrer"
+                            className="text-[#005989] hover:underline text-xs">Voir</a>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Info summary */}
+            {/* Infos du dossier */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-5">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Informations du dossier</p>
               <div className="space-y-2.5 text-sm">
                 {[
                   { label: 'Date de soumission', val: fmtDate(candidature.createdAt) },
-                  { label: 'Filière souhaitée',  val: candidature.filiere || '—' },
+                  { label: 'Filière souhaitée',  val: candidature.filiere || candidature.niveauFormation || '—' },
                   { label: 'Type de formation',  val: candidature.programType || '—' },
                   { label: 'Année d\'entrée',    val: candidature.anneeEntree || '—' },
                   { label: 'E-mail',             val: candidature.email },
