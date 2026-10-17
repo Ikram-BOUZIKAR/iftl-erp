@@ -129,8 +129,9 @@ jobs:
           npx firebase-tools@latest deploy --only firestore:rules --project edupilot-demo --non-interactive || true
           # Fallback: deploy rules via Firebase Security Rules REST API
           pip3 install google-auth google-auth-httplib2 -q 2>/dev/null || true
-          python3 -c "
+          python3 << 'PYEOF'
           import json, os
+          import urllib.request, urllib.error
           try:
             import google.auth, google.auth.transport.requests
             from google.oauth2 import service_account
@@ -140,19 +141,41 @@ jobs:
             creds.refresh(req)
             token = creds.token
             rules = open('firestore.rules').read()
-            import urllib.request
             project = 'edupilot-demo'
-            body = json.dumps({'source':{'files':[{'content':rules,'name':'firestore.rules'}]}}).encode()
-            r = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/rulesets',data=body,headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'})
-            resp = json.loads(urllib.request.urlopen(r).read())
-            ruleset_name = resp['name']
-            body2 = json.dumps({'name':f'projects/{project}/releases/cloud.firestore','rulesetName':ruleset_name}).encode()
-            r2 = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/releases/cloud.firestore',data=body2,method='PATCH',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'})
-            urllib.request.urlopen(r2)
+            headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+            # Step 1: Create ruleset
+            body = json.dumps({'source': {'files': [{'content': rules, 'name': 'firestore.rules'}]}}).encode()
+            r = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/rulesets', data=body, headers=headers)
+            try:
+              resp = json.loads(urllib.request.urlopen(r).read())
+              ruleset_name = resp['name']
+              print('Ruleset created:', ruleset_name)
+            except urllib.error.HTTPError as e:
+              print('Ruleset create error', e.code, ':', e.read().decode()[:500])
+              raise
+
+            # Step 2: Update release — try PATCH first, fall back to POST (create)
+            release_body = json.dumps({'name': f'projects/{project}/releases/cloud.firestore', 'rulesetName': ruleset_name}).encode()
+            try:
+              r2 = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/releases/cloud.firestore', data=release_body, method='PATCH', headers=headers)
+              urllib.request.urlopen(r2)
+              print('Release PATCHED OK')
+            except urllib.error.HTTPError as e:
+              err = e.read().decode()[:500]
+              print(f'PATCH failed ({e.code}): {err} — trying POST create')
+              r3 = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/releases', data=release_body, method='POST', headers=headers)
+              try:
+                urllib.request.urlopen(r3)
+                print('Release CREATED OK')
+              except urllib.error.HTTPError as e2:
+                print('POST create also failed', e2.code, ':', e2.read().decode()[:500])
+                raise
+
             print('Firestore rules deployed via REST API OK')
           except Exception as e:
             print('REST API rules deploy failed (non-blocking):', e)
-          "
+          PYEOF
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
 
