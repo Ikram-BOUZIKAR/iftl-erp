@@ -110,6 +110,7 @@ jobs:
           FIREBASE_TOKEN_DEMO: ${{ secrets.FIREBASE_TOKEN_DEMO }}
 
       - name: Deploy Firestore rules to edupilot-demo
+        continue-on-error: true
         run: npx firebase-tools@latest deploy --only firestore:rules --project edupilot-demo --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
