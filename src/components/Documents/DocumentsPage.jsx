@@ -203,7 +203,7 @@ function ModalNouveauDocument({ groupes, totalDocuments, onClose, onSaved }) {
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
             >
               <option value="">— Sélectionner un groupe —</option>
-              {uniqueGroupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+              {groupes.map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
             </select>
           </div>
 

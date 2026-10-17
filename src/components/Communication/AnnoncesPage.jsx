@@ -219,7 +219,7 @@ function AnnonceForm({ groupes, onClose, onSaved }) {
               Groupes ciblés <span className="text-slate-400 font-normal">(laisser vide = tous les groupes)</span>
             </label>
             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200">
-              {uniqueGroupes.map(g => (
+              {groupes.map(g => (
                 <label
                   key={g.id}
                   className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border cursor-pointer transition-colors ${
