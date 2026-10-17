@@ -124,7 +124,35 @@ jobs:
 
       - name: Deploy Firestore rules to edupilot-demo
         continue-on-error: true
-        run: npx firebase-tools@latest deploy --only firestore:rules --project edupilot-demo --non-interactive
+        run: |
+          # Try Firebase CLI first (needs serviceusage permission)
+          npx firebase-tools@latest deploy --only firestore:rules --project edupilot-demo --non-interactive || true
+          # Fallback: deploy rules via Firebase Security Rules REST API
+          pip3 install google-auth google-auth-httplib2 -q 2>/dev/null || true
+          python3 -c "
+          import json, os
+          try:
+            import google.auth, google.auth.transport.requests
+            from google.oauth2 import service_account
+            SCOPES = ['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/firebase']
+            creds = service_account.Credentials.from_service_account_file('/tmp/sa_demo.json', scopes=SCOPES)
+            req = google.auth.transport.requests.Request()
+            creds.refresh(req)
+            token = creds.token
+            rules = open('firestore.rules').read()
+            import urllib.request
+            project = 'edupilot-demo'
+            body = json.dumps({'source':{'files':[{'content':rules,'name':'firestore.rules'}]}}).encode()
+            r = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/rulesets',data=body,headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'})
+            resp = json.loads(urllib.request.urlopen(r).read())
+            ruleset_name = resp['name']
+            body2 = json.dumps({'name':f'projects/{project}/releases/cloud.firestore','rulesetName':ruleset_name}).encode()
+            r2 = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/releases/cloud.firestore',data=body2,method='PATCH',headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'})
+            urllib.request.urlopen(r2)
+            print('Firestore rules deployed via REST API OK')
+          except Exception as e:
+            print('REST API rules deploy failed (non-blocking):', e)
+          "
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
 

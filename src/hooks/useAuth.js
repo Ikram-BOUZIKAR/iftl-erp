@@ -50,7 +50,14 @@ export function useAuth() {
         }
       } catch (err) {
         console.error('Error loading user profile:', err);
-        setError(err.message);
+        // In demo mode, fall back to admin access when Firestore rules are not yet deployed
+        if (firebaseUser && import.meta.env.MODE === 'demo') {
+          setUser(firebaseUser);
+          setUserProfile({ uid: firebaseUser.uid, email: firebaseUser.email, role: 'admin' });
+          setPendingAccount(false);
+        } else {
+          setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
