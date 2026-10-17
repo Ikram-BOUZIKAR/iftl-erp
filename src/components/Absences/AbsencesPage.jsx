@@ -14,6 +14,7 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { getAlertLevel, computeAbsenceScore } from '../../services/absenceService';
 import { sendAlertAbsenceEmail } from '../../services/emailService';
+import { sendSmsAbsenceAlerts, sendWhatsappAbsenceAlerts } from '../../services/smsService';
 import AbsenceNotificationModal from '../Notifications/AbsenceNotificationModal';
 import { useTranslation } from 'react-i18next';
 
@@ -337,38 +338,54 @@ export default function AbsencesPage() {
 
   const [showNotify, setShowNotify] = useState(false);
   const [sendingAlerts, setSendingAlerts] = useState(false);
+  const [notifyChannel, setNotifyChannel] = useState('email');
 
   const handleSendRiskAlerts = async () => {
     setSendingAlerts(true);
     try {
-      // Compute score per student from all enriched presences
       const scoreMap = {};
       for (const row of enriched) {
         const sid = row.studentId;
-        if (!scoreMap[sid]) scoreMap[sid] = { score: 0, student: row.student };
+        if (!scoreMap[sid]) scoreMap[sid] = { score: 0, student: row.student, groupe: row.groupe };
         scoreMap[sid].score += computeAbsenceScore(row.statut);
       }
       const targets = Object.values(scoreMap).filter(({ score }) => score >= 3);
       if (targets.length === 0) { toast.info('Aucun apprenant au-dessus du seuil.'); return; }
+
       let sent = 0, skipped = 0;
       const alertedAt = new Date();
-      for (const { score, student } of targets) {
-        if (!student?.email) { skipped++; continue; }
-        const threshold = score >= 5 ? 5 : 3;
-        const name = `${student.prenom || ''} ${student.nom || ''}`.trim();
-        await sendAlertAbsenceEmail(db, { toEmail: student.email, toName: name, score, threshold });
-        // Write traceability back to all presences for this student
-        const studentPresences = enriched.filter(r => r.studentId === student.id);
-        if (studentPresences.length > 0) {
-          const batch = writeBatch(db);
-          for (const p of studentPresences) {
-            batch.update(doc(db, 'presences', p.id), { alertSentAt: alertedAt, alertScore: score });
+
+      if (notifyChannel === 'email') {
+        for (const { score, student } of targets) {
+          if (!student?.email) { skipped++; continue; }
+          const threshold = score >= 5 ? 5 : 3;
+          const name = `${student.prenom || ''} ${student.nom || ''}`.trim();
+          await sendAlertAbsenceEmail(db, { toEmail: student.email, toName: name, score, threshold });
+          const studentPresences = enriched.filter(r => r.studentId === student.id);
+          if (studentPresences.length > 0) {
+            const batch = writeBatch(db);
+            for (const p of studentPresences) {
+              batch.update(doc(db, 'presences', p.id), { alertSentAt: alertedAt, alertScore: score });
+            }
+            await batch.commit();
           }
-          await batch.commit();
+          sent++;
         }
-        sent++;
+      } else {
+        const studentsPayload = targets.map(({ score, student, groupe }) => ({
+          name: `${student?.prenom || ''} ${student?.nom || ''}`.trim(),
+          phone: student?.telephone || student?.phone || '',
+          score,
+          groupeName: groupe?.nom || '',
+        }));
+        const sendFn = notifyChannel === 'whatsapp' ? sendWhatsappAbsenceAlerts : sendSmsAbsenceAlerts;
+        const result = await sendFn(studentsPayload);
+        sent = result.sent;
+        skipped = result.skipped;
       }
-      toast.success(`${sent} alerte${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} sans email` : ''}`);
+
+      const channelLabel = notifyChannel === 'email' ? 'email' : notifyChannel === 'sms' ? 'SMS' : 'WhatsApp';
+      toast.success(`${sent} alerte${sent > 1 ? 's' : ''} ${channelLabel} envoyée${sent > 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} sans contact` : ''}`);
     } catch (err) {
       toast.error('Erreur : ' + err.message);
     } finally {
@@ -402,10 +419,26 @@ export default function AbsencesPage() {
           <p className="text-slate-500 text-sm mt-0.5">Suivi des présences, retards et justifications</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Channel selector */}
+          <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden text-xs font-semibold">
+            {[
+              { value: 'email', label: '✉ Email' },
+              { value: 'sms', label: '📱 SMS' },
+              { value: 'whatsapp', label: '💬 WhatsApp' },
+            ].map(ch => (
+              <button
+                key={ch.value}
+                onClick={() => setNotifyChannel(ch.value)}
+                className={`px-3 py-1.5 transition-colors ${notifyChannel === ch.value ? 'bg-[#005989] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+              >
+                {ch.label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={handleSendRiskAlerts}
             disabled={sendingAlerts || enriched.length === 0}
-            title="Envoie automatiquement un email aux apprenants ≥ 3 pts d'absence"
+            title="Envoie une alerte aux apprenants ≥ 3 pts d'absence via le canal sélectionné"
             className="inline-flex items-center gap-2 px-4 py-2 border border-amber-400 text-amber-700 hover:bg-amber-50 text-sm font-medium rounded-xl transition-colors disabled:opacity-40"
           >
             {sendingAlerts ? '⏳ Envoi…' : '⚠️ Alerter apprenants à risque'}
