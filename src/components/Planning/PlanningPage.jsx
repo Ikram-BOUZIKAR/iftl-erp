@@ -413,7 +413,7 @@ export default function PlanningPage() {
   const conflictsThisGroup = sessions.filter(s => conflictedSessionIds.has(s.id)).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 108px)', overflow: 'hidden' }}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 bg-white border-b border-slate-200">
         <div>
