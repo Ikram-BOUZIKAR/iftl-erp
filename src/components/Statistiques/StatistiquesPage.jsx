@@ -6,6 +6,8 @@ import {
 import { collection, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../../services/firebase';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency } from '../../utils/currency';
 
 const BLUE   = '#005989';
 const GREEN  = '#c8d45d';
@@ -47,10 +49,6 @@ function fmt(n) {
   if (n == null) return '—';
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
-}
-function fmtEur(n) {
-  if (n == null) return '—';
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 }
 
 function getFiliere(s) {
@@ -510,6 +508,8 @@ function Absences({ absences, groupes, loading }) {
 
 // ── 5. Paiements ─────────────────────────────────────────────────────────────
 function Paiements({ factures, loading }) {
+  const { branding } = useBranding();
+  const fmtMoney = (n) => formatCurrency(n, branding.devise);
   const months = last6Months();
   const revenusParMois = useMemo(() => {
     return months.map(m => {
@@ -545,8 +545,8 @@ function Paiements({ factures, loading }) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="mois" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmtEur(v)} width={80} />
-              <Tooltip content={<CustomTooltip fmt={fmtEur} />} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmtMoney(v)} width={80} />
+              <Tooltip content={<CustomTooltip fmt={fmtMoney} />} />
               <Area type="monotone" dataKey="revenus" name="Revenus" stroke={YELLOW} fill="url(#revGrad)" strokeWidth={2.5} dot={{ r: 4, fill: YELLOW }} />
             </AreaChart>
           </ResponsiveContainer>
@@ -575,9 +575,9 @@ function Paiements({ factures, loading }) {
           <CardTitle>Résumé financier</CardTitle>
           <div className="space-y-3">
             {[
-              { label: 'Total facturé',  value: fmtEur(factures.reduce((a, f) => a + (Number(f.montant) || 0), 0)),       color: BLUE         },
-              { label: 'Total encaissé', value: fmtEur(factures.reduce((a, f) => a + (Number(f.montantPaye) || 0), 0)),    color: '#16a34a'    },
-              { label: 'Reste à payer',  value: fmtEur(factures.reduce((a, f) => a + Math.max(0, (Number(f.montant) || 0) - (Number(f.montantPaye) || 0)), 0)), color: RED },
+              { label: 'Total facturé',  value: fmtMoney(factures.reduce((a, f) => a + (Number(f.montant) || 0), 0)),       color: BLUE         },
+              { label: 'Total encaissé', value: fmtMoney(factures.reduce((a, f) => a + (Number(f.montantPaye) || 0), 0)),    color: '#16a34a'    },
+              { label: 'Reste à payer',  value: fmtMoney(factures.reduce((a, f) => a + Math.max(0, (Number(f.montant) || 0) - (Number(f.montantPaye) || 0)), 0)), color: RED },
               { label: 'Nb factures',    value: String(factures.length),                                                    color: SLATE        },
             ].map((item, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">

@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useBranding } from '../../contexts/BrandingContext';
+import { getCurrencySymbol } from '../../utils/currency';
 
 const NIVEAUX = [
   { value: 'licence_cnam',         label: 'Licence CNAM' },
@@ -76,6 +78,8 @@ function Field({ label, required, error, children }) {
 }
 
 export default function JustificatifPaiementPortail() {
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [form, setForm] = useState({ nom: '', prenom: '', cin: '', telephone: '', niveau: '', montantPaye: '' });
   const [fichier, setFichier] = useState(null);
   const [errors, setErrors]   = useState({});
@@ -235,7 +239,7 @@ export default function JustificatifPaiementPortail() {
                     style={{ ...inputS, borderColor: errors.telephone ? tok.error : tok.border }} />
                 </Field>
 
-                <Field label="Montant payé (MAD)" required error={errors.montantPaye}>
+                <Field label={`Montant payé (${currSymbol})`} required error={errors.montantPaye}>
                   <div style={{ position: 'relative' }}>
                     <input type="number" min="1" step="1" value={form.montantPaye}
                       onChange={e => set('montantPaye', e.target.value)}
@@ -244,7 +248,7 @@ export default function JustificatifPaiementPortail() {
                     <span style={{
                       position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
                       fontSize: 12, fontWeight: 700, color: tok.muted, pointerEvents: 'none',
-                    }}>MAD</span>
+                    }}>{currSymbol}</span>
                   </div>
                 </Field>
 

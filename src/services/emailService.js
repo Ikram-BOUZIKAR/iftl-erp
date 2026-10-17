@@ -9,8 +9,20 @@
 
 import { doc, getDoc, setDoc, addDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 
-const SENDER = { name: 'IFTL', email: 'ikrambouzi@gmail.com' };
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
+
+async function getBrandingSender(db) {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'branding'));
+    const data = snap.exists() ? snap.data() : {};
+    const name  = data.instituteName || 'Institut';
+    const email = data.emailExpediteur || '';
+    if (!email) throw new Error('Aucun email expéditeur configuré. Veuillez le définir dans Paramètres → Personnalisation.');
+    return { name, email };
+  } catch (err) {
+    throw err;
+  }
+}
 
 // ─── Key management ────────────────────────────────────────────────────────────
 
@@ -48,7 +60,7 @@ export async function saveBrevoKey(db, apiKey) {
  * @param {boolean}         [opts.logToFirestore=true]
  */
 export async function sendEmail(db, { to, toName, subject, htmlContent, textContent, logToFirestore = true }) {
-  const apiKey = await getBrevoKey(db);
+  const [apiKey, sender] = await Promise.all([getBrevoKey(db), getBrandingSender(db)]);
 
   // Normalise recipients
   const recipients = Array.isArray(to)
@@ -56,7 +68,7 @@ export async function sendEmail(db, { to, toName, subject, htmlContent, textCont
     : [{ email: to, name: toName || to }];
 
   const payload = {
-    sender: SENDER,
+    sender,
     to: recipients,
     subject,
     htmlContent,
@@ -142,11 +154,11 @@ function btnStyle(color = '#005989') {
 
 // ── Relance paiement ──────────────────────────────────────────────────────────
 
-function relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, facturRef }) {
+function relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, facturRef, devise = 'MAD' }) {
   return baseLayout(`
     <p style="font-size:15px;line-height:1.7">Bonjour <strong>${studentPrenom} ${studentNom}</strong>,</p>
     <p style="line-height:1.7">Nous vous rappelons qu'un règlement de
-      <strong style="color:#005989">${montantDu}&nbsp;MAD</strong>
+      <strong style="color:#005989">${montantDu}&nbsp;${devise}</strong>
       est attendu avant le <strong>${echeance}</strong>.</p>
     <table style="width:100%;border-collapse:collapse;margin:20px 0;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0">
       <tr style="background:#f8fafc">
@@ -155,7 +167,7 @@ function relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, f
       </tr>
       <tr>
         <td style="padding:12px 16px;font-size:13px;color:#64748b;font-weight:600">Montant dû</td>
-        <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#dc2626">${montantDu}&nbsp;MAD</td>
+        <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#dc2626">${montantDu}&nbsp;${devise}</td>
       </tr>
     </table>
     <p style="line-height:1.7">Merci de régulariser votre situation auprès du secrétariat dans les meilleurs délais.</p>
@@ -167,13 +179,13 @@ function relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, f
 /**
  * Sends a payment reminder email.
  */
-export async function sendRelancePaiement(db, { studentNom, studentPrenom, studentEmail, montantDu, echeance, facturRef }) {
+export async function sendRelancePaiement(db, { studentNom, studentPrenom, studentEmail, montantDu, echeance, facturRef, devise = 'MAD' }) {
   return sendEmail(db, {
     to: studentEmail,
     toName: `${studentPrenom} ${studentNom}`,
-    subject: `Rappel de règlement — ${montantDu} MAD — Institut`,
-    htmlContent: relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, facturRef }),
-    textContent: `Bonjour ${studentPrenom} ${studentNom},\n\nNous vous rappelons qu'un règlement de ${montantDu} MAD est attendu avant le ${echeance}.\nRéf. dossier : ${facturRef || '—'}.\n\nMerci de régulariser votre situation auprès du secrétariat.\n\nCordialement,\nL'administration`,
+    subject: `Rappel de règlement — ${montantDu} ${devise} — Institut`,
+    htmlContent: relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, facturRef, devise }),
+    textContent: `Bonjour ${studentPrenom} ${studentNom},\n\nNous vous rappelons qu'un règlement de ${montantDu} ${devise} est attendu avant le ${echeance}.\nRéf. dossier : ${facturRef || '—'}.\n\nMerci de régulariser votre situation auprès du secrétariat.\n\nCordialement,\nL'administration`,
   });
 }
 
@@ -294,7 +306,7 @@ export const EMAIL_TEMPLATES = [
       { key: 'studentNom',    label: 'Nom',         type: 'text',   required: true },
       { key: 'studentPrenom', label: 'Prénom',       type: 'text',   required: true },
       { key: 'studentEmail',  label: 'Email',        type: 'email',  required: true },
-      { key: 'montantDu',     label: 'Montant (MAD)',type: 'number', required: true },
+      { key: 'montantDu',     label: 'Montant',      type: 'number', required: true },
       { key: 'echeance',      label: 'Échéance',     type: 'date',   required: true },
       { key: 'facturRef',     label: 'Réf. dossier', type: 'text',   required: false },
     ],

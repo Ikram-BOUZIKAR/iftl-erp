@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
+import { getCurrencySymbol } from '../../utils/currency';
 import { collection, getDocs, query, where, onSnapshot, addDoc, Timestamp, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import NotesIntervenantPage from '../Notes/NotesIntervenantPage';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -665,6 +667,8 @@ function EmargementTab({ sessions, onOpenEmargement, onNouvelleSeance }) {
 
 // ── Statistiques tab ──────────────────────────────────────────────────────────
 function StatistiquesTab({ sessions, intervenant }) {
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const now = new Date();
 
   const monthlyData = useMemo(() => {
@@ -730,17 +734,17 @@ function StatistiquesTab({ sessions, intervenant }) {
           <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-3">Rémunération estimée</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-3xl font-black">{montantTotal.toLocaleString('fr-MA')} <span className="text-lg font-semibold text-blue-200">DH</span></p>
+              <p className="text-3xl font-black">{montantTotal.toLocaleString('fr-MA')} <span className="text-lg font-semibold text-blue-200">{currSymbol}</span></p>
               <p className="text-blue-300 text-xs mt-0.5">Total heures terminées</p>
             </div>
             <div>
-              <p className="text-3xl font-black">{montantCeMois.toLocaleString('fr-MA')} <span className="text-lg font-semibold text-blue-200">DH</span></p>
+              <p className="text-3xl font-black">{montantCeMois.toLocaleString('fr-MA')} <span className="text-lg font-semibold text-blue-200">{currSymbol}</span></p>
               <p className="text-blue-300 text-xs mt-0.5">Ce mois</p>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
             <span className="text-blue-300 text-xs">Tarif horaire</span>
-            <span className="text-white font-bold text-sm">{tarifHoraire} DH/h</span>
+            <span className="text-white font-bold text-sm">{tarifHoraire} {currSymbol}/h</span>
           </div>
         </div>
       )}
@@ -1026,7 +1030,7 @@ function ProfilTab({ intervenant, auth, sessions }) {
           { label: 'Spécialité',           value: intervenant?.specialite },
           { label: 'Total séances',        value: `${sessions.length} séances` },
           { label: 'Heures enseignées',    value: `${Math.round(totalH * 10) / 10} h` },
-          intervenant?.tauxHoraire ? { label: 'Taux horaire', value: `${intervenant.tauxHoraire} DH/h` } : null,
+          intervenant?.tauxHoraire ? { label: 'Taux horaire', value: `${intervenant.tauxHoraire} ${currSymbol}/h` } : null,
         ].filter(Boolean).filter(r => r.value).map(row => (
           <div key={row.label} className="px-5 py-3 flex items-center justify-between border-b border-slate-50 last:border-0">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{row.label}</span>
@@ -1071,6 +1075,8 @@ function SideNavLink({ tab, active, badge, onClick }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function PortailIntervenant({ auth }) {
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const toast = useToast();
   const [intervenant, setIntervenant]   = useState(null);
   const [sessions, setSessions]         = useState([]);

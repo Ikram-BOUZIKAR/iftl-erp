@@ -5,6 +5,8 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { sendReinscriptionValidee, sendReinscriptionRefusee } from '../../services/emailService';
+import { useBranding } from '../../contexts/BrandingContext';
+import { getCurrencySymbol } from '../../utils/currency';
 
 const STATUTS = {
   en_attente:  { label: 'En attente',   cls: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-500' },
@@ -30,6 +32,8 @@ function StatutBadge({ statut }) {
 
 function DetailDrawer({ rec, onClose, onValidate, onRefuse }) {
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
@@ -67,7 +71,7 @@ function DetailDrawer({ rec, onClose, onValidate, onRefuse }) {
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
             <p className="text-sm font-medium text-amber-800">Frais de réinscription</p>
-            <p className="text-lg font-black text-amber-700">{(rec.montantPaye || 8500).toLocaleString('fr-MA')} DH</p>
+            <p className="text-lg font-black text-amber-700">{(rec.montantPaye || 8500).toLocaleString('fr-MA')} {currSymbol}</p>
           </div>
 
           {/* Justificatif */}
@@ -147,6 +151,8 @@ export default function ReinscriptionAdminPage() {
   const { t } = useTranslation();
   const toast = useToast();
   const confirm = useConfirm();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
 
   // ── Config campagne ─────────────────────────────────────────────────────────
   const [config, setConfig]         = useState(DEFAULT_CONFIG);
@@ -340,7 +346,7 @@ export default function ReinscriptionAdminPage() {
           </div>
           {/* Montant */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Montant (DH)</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Montant ({currSymbol})</label>
             <input type="number" value={configDraft.montant}
               onChange={e => setDraft('montant', Number(e.target.value))}
               className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]" />

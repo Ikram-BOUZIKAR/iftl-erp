@@ -9,6 +9,8 @@ const DEFAULT_BRANDING = {
   logoURL: import.meta.env.VITE_DEFAULT_LOGO_URL || '',
   instituteName: import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || '',
   layout: 'sidebar',
+  devise: 'MAD',
+  emailExpediteur: '',
 };
 
 const BrandingContext = createContext(null);

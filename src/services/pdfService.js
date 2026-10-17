@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import IFTL_LOGO from '../assets/iftlLogo.js';
+import { formatCurrency } from '../utils/currency';
 
 // ─── Brand constants ──────────────────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ function sectionTitle(doc, text, y) {
  * @param {object} facture - Firestore facture document
  * @param {object} etudiant - { nom, prenom, cin, groupeId }
  */
-export function generateRecu(facture, etudiant) {
+export function generateRecu(facture, etudiant, devise = 'MAD') {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
@@ -211,7 +212,7 @@ export function generateRecu(facture, etudiant) {
   const payRows = paiements.map((p, i) => [
     i + 1,
     p.date ? format(new Date(p.date), 'dd/MM/yyyy') : '—',
-    new Intl.NumberFormat('fr-MA').format(Number(p.montant) || 0) + ' DH',
+    formatCurrency(Number(p.montant) || 0, devise),
     MODE_LABELS[p.mode] || p.mode || '—',
     p.reference || '—',
   ]);
@@ -244,7 +245,7 @@ export function generateRecu(facture, etudiant) {
   y = doc.lastAutoTable.finalY + 8;
 
   const w = doc.internal.pageSize.getWidth();
-  const fmt = (n) => new Intl.NumberFormat('fr-MA').format(n) + ' DH';
+  const fmt = (n) => formatCurrency(n, devise);
 
   // ── Statut badge (left) ──
   const statutLabel = resteDu <= 0 ? 'SOLDÉE' : totalPaye > 0 ? 'PARTIELLEMENT PAYÉE' : 'IMPAYÉE';
@@ -2059,13 +2060,12 @@ export async function generateFicheApprenant(student, userProfile, groupe) {
  * @param {object[]} factures - Filtered factures array
  * @param {object}   opts     - { anneeAcademique, filterStatut, filterFiliere, title }
  */
-export function generateSuiviPaiementPDF(factures, opts = {}) {
+export function generateSuiviPaiementPDF(factures, opts = {}, devise = 'MAD') {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const today = format(new Date(), 'dd MMMM yyyy', { locale: fr });
 
-  const fmtDH = (n) =>
-    n != null ? new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(Number(n) || 0) + ' DH' : '—';
+  const fmtDH = (n) => n != null ? formatCurrency(Number(n) || 0, devise) : '—';
   const fmtDate = (str) => (str ? format(new Date(str), 'dd/MM/yyyy') : '—');
 
   // ── KPIs ─────────────────────────────────────────────────────────────────────

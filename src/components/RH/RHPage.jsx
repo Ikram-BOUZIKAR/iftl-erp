@@ -7,6 +7,8 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency } from '../../utils/currency';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -70,10 +72,6 @@ function formatDate(str) {
   return new Date(str).toLocaleDateString('fr-FR');
 }
 
-function formatCurrency(n) {
-  if (n === null || n === undefined || n === '') return '—';
-  return new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(Number(n)) + ' DH';
-}
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
@@ -282,6 +280,8 @@ export default function RHPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
   const [personnel, setPersonnel] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -364,7 +364,7 @@ export default function RHPage() {
         <KpiCard label="Total personnel"  value={total}                 color="border-[#005989]" />
         <KpiCard label="Actifs"           value={actifs}                color="border-emerald-500" />
         <KpiCard label="En congé"         value={enConge}               color="border-amber-400" />
-        <KpiCard label="Masse salariale"  value={formatCurrency(masseSalariale)} sub="salaires actifs" color="border-[#f5c845]" />
+        <KpiCard label="Masse salariale"  value={fmtC(masseSalariale)} sub="salaires actifs" color="border-[#f5c845]" />
       </div>
 
       {/* Filters */}
@@ -443,7 +443,7 @@ export default function RHPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">{formatDate(p.dateEmbauche)}</td>
                     <td className="px-4 py-3 text-right font-medium text-slate-800 hidden lg:table-cell">
-                      {formatCurrency(p.salaireBase)}
+                      {fmtC(p.salaireBase)}
                     </td>
                     <td className="px-4 py-3"><StatutBadge statut={p.statut} /></td>
                     <td className="px-4 py-3 text-right">

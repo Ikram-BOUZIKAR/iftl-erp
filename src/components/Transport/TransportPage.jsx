@@ -7,6 +7,8 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -131,10 +133,6 @@ function isRevisionSoon(dateStr) {
   return d !== null && d <= 30;
 }
 
-function formatCurrency(n) {
-  if (n === null || n === undefined) return '—';
-  return new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(n) + ' DH';
-}
 
 function computeStatut(paiements, montantDu) {
   const totalPaye = (paiements || []).reduce((s, p) => s + (Number(p.montant) || 0), 0);
@@ -396,6 +394,8 @@ const EMPTY_ABONNEMENT_FORM = {
 
 function ModalAbonnement({ abonnement, onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [form, setForm] = useState(
     abonnement
       ? {
@@ -534,7 +534,7 @@ function ModalAbonnement({ abonnement, onClose, onSaved }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Montant dû (DH) *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Montant dû ({currSymbol}) *</label>
                 <input
                   type="number"
                   min="0"
@@ -589,6 +589,8 @@ function ModalAbonnement({ abonnement, onClose, onSaved }) {
 
 function ModalPaiementTransport({ abonnement, onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
   const solde = abonnement.montantDu - (abonnement.montantPaye || 0);
   const [form, setForm] = useState({
     montant: String(solde > 0 ? solde : ''),
@@ -646,22 +648,22 @@ function ModalPaiementTransport({ abonnement, onClose, onSaved }) {
         <div className="bg-slate-50 rounded-xl p-3 mb-4 text-sm grid grid-cols-3 gap-2 text-center">
           <div>
             <p className="text-xs text-slate-400">Total dû</p>
-            <p className="font-semibold text-slate-800">{formatCurrency(abonnement.montantDu)}</p>
+            <p className="font-semibold text-slate-800">{fmtC(abonnement.montantDu)}</p>
           </div>
           <div>
             <p className="text-xs text-slate-400">Déjà payé</p>
-            <p className="font-semibold text-emerald-700">{formatCurrency(abonnement.montantPaye || 0)}</p>
+            <p className="font-semibold text-emerald-700">{fmtC(abonnement.montantPaye || 0)}</p>
           </div>
           <div>
             <p className="text-xs text-slate-400">Solde</p>
-            <p className="font-semibold text-red-600">{formatCurrency(solde)}</p>
+            <p className="font-semibold text-red-600">{fmtC(solde)}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Montant (DH) *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Montant ({getCurrencySymbol(branding.devise)}) *</label>
               <input
                 type="number"
                 min="0.01"
@@ -941,6 +943,9 @@ function FlotteVehiculesTab() {
 function AbonnementsApprenantsTab() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [abonnements, setAbonnements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModalAbonnement, setShowModalAbonnement] = useState(false);
@@ -1030,7 +1035,7 @@ function AbonnementsApprenantsTab() {
         <KpiCard label="Total abonnés"          value={totalAbonn}                                         color="border-[#005989]" />
         <KpiCard label="Payés intégralement"    value={payesTotal}                                         color="border-emerald-500" />
         <KpiCard label="Impayés / Partiels"     value={impayes}                                            color="border-red-400" />
-        <KpiCard label="Montant collecté (DH)"  value={new Intl.NumberFormat('fr-MA').format(montantCollecte)} color="border-amber-400" />
+        <KpiCard label={`Montant collecté (${currSymbol})`} value={fmtC(montantCollecte)} color="border-amber-400" />
       </div>
 
       {/* Filters */}
@@ -1130,7 +1135,7 @@ function AbonnementsApprenantsTab() {
                         <p className="text-xs text-slate-500">{formatDate(a.dateDebut)} – {formatDate(a.dateFin)}</p>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <p className="font-mono text-sm font-semibold text-slate-800">{formatCurrency(a.montantDu)}</p>
+                        <p className="font-mono text-sm font-semibold text-slate-800">{fmtC(a.montantDu)}</p>
                         <div className="mt-1 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                           <div
                             className="h-1 bg-emerald-500 rounded-full transition-all"
@@ -1139,11 +1144,11 @@ function AbonnementsApprenantsTab() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
-                        <span className="font-mono text-sm text-emerald-700">{formatCurrency(montantPaye)}</span>
+                        <span className="font-mono text-sm text-emerald-700">{fmtC(montantPaye)}</span>
                       </td>
                       <td className="px-4 py-3 text-right hidden lg:table-cell">
                         <span className={`font-mono text-sm ${solde > 0 ? 'text-red-600' : 'text-slate-500'}`}>
-                          {formatCurrency(solde)}
+                          {fmtC(solde)}
                         </span>
                       </td>
                       <td className="px-4 py-3">

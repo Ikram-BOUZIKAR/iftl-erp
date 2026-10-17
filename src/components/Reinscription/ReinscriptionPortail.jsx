@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, addDoc, getDoc, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useBranding } from '../../contexts/BrandingContext';
+import { getCurrencySymbol } from '../../utils/currency';
 
 const DEFAULT_CONFIG = {
   anneeReinscription: '2026-2027',
@@ -208,6 +210,8 @@ function Btn({ onClick, type = 'button', disabled, variant = 'primary', fullWidt
 /* ─── Main component ─────────────────────────────────────────────── */
 export default function ReinscriptionPortail() {
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [config, setConfig]         = useState(DEFAULT_CONFIG);
   const [configLoading, setConfigLoading] = useState(true);
   const [isMobile, setIsMobile]     = useState(false);
@@ -597,7 +601,7 @@ export default function ReinscriptionPortail() {
                   <div style={{ background: tok.blue, padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Frais de réinscription</p>
                     <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
-                      {config.montant.toLocaleString('fr-MA')} <span style={{ fontSize: 14 }}>DH</span>
+                      {config.montant.toLocaleString('fr-MA')} <span style={{ fontSize: 14 }}>{currSymbol}</span>
                     </p>
                   </div>
                   <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -645,7 +649,7 @@ export default function ReinscriptionPortail() {
                     ))}
                     <div style={{ borderTop: `1px solid ${tok.border}`, paddingTop: 10, marginTop: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                       <span style={{ fontSize: 13, color: tok.muted }}>Montant à verser</span>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: tok.blue, fontFamily: "'Plus Jakarta Sans', sans-serif", fontVariantNumeric: 'tabular-nums' }}>{config.montant.toLocaleString('fr-MA')} DH</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: tok.blue, fontFamily: "'Plus Jakarta Sans', sans-serif", fontVariantNumeric: 'tabular-nums' }}>{config.montant.toLocaleString('fr-MA')} {currSymbol}</span>
                     </div>
                   </div>
                 </div>

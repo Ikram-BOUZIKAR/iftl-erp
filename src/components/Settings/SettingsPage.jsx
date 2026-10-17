@@ -7,6 +7,7 @@ import { useConfirm } from '../UI/ConfirmDialog';
 import ImportDataPage from './ImportDataPage';
 import { useTranslation } from 'react-i18next';
 import { useBranding } from '../../contexts/BrandingContext';
+import { DEVISES } from '../../utils/currency';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -873,6 +874,25 @@ function BrandingTab() {
             onChange={e => set('instituteName', e.target.value)}
             placeholder="Ex: Mon Institut de Formation"
           />
+        </FieldRow>
+        <FieldRow label="Email expéditeur" hint="Email utilisé comme expéditeur pour tous les envois automatiques (doit être autorisé dans Brevo)">
+          <Input
+            type="email"
+            value={form.emailExpediteur || ''}
+            onChange={e => set('emailExpediteur', e.target.value)}
+            placeholder="noreply@votre-etablissement.ma"
+          />
+        </FieldRow>
+        <FieldRow label="Devise" hint="Devise affichée dans tous les montants, factures et PDF">
+          <select
+            value={form.devise || 'MAD'}
+            onChange={e => set('devise', e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          >
+            {DEVISES.map(d => (
+              <option key={d.code} value={d.code}>{d.label}</option>
+            ))}
+          </select>
         </FieldRow>
         <FieldRow label={t('settings.branding_logo', { defaultValue: 'Logo' })} hint={t('settings.branding_logo_hint', { defaultValue: 'Format PNG/SVG recommandé, fond transparent' })}>
           <div className="flex items-center gap-3 flex-wrap">

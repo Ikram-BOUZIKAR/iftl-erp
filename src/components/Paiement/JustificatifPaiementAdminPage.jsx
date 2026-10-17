@@ -4,6 +4,8 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency } from '../../utils/currency';
 
 const TARIFS = {
   licence_cnam:        30000,
@@ -38,10 +40,6 @@ function formatDate(ts) {
   return d.toLocaleDateString('fr-MA', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function fmtMAD(n) {
-  if (n === undefined || n === null || isNaN(n)) return '—';
-  return new Intl.NumberFormat('fr-MA').format(n) + ' MAD';
-}
 
 // Group all deposits by CIN, compute totals
 function groupByCin(docs) {
@@ -82,6 +80,8 @@ function groupByCin(docs) {
 
 function BourseModal({ onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const fmtMAD = (n) => formatCurrency(n, branding.devise);
   const [form, setForm] = useState({
     nom: '', prenom: '', cin: '', telephone: '',
     niveau: 'licence_cnam', typeBourse: 'totale',
@@ -249,7 +249,8 @@ function exportCSV(rows, niveauFilter) {
   URL.revokeObjectURL(url);
 }
 
-function generateRecu(etudiant) {
+function generateRecu(etudiant, devise = 'MAD') {
+  const fmtMAD = (n) => formatCurrency(n, devise);
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const today = new Date();
   const dateEdition = today.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -411,6 +412,8 @@ function generateRecu(etudiant) {
 
 export default function JustificatifPaiementAdminPage() {
   const toast = useToast();
+  const { branding } = useBranding();
+  const fmtMAD = (n) => formatCurrency(n, branding.devise);
   const [docs, setDocs]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [view, setView]         = useState('etudiants'); // 'etudiants' | 'depots'
@@ -679,7 +682,7 @@ export default function JustificatifPaiementAdminPage() {
                                 {e.depots.length} dépôt(s)
                               </p>
                               <button
-                                onClick={ev => { ev.stopPropagation(); generateRecu(e); }}
+                                onClick={ev => { ev.stopPropagation(); generateRecu(e, branding.devise); }}
                                 className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#005989] border border-[#005989]/30 rounded-lg hover:bg-[#005989]/8 transition-colors">
                                 📄 Reçu PDF
                               </button>

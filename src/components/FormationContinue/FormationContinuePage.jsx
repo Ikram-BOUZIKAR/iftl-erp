@@ -7,6 +7,8 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -60,10 +62,6 @@ function BuildingIcon() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(n) {
-  if (n === null || n === undefined || n === '') return '—';
-  return new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(Number(n)) + ' DH';
-}
 
 function fmtDate(s) {
   if (!s) return '—';
@@ -411,6 +409,8 @@ const EMPTY_SESSION = {
 
 function SessionModal({ item, entreprises, onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [form, setForm] = useState(item ? { ...EMPTY_SESSION, ...item } : EMPTY_SESSION);
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -501,7 +501,7 @@ function SessionModal({ item, entreprises, onClose, onSaved }) {
           placeholder="Ex: Gestion de projet" className={INPUT_CLS} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Prix HT (DH)">
+        <Field label={`Prix HT (${currSymbol})`}>
           <input type="number" min="0" value={form.prixHT} onChange={e => set('prixHT', e.target.value)}
             placeholder="0" className={INPUT_CLS} />
         </Field>
@@ -521,6 +521,8 @@ function SessionModal({ item, entreprises, onClose, onSaved }) {
 function SessionsTab({ sessions, entreprises, onRefresh }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const { branding } = useBranding();
+  const fmt = (n) => formatCurrency(n, branding.devise);
   const [search, setSearch] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
   const [modal, setModal] = useState(null);
@@ -659,6 +661,9 @@ const EMPTY_DEVIS = {
 
 function DevisModal({ item, entreprises, onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const fmt = (n) => formatCurrency(n, branding.devise);
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [form, setForm] = useState(item ? { ...EMPTY_DEVIS, ...item } : EMPTY_DEVIS);
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -739,7 +744,7 @@ function DevisModal({ item, entreprises, onClose, onSaved }) {
         <input type="text" value={form.objet} onChange={e => set('objet', e.target.value)}
           placeholder="Objet du devis" className={INPUT_CLS} />
       </Field>
-      <Field label="Montant HT (DH)">
+      <Field label={`Montant HT (${currSymbol})`}>
         <input type="number" min="0" value={form.montantHT} onChange={e => set('montantHT', e.target.value)}
           placeholder="0" className={INPUT_CLS} />
       </Field>
@@ -778,6 +783,8 @@ function DevisModal({ item, entreprises, onClose, onSaved }) {
 function DevisTab({ devis, entreprises, onRefresh }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const { branding } = useBranding();
+  const fmt = (n) => formatCurrency(n, branding.devise);
   const [search, setSearch] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
   const [modal, setModal] = useState(null);
@@ -906,6 +913,8 @@ const TABS = ['Entreprises', 'Sessions', 'Devis'];
 export default function FormationContinuePage() {
   const toast = useToast();
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
   const [activeTab, setActiveTab] = useState(0);
   const [entreprises, setEntreprises] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -964,7 +973,7 @@ export default function FormationContinuePage() {
           <KpiCard label="Sessions en cours" value={sessionsEnCours} color="border-blue-400" />
           <KpiCard
             label="CA prévisionnel"
-            value={new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(caPrevi) + ' DH'}
+            value={fmtC(caPrevi)}
             sub="Devis acceptés (TTC)"
             color="border-emerald-400"
           />

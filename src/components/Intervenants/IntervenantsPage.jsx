@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 import { useIntervenants } from '../../hooks/useData';
 import { intervenantsService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
@@ -39,7 +41,7 @@ function formatHeures(h) {
 }
 
 function exportBilanCSV(rows, periode) {
-  const headers = ['Intervenant', 'Spécialité', 'Nb séances', 'Heures décimales', 'Taux DH/h', 'Montant dû DH'];
+  const headers = ['Intervenant', 'Spécialité', 'Nb séances', 'Heures décimales', 'Taux horaire', 'Montant dû'];
   const lines = [headers, ...rows.map(r => [
     `${r.prenom} ${r.nom}`, r.specialite || '', r.nbSeances,
     r.totalHeures.toFixed(2), r.tauxHoraire || 0, r.montantDu.toFixed(2),
@@ -104,6 +106,8 @@ function RefreshIcon() {
 function IntervenantModal({ editing, onClose, onSaved }) {
   const toast = useToast();
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [form, setForm] = useState({
     nom: editing?.nom || '',
     prenom: editing?.prenom || '',
@@ -207,7 +211,7 @@ function IntervenantModal({ editing, onClose, onSaved }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Taux horaire (DH/h)</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Taux horaire ({currSymbol}/h)</label>
             <input
               type="number"
               min="0"
@@ -243,6 +247,8 @@ function IntervenantModal({ editing, onClose, onSaved }) {
 
 function ModalTaux({ intervenant, onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
   const [taux, setTaux] = useState(intervenant.tauxHoraire != null ? String(intervenant.tauxHoraire) : '');
   const [saving, setSaving] = useState(false);
 
@@ -277,7 +283,7 @@ function ModalTaux({ intervenant, onClose, onSaved }) {
             <p className="text-xs text-slate-500 mb-3">
               <span className="font-semibold text-slate-700">{intervenant.prenom} {intervenant.nom}</span>
             </p>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Taux horaire (DH/h)</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Taux horaire ({currSymbol}/h)</label>
             <input
               type="number"
               min="0"
@@ -350,6 +356,8 @@ function ListeTab({ intervenants, loading, refetch }) {
   const { userProfile } = useAuth();
   const { showSuccess, showError } = useToast();
   const confirm = useConfirm();
+  const { branding } = useBranding();
+  const currSymbol = getCurrencySymbol(branding.devise);
 
   const openAdd = () => { setEditing(null); setShowForm(true); };
   const openEdit = (i) => { setEditing(i); setShowForm(true); };
@@ -461,7 +469,7 @@ function ListeTab({ intervenants, loading, refetch }) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-slate-600 hidden lg:table-cell">
-                    {i.tauxHoraire != null ? `${i.tauxHoraire} DH/h` : '—'}
+                    {i.tauxHoraire != null ? `${i.tauxHoraire} ${currSymbol}/h` : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-3">
@@ -519,6 +527,9 @@ function ListeTab({ intervenants, loading, refetch }) {
 
 function BilanTab({ intervenants, refetchIntervenants }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
+  const currSymbol = getCurrencySymbol(branding.devise);
   const now = new Date();
   const [filterMois, setFilterMois] = useState(String(now.getMonth() + 1));
   const [filterAnnee, setFilterAnnee] = useState(String(now.getFullYear()));
@@ -648,7 +659,7 @@ function BilanTab({ intervenants, refetchIntervenants }) {
         />
         <KpiCard
           label="Masse salariale"
-          value={loadingSessions ? '…' : `${totalMasseSalariale.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DH`}
+          value={loadingSessions ? '…' : fmtC(totalMasseSalariale)}
           sub={periodeDisplay}
         />
       </div>
@@ -716,11 +727,11 @@ function BilanTab({ intervenants, refetchIntervenants }) {
                       {r.totalHeures > 0 ? formatHeures(r.totalHeures) : <span className="text-slate-400">0h</span>}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600 hidden sm:table-cell">
-                      {r.tauxHoraire != null ? `${r.tauxHoraire} DH/h` : <span className="text-slate-400">—</span>}
+                      {r.tauxHoraire != null ? `${r.tauxHoraire} ${currSymbol}/h` : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-800 hidden sm:table-cell">
                       {r.montantDu > 0 ? (
-                        `${r.montantDu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DH`
+                        fmtC(r.montantDu)
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
@@ -750,9 +761,7 @@ function BilanTab({ intervenants, refetchIntervenants }) {
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell" />
                   <td className="px-4 py-3 text-right font-bold text-slate-800 hidden sm:table-cell">
-                    {totalMasseSalariale > 0
-                      ? `${totalMasseSalariale.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DH`
-                      : '—'}
+                    {totalMasseSalariale > 0 ? fmtC(totalMasseSalariale) : '—'}
                   </td>
                   <td className="px-4 py-3" />
                 </tr>

@@ -8,6 +8,8 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateRecu, generateSuiviPaiementPDF } from '../../services/pdfService';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
+import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -69,10 +71,6 @@ function DownloadIcon() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatCurrency(n) {
-  if (n === null || n === undefined) return '—';
-  return new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 0 }).format(n) + ' DH';
-}
 
 function formatDate(str) {
   if (!str) return '—';
@@ -145,6 +143,8 @@ const MODE_LABELS = {
 };
 
 function PaymentHistoryRow({ paiements }) {
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
   if (!paiements || paiements.length === 0) {
     return (
       <tr>
@@ -179,7 +179,7 @@ function PaymentHistoryRow({ paiements }) {
                   <span className="italic">—</span>
                 )}
               </span>
-              <span className="font-semibold text-emerald-700 w-28 text-right">{formatCurrency(p.montant)}</span>
+              <span className="font-semibold text-emerald-700 w-28 text-right">{fmtC(p.montant)}</span>
             </div>
           ))}
         </div>
@@ -403,6 +403,8 @@ const MODES_PAIEMENT = [
 
 function ModalPaiement({ facture, onClose, onSaved }) {
   const toast = useToast();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
   const solde = facture.montantTotal - (facture.montantPaye || 0);
   const [form, setForm] = useState({
     montant: String(solde > 0 ? solde : ''),
@@ -457,22 +459,22 @@ function ModalPaiement({ facture, onClose, onSaved }) {
         <div className="bg-slate-50 rounded-xl p-3 mb-4 text-sm grid grid-cols-3 gap-2 text-center">
           <div>
             <p className="text-xs text-slate-400">Total</p>
-            <p className="font-semibold text-slate-800">{formatCurrency(facture.montantTotal)}</p>
+            <p className="font-semibold text-slate-800">{fmtC(facture.montantTotal)}</p>
           </div>
           <div>
             <p className="text-xs text-slate-400">Déjà payé</p>
-            <p className="font-semibold text-emerald-700">{formatCurrency(facture.montantPaye)}</p>
+            <p className="font-semibold text-emerald-700">{fmtC(facture.montantPaye)}</p>
           </div>
           <div>
             <p className="text-xs text-slate-400">Solde</p>
-            <p className="font-semibold text-red-600">{formatCurrency(solde)}</p>
+            <p className="font-semibold text-red-600">{fmtC(solde)}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Montant (DH) *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Montant ({getCurrencySymbol(branding.devise)}) *</label>
               <input
                 type="number"
                 min="0.01"
@@ -528,6 +530,8 @@ export default function FacturationPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { t } = useTranslation();
+  const { branding } = useBranding();
+  const fmtC = (n) => formatCurrency(n, branding.devise);
   const [factures, setFactures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNouvelleFacture, setShowNouvelleFacture] = useState(false);
@@ -613,7 +617,7 @@ export default function FacturationPage() {
               anneeAcademique: filterAnnee || undefined,
               filterStatut: filterStatut || undefined,
               filterFiliere: filterFiliere || undefined,
-            })}
+            }, branding.devise)}
             disabled={filtered.length === 0}
             title="Exporter le suivi des paiements en PDF"
             className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-medium transition-colors disabled:opacity-40"
@@ -633,9 +637,9 @@ export default function FacturationPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total émis" value={formatCurrency(totalFacture)} color="border-[#005989]" />
-        <KpiCard label="Total encaissé" value={formatCurrency(totalEncaisse)} color="border-emerald-500" />
-        <KpiCard label="Solde impayé" value={formatCurrency(soldeImpaye)} color="border-red-400" />
+        <KpiCard label="Total émis" value={fmtC(totalFacture)} color="border-[#005989]" />
+        <KpiCard label="Total encaissé" value={fmtC(totalEncaisse)} color="border-emerald-500" />
+        <KpiCard label="Solde impayé" value={fmtC(soldeImpaye)} color="border-red-400" />
         <KpiCard label="Taux de recouvrement" value={`${tauxRecouvrement}%`} color="border-amber-400" sub={`${factures.filter(f => f.statut === 'payee').length} reçus soldés`} />
       </div>
 
@@ -730,12 +734,12 @@ export default function FacturationPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-800 font-medium">{formatCurrency(f.montantTotal)}</td>
-                        <td className="px-4 py-3 text-right text-emerald-700 font-medium">{formatCurrency(f.montantPaye || 0)}</td>
+                        <td className="px-4 py-3 text-right text-slate-800 font-medium">{fmtC(f.montantTotal)}</td>
+                        <td className="px-4 py-3 text-right text-emerald-700 font-medium">{fmtC(f.montantPaye || 0)}</td>
                         <td className="px-4 py-3">
                           <PaymentProgressBar montantPaye={f.montantPaye || 0} montantTotal={f.montantTotal} />
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-red-600">{formatCurrency(solde)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-red-600">{fmtC(solde)}</td>
                         <td className="px-4 py-3">
                           <StatutBadge statut={f.statut} overdue={overdue} />
                         </td>
@@ -767,7 +771,7 @@ export default function FacturationPage() {
                                 prenom: f.studentPrenom,
                                 cin: f.cin || '',
                                 groupeId: f.filiere || f.groupeId || '',
-                              })}
+                              }, branding.devise)}
                               title="Télécharger le reçu PDF"
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 text-[#005989] border border-[#005989]/30 rounded-lg hover:bg-[#005989]/10 transition-colors whitespace-nowrap"
                             >
