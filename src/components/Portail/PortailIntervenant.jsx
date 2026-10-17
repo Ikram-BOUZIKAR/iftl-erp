@@ -1019,7 +1019,7 @@ function ProfilTab({ intervenant, auth, sessions }) {
         </div>
         <div>
           <p className="font-bold text-slate-800 text-lg">{intervenant?.prenom} {intervenant?.nom}</p>
-          <p className="text-sm text-slate-400">{intervenant?.specialite || 'Intervenant IFTL'}</p>
+          <p className="text-sm text-slate-400">{intervenant?.specialite || t('roles.intervenant')}</p>
           {intervenant?.email && <p className="text-xs text-slate-400 mt-0.5">{intervenant.email}</p>}
         </div>
       </div>
@@ -1237,11 +1237,14 @@ export default function PortailIntervenant({ auth }) {
     <>
       <div className="px-5 py-5 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.12)' }}>
-            <span className="text-white font-black text-base">IF</span>
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-white flex items-center justify-center p-0.5 shrink-0">
+            {branding.logoURL
+              ? <img src={branding.logoURL} alt={branding.instituteName} className="w-full h-full object-contain" />
+              : <span className="text-slate-700 font-black text-sm">{(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}</span>
+            }
           </div>
           <div>
-            <p className="text-white font-black text-base leading-tight">IFTL</p>
+            <p className="text-white font-black text-base leading-tight">{branding.instituteName || 'ERP'}</p>
             <p className="text-blue-300 text-[10px] leading-tight">{t('portail.intervenant_title')}</p>
           </div>
         </div>

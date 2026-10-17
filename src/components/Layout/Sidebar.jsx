@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
 
 // ── Inline SVG paths ──────────────────────────────────────────────────────────
 // Extra icon paths for new modules
@@ -190,6 +191,7 @@ function Item({ item, open, badgeCount = 0 }) {
 export default function Sidebar({ open, role, auth, badges = {} }) {
   const { user, userProfile, logout } = auth || {};
   const { t } = useTranslation();
+  const { branding } = useBranding();
 
   const initials = [userProfile?.prenom?.[0], userProfile?.nom?.[0]]
     .filter(Boolean).join('').toUpperCase() || user?.email?.[0]?.toUpperCase() || '?';
@@ -208,20 +210,23 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
         {/* Logo compact (collapsed) */}
         {!open && (
           <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 shadow-md bg-white flex items-center justify-center p-0.5">
-            <img src="/Logo IFTL avec Signature.png" alt="IFTL" className="w-full h-full object-contain" />
+            {branding.logoURL
+              ? <img src={branding.logoURL} alt={branding.instituteName} className="w-full h-full object-contain" />
+              : <span className="text-[10px] font-black text-slate-700 leading-none text-center px-0.5">{(branding.instituteName || 'ERP').slice(0, 3).toUpperCase()}</span>
+            }
           </div>
         )}
         {/* Logo étendu (expanded) */}
         {open && (
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 shadow-md bg-white flex items-center justify-center p-0.5">
-              <img src="/Logo IFTL avec Signature.png" alt="IFTL" className="w-full h-full object-contain" />
+              {branding.logoURL
+                ? <img src={branding.logoURL} alt={branding.instituteName} className="w-full h-full object-contain" />
+                : <span className="text-[10px] font-black text-slate-700 leading-none text-center px-0.5">{(branding.instituteName || 'ERP').slice(0, 3).toUpperCase()}</span>
+              }
             </div>
             <div className="min-w-0">
-              <p className="text-white font-black text-sm tracking-wider leading-tight">IFTL</p>
-              <p className="text-[9px] leading-tight font-medium truncate" style={{ color: 'rgba(245,200,69,0.85)' }}>
-                Formation Transport &amp; Logistique
-              </p>
+              <p className="text-white font-black text-sm tracking-wider leading-tight truncate">{branding.instituteName || 'ERP'}</p>
             </div>
           </div>
         )}

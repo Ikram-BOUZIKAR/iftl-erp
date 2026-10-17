@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBranding } from '../../contexts/BrandingContext';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
@@ -1478,6 +1479,7 @@ function TransportTab({ studentId, studentNom, studentPrenom, studentCode }) {
 export default function PortailApprenant({ auth }) {
   const { t } = useTranslation();
   const { user, userProfile, logout } = auth;
+  const { branding } = useBranding();
   const [activeTab, setActiveTab] = useState('profil');
   const [student, setStudent]     = useState(null);
   const [loadingStudent, setLoadingStudent] = useState(true);
@@ -1538,13 +1540,14 @@ export default function PortailApprenant({ auth }) {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                 style={{ background: 'rgba(255,255,255,0.12)' }}>
-              <span className="text-white font-black text-base">IF</span>
+            <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-white flex items-center justify-center p-0.5">
+              {branding.logoURL
+                ? <img src={branding.logoURL} alt={branding.instituteName} className="w-full h-full object-contain" />
+                : <span className="text-slate-700 font-black text-sm">{(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}</span>
+              }
             </div>
             <div>
-              <p className="text-white font-black text-base leading-tight">IFTL</p>
-              <p className="text-blue-300 text-[10px] leading-tight">Institut de Formation Transport & Logistique</p>
+              <p className="text-white font-black text-base leading-tight">{branding.instituteName || 'ERP'}</p>
             </div>
           </div>
         </div>
@@ -1591,10 +1594,13 @@ export default function PortailApprenant({ auth }) {
                  style={{ background: 'linear-gradient(180deg,#002d47 0%,#005989 100%)' }}>
             <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.12)' }}>
-                  <span className="text-white font-black text-sm">IF</span>
+                <div className="w-9 h-9 rounded-xl overflow-hidden bg-white flex items-center justify-center p-0.5">
+                  {branding.logoURL
+                    ? <img src={branding.logoURL} alt={branding.instituteName} className="w-full h-full object-contain" />
+                    : <span className="text-slate-700 font-black text-sm">{(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}</span>
+                  }
                 </div>
-                <p className="text-white font-black">IFTL</p>
+                <p className="text-white font-black">{branding.instituteName || 'ERP'}</p>
               </div>
               <button onClick={() => setMobileSidebarOpen(false)} className="text-white/60 hover:text-white p-1">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, addDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useBranding } from '../../contexts/BrandingContext';
 import { sendEmail } from '../../services/emailService';
 
 const NAVY  = '#001829';
@@ -410,6 +411,7 @@ const TABS = [
 ];
 
 export default function PortailTuteur({ auth }) {
+  const { branding } = useBranding();
   const [tuteurUser, setTuteurUser] = useState(null);
   const [student, setStudent] = useState(null);
   const [groupe, setGroupe] = useState(null);
@@ -474,12 +476,14 @@ export default function PortailTuteur({ auth }) {
       <header className="shadow-sm" style={{ background: NAVY }}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0"
-                 style={{ background: YELLOW, color: NAVY }}>
-              IF
+            <div className="w-9 h-9 rounded-xl overflow-hidden bg-white flex items-center justify-center p-0.5 shrink-0">
+              {branding.logoURL
+                ? <img src={branding.logoURL} alt={branding.instituteName} className="w-full h-full object-contain" />
+                : <span className="font-black text-sm" style={{ color: NAVY }}>{(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}</span>
+              }
             </div>
             <div>
-              <div className="font-bold text-white text-sm leading-tight">IFTL</div>
+              <div className="font-bold text-white text-sm leading-tight">{branding.instituteName || 'ERP'}</div>
               <div className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Espace tuteur</div>
             </div>
           </div>
