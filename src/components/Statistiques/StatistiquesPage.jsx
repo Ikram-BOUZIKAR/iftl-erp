@@ -709,6 +709,139 @@ function Intervenants({ sessions, intervenants, loading }) {
   );
 }
 
+// ── 7. Rapport BI / Qualiopi ─────────────────────────────────────────────────
+function RapportBI({ students, notes, presences, absences, factures, loading }) {
+  const tauxReussite = useMemo(() => {
+    const vals = notes.map(n => Number(n.note ?? n.valeur ?? n.score)).filter(v => !isNaN(v));
+    if (!vals.length) return null;
+    return Math.round((vals.filter(v => v >= 10).length / vals.length) * 100);
+  }, [notes]);
+
+  const tauxAssiduite = useMemo(() => {
+    if (!presences.length) return null;
+    const present = presences.filter(p => p.statut === 'present' || p.statut === 'retard').length;
+    return Math.round((present / presences.length) * 100);
+  }, [presences]);
+
+  const totalEncaisse = useMemo(() => factures.reduce((acc, f) => acc + (Number(f.montantPaye) || 0), 0), [factures]);
+  const totalFacture  = useMemo(() => factures.reduce((acc, f) => acc + (Number(f.montant) || 0), 0), [factures]);
+  const tauxRecouvrement = totalFacture > 0 ? Math.round((totalEncaisse / totalFacture) * 100) : null;
+
+  const indicateurs = [
+    {
+      code: 'I1', label: 'Taux de réussite',
+      value: tauxReussite != null ? `${tauxReussite}%` : 'N/A',
+      desc: "% d'apprenants avec note ≥ 10/20",
+      objectif: '≥ 70%',
+      status: tauxReussite == null ? 'nd' : tauxReussite >= 70 ? 'ok' : tauxReussite >= 50 ? 'warning' : 'danger',
+      qualiopi: 'Critère 5 — Résultats des apprenants',
+    },
+    {
+      code: 'I2', label: "Taux d'assiduité",
+      value: tauxAssiduite != null ? `${tauxAssiduite}%` : 'N/A',
+      desc: '% présences + retards / total enregistrements',
+      objectif: '≥ 80%',
+      status: tauxAssiduite == null ? 'nd' : tauxAssiduite >= 80 ? 'ok' : tauxAssiduite >= 60 ? 'warning' : 'danger',
+      qualiopi: "Critère 4 — Suivi de l'exécution de la prestation",
+    },
+    {
+      code: 'I3', label: 'Taux de recouvrement',
+      value: tauxRecouvrement != null ? `${tauxRecouvrement}%` : 'N/A',
+      desc: 'Montant encaissé / montant facturé total',
+      objectif: '≥ 90%',
+      status: tauxRecouvrement == null ? 'nd' : tauxRecouvrement >= 90 ? 'ok' : tauxRecouvrement >= 70 ? 'warning' : 'danger',
+      qualiopi: 'Indicateur financier interne',
+    },
+    {
+      code: 'I4', label: "Taux d'insertion professionnelle",
+      value: 'N/A',
+      desc: "Données non collectées — à activer dans le profil apprenant",
+      objectif: '≥ 60%',
+      status: 'nd',
+      qualiopi: 'Critère 6 — Insertion professionnelle',
+    },
+    {
+      code: 'I5', label: 'Satisfaction des apprenants',
+      value: 'N/A',
+      desc: "Enquête de satisfaction non configurée",
+      objectif: '≥ 4/5',
+      status: 'nd',
+      qualiopi: 'Critère 7 — Satisfaction des parties prenantes',
+    },
+  ];
+
+  const statusConfig = {
+    ok:      { bg: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',  badge: 'bg-green-100 text-green-700',  label: 'Conforme'       },
+    warning: { bg: 'bg-amber-50',  border: 'border-amber-200',  text: 'text-amber-700',  badge: 'bg-amber-100 text-amber-700',  label: 'À améliorer'    },
+    danger:  { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-700',    badge: 'bg-red-100 text-red-700',    label: 'Non conforme'   },
+    nd:      { bg: 'bg-slate-50',  border: 'border-slate-200',  text: 'text-slate-400',  badge: 'bg-slate-100 text-slate-500',  label: 'Non disponible' },
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl p-5 text-white" style={{ background: BLUE }}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-lg font-bold">Tableau de bord Conformité &amp; Performance</h2>
+            <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>Indicateurs Qualiopi — {import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL'}</p>
+          </div>
+          <div className="text-right text-sm" style={{ color: 'rgba(255,255,255,0.65)' }}>
+            <p>Généré le {new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            <p className="text-xs">{students.length} apprenants · {notes.length} notes · {presences.length} présences</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {indicateurs.map((ind, i) => {
+          const sc = statusConfig[ind.status];
+          return (
+            <div key={i} className={`rounded-2xl border p-4 ${sc.bg} ${sc.border}`}>
+              <div className="flex items-start gap-4 flex-wrap">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white" style={{ background: BLUE }}>{ind.code}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className="font-bold text-slate-800 text-sm">{ind.label}</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${sc.badge}`}>{sc.label}</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-1.5">{ind.desc}</p>
+                  <div className="flex items-center gap-4 flex-wrap text-xs text-slate-400">
+                    <span>{ind.qualiopi}</span>
+                    <span>Objectif : <strong className="text-slate-600">{ind.objectif}</strong></span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`text-3xl font-black ${sc.text}`}>{ind.value}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Card>
+        <CardTitle>Données manquantes — Actions recommandées</CardTitle>
+        <div className="space-y-2">
+          {[
+            { item: "Taux d'insertion professionnelle", action: "Ajouter le champ 'emploi_après_formation' dans les profils apprenants via l'onglet Apprenants" },
+            { item: 'Satisfaction des apprenants', action: "Créer une annonce de type 'Enquête' avec lien de formulaire — les réponses peuvent être saisies manuellement" },
+          ].map((r, i) => (
+            <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-slate-300 mt-0.5 text-lg">○</span>
+              <div>
+                <p className="text-sm font-semibold text-slate-700">{r.item}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{r.action}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function StatistiquesPage() {
   const { t } = useTranslation();
@@ -814,6 +947,74 @@ export default function StatistiquesPage() {
 
   const tabProps = { ...filtered, loading };
 
+  const handleExportRapportPDF = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const instName = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
+    const w = doc.internal.pageSize.getWidth();
+
+    // Header band
+    doc.setFillColor(0, 89, 137);
+    doc.rect(0, 0, w, 28, 'F');
+    doc.setFillColor(245, 200, 69);
+    doc.rect(0, 28, w, 2.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('RAPPORT DE STATISTIQUES', 12, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(instName, 12, 18);
+    doc.text(`Généré le ${dateStr}`, 12, 24);
+
+    // KPI computation
+    const { notes: fn, presences: fp, absences: fa, factures: ff, groupes: fg, modules: fm, sessions: fse, intervenants: fiv, students: fs } = filtered;
+    const presRate = fp.length ? Math.round((fp.filter(p => p.statut === 'present').length / fp.length) * 100) : null;
+    const noteVals = fn.map(n => Number(n.note ?? n.valeur ?? n.score)).filter(v => !isNaN(v));
+    const txReussite = noteVals.length ? Math.round((noteVals.filter(v => v >= 10).length / noteVals.length) * 100) : null;
+    const totalEnc = ff.reduce((acc, f) => acc + (Number(f.montantPaye) || 0), 0);
+    const totalFact = ff.reduce((acc, f) => acc + (Number(f.montant) || 0), 0);
+    const txRecouvrement = totalFact > 0 ? Math.round((totalEnc / totalFact) * 100) : null;
+    const countBySt = {};
+    fa.forEach(a => { const sid = a.apprenantId || a.etudiantId || a.studentId; if (sid) countBySt[sid] = (countBySt[sid] || 0) + 1; });
+    const appRisque = Object.values(countBySt).filter(c => c >= 5).length;
+
+    const kpiData = [
+      ['Apprenants inscrits',      String(fs.length)],
+      ['Intervenants',             String(fiv.length)],
+      ['Groupes',                  String(fg.length)],
+      ['Modules',                  String(fm.length)],
+      ['Séances planifiées',       String(fse.length)],
+      ["Taux d'assiduité",         presRate     != null ? `${presRate}%`       : 'N/A'],
+      ['Taux de réussite (≥10)',   txReussite   != null ? `${txReussite}%`     : 'N/A'],
+      ['Taux de recouvrement',     txRecouvrement != null ? `${txRecouvrement}%` : 'N/A'],
+      ['Total encaissé',           totalEnc > 0 ? `${(totalEnc / 1000).toFixed(1)} k MAD` : 'N/A'],
+      ['Apprenants à risque (≥5 abs)', String(appRisque)],
+    ];
+
+    autoTable(doc, {
+      startY: 38,
+      head: [['Indicateur', 'Valeur']],
+      body: kpiData,
+      styles: { fontSize: 10, cellPadding: 4 },
+      headStyles: { fillColor: [0, 89, 137], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 248, 255] },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 140 }, 1: { halign: 'right', fontStyle: 'bold' } },
+      margin: { left: 12, right: 12 },
+    });
+
+    // Footer
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setFillColor(240, 243, 246);
+    doc.rect(0, pageH - 10, w, 10, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(7);
+    doc.text(`${instName} — Rapport généré automatiquement par EduCloud ERP`, 12, pageH - 3.5);
+
+    doc.save(`rapport-stats-${now.toISOString().slice(0, 10)}.pdf`);
+  };
+
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Header */}
@@ -840,6 +1041,14 @@ export default function StatistiquesPage() {
               Réinitialiser
             </button>
           )}
+          <button
+            onClick={handleExportRapportPDF}
+            disabled={loading}
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl text-white disabled:opacity-50"
+            style={{ background: BLUE }}
+          >
+            <span>📄</span> Exporter PDF
+          </button>
         </div>
       </div>
 
@@ -889,6 +1098,7 @@ export default function StatistiquesPage() {
       {activeTab === 'absences'     && <Absences {...tabProps} />}
       {activeTab === 'paiements'    && <Paiements {...tabProps} />}
       {activeTab === 'intervenants' && <Intervenants {...tabProps} />}
+      {activeTab === 'rapport'      && <RapportBI {...tabProps} />}
     </div>
   );
 }
