@@ -784,10 +784,11 @@ function GroupSelector({ groupes, activeGroupId, onSelect, conflictsCount, annee
           const niv   = getNiveauGroupe(g);
           const col   = NIVEAU_COLORS[niv] || NIVEAU_COLORS.Autres;
           const isActive = activeGroupId === g.id;
-          const short = g.nom.match(/[Gg]r(?:oupe)?\.?\s*(\w+)/)?.[1]
-            || g.nom.match(/[Gg]roupe\s+(\w+)/)?.[1]
-            || g.nom.match(/[–\-]\s*(.{1,8})$/)?.[1]?.trim()
-            || g.nom.slice(-4);
+          const nomStr = g.nom || '';
+          const short = nomStr.match(/[Gg]r(?:oupe)?\.?\s*(\w+)/)?.[1]
+            || nomStr.match(/[Gg]roupe\s+(\w+)/)?.[1]
+            || nomStr.match(/[–\-]\s*(.{1,8})$/)?.[1]?.trim()
+            || nomStr.slice(-4) || '?';
           return (
             <button key={g.id} onClick={() => onSelect(g.id)} title={g.nom}
               style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 11px', borderRadius: 20, border: `1.5px solid ${isActive ? col.active : '#e2e8f0'}`, background: isActive ? col.active : '#fff', color: isActive ? '#fff' : '#64748b', cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'Outfit,sans-serif', whiteSpace: 'nowrap', flexShrink: 0 }}>

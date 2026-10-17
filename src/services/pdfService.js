@@ -9,18 +9,20 @@ const INSTITUTE_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
 const INSTITUTE_SHORT = INSTITUTE_NAME.split(/\s+/).slice(0, 2).join(' ');
 const IS_DEMO = import.meta.env.MODE === 'demo';
 
-// ─── Brand constants ──────────────────────────────────────────────────────────
+// ─── Brand constants — Direction B (Impulsion) ────────────────────────────────
 
 const BRAND = {
-  blue: [0, 89, 137],       // #005989
-  yellow: [245, 200, 69],   // #f5c845
-  green: [200, 212, 93],    // #c8d45d
-  darkBlue: [0, 58, 90],
-  lightBlue: [230, 242, 250],
+  blue: [27, 20, 100],        // #1B1464 violet foncé
+  darkBlue: [18, 12, 72],     // violet très foncé
+  yellow: [255, 107, 53],     // #FF6B35 corail (accent)
+  green: [0, 149, 125],       // #00957D teal foncé
+  lightBlue: [237, 235, 254], // violet très clair (fonds info)
   white: [255, 255, 255],
-  black: [30, 30, 30],
-  grey: [100, 100, 100],
-  lightGrey: [240, 242, 245],
+  black: [26, 26, 46],        // #1A1A2E
+  grey: [107, 114, 128],      // #6B7280
+  lightGrey: [244, 245, 247],
+  coral: [255, 107, 53],      // #FF6B35
+  teal: [0, 201, 167],        // #00C9A7
 };
 
 const STATUT_LABELS = {
@@ -50,44 +52,50 @@ function drawPageBorder(doc) {
 function drawIftlHeader(doc, title, subtitle) {
   const w = doc.internal.pageSize.getWidth();
 
-  // Blue top band
+  // Violet header band
   doc.setFillColor(...BRAND.blue);
-  doc.rect(0, 0, w, 38, 'F');
+  doc.rect(0, 0, w, 36, 'F');
 
-  // Yellow accent bar
-  doc.setFillColor(...BRAND.yellow);
-  doc.rect(0, 38, w, 3, 'F');
+  // Lighter violet diagonal accent strip (right side decoration)
+  doc.setFillColor(44, 32, 133); // #2C2085
+  doc.triangle(w - 60, 0, w, 0, w, 36, 'F');
 
-  // Institute logo / name
+  // Coral accent bar
+  doc.setFillColor(...BRAND.coral);
+  doc.rect(0, 36, w, 3.5, 'F');
+
+  // White logo box
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
+  doc.roundedRect(10, 3, 44, 30, 2, 2, 'F');
   if (!IS_DEMO) {
-    doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 4, 42, 27);
   } else {
     doc.setTextColor(...BRAND.blue);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
-    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 13 + i * 7, { align: 'center' }));
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 12 + i * 7, { align: 'center' }));
     doc.setTextColor(...BRAND.white);
   }
 
-  // Document title (right-aligned, white on blue)
+  // Document title — right-aligned, white
   doc.setTextColor(...BRAND.white);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text(title, w - 14, 16, { align: 'right' });
+  doc.text(title, w - 14, 15, { align: 'right' });
 
   if (subtitle) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255, 0.75);
-    doc.text(subtitle, w - 14, 23, { align: 'right' });
+    doc.setTextColor(220, 210, 255); // violet clair lisible
+    doc.text(subtitle, w - 14, 22, { align: 'right' });
   }
 
-  // Reset text color
-  doc.setTextColor(...BRAND.black);
+  // Teal small dot accent (branding)
+  doc.setFillColor(...BRAND.teal);
+  doc.circle(63, 18, 1.8, 'F');
 
-  return 48; // y position after header
+  doc.setTextColor(...BRAND.black);
+  return 47;
 }
 
 function drawFooter(doc) {
@@ -98,8 +106,8 @@ function drawFooter(doc) {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    // Green bottom bar
-    doc.setFillColor(...BRAND.green);
+    // Coral bottom bar
+    doc.setFillColor(...BRAND.coral);
     doc.rect(0, h - 10, w, 10, 'F');
 
     doc.setFontSize(7);
@@ -170,13 +178,16 @@ function infoBox(doc, fields, startY, leftMargin = 14, rightMargin = 14) {
 
 function sectionTitle(doc, text, y) {
   const w = doc.internal.pageSize.getWidth();
+  // Violet band with coral left accent
   doc.setFillColor(...BRAND.blue);
-  doc.rect(14, y, w - 28, 7, 'F');
+  doc.roundedRect(14, y, w - 28, 7.5, 1, 1, 'F');
+  doc.setFillColor(...BRAND.coral);
+  doc.rect(14, y, 3, 7.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.white);
-  doc.text(text.toUpperCase(), 18, y + 5);
-  return y + 11;
+  doc.text(text.toUpperCase(), 21, y + 5.3);
+  return y + 12;
 }
 
 // ─── generateRecu ─────────────────────────────────────────────────────────────
@@ -554,8 +565,12 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
   // ── Header ──────────────────────────────────────────────────────────────────
   doc.setFillColor(...BRAND.blue);
   doc.rect(0, 0, PW, 22, 'F');
-  doc.setFillColor(...BRAND.yellow);
-  doc.rect(0, 22, PW, 2, 'F');
+  // Diagonal accent strip right
+  doc.setFillColor(44, 32, 133);
+  doc.triangle(PW - 50, 0, PW, 0, PW, 22, 'F');
+  // Coral accent bar
+  doc.setFillColor(...BRAND.coral);
+  doc.rect(0, 22, PW, 2.5, 'F');
 
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(6, 1, 32, 20, 1, 1, 'F');
@@ -584,7 +599,7 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
   }
   if (weekLabel) {
     doc.setFontSize(7);
-    doc.setTextColor(BRAND.yellow[0], BRAND.yellow[1], BRAND.yellow[2]);
+    doc.setTextColor(BRAND.coral[0], BRAND.coral[1], BRAND.coral[2]);
     doc.text(weekLabel, PW - 10, 21, { align: 'right' });
   }
 
@@ -828,7 +843,7 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────────
-  doc.setFillColor(...BRAND.green);
+  doc.setFillColor(...BRAND.coral);
   doc.rect(0, PH - 8, PW, 8, 'F');
   doc.setFontSize(6);
   doc.setFont('helvetica', 'italic');
@@ -1757,19 +1772,23 @@ export function generateAttestationReussite(student, opts = {}) {
 function drawIftlHeaderAttestation(doc, docTitle) {
   const w = doc.internal.pageSize.getWidth();
 
-  // Blue header band
+  // Violet header band
   doc.setFillColor(...BRAND.blue);
   doc.rect(0, 0, w, 42, 'F');
 
-  // Yellow accent bar
-  doc.setFillColor(...BRAND.yellow);
-  doc.rect(0, 42, w, 3, 'F');
+  // Diagonal accent strip
+  doc.setFillColor(44, 32, 133);
+  doc.triangle(w - 60, 0, w, 0, w, 42, 'F');
 
-  // Institute logo / name
+  // Coral accent bar
+  doc.setFillColor(...BRAND.coral);
+  doc.rect(0, 42, w, 3.5, 'F');
+
+  // White logo box
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, 3, 48, 36, 2, 2, 'F');
+  doc.roundedRect(10, 4, 48, 34, 2, 2, 'F');
   if (!IS_DEMO) {
-    doc.addImage(IFTL_LOGO, 'PNG', 11, 4, 46, 32);
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 5, 46, 30);
   } else {
     doc.setTextColor(...BRAND.blue);
     doc.setFont('helvetica', 'bold');
@@ -1784,7 +1803,11 @@ function drawIftlHeaderAttestation(doc, docTitle) {
   doc.setTextColor(...BRAND.white);
   doc.text(docTitle, w - 14, 22, { align: 'right' });
 
-  return 54; // y after header
+  // Teal accent dot
+  doc.setFillColor(...BRAND.teal);
+  doc.circle(67, 21, 1.8, 'F');
+
+  return 54;
 }
 
 function drawInfoBoxSimple(doc, fields, startY) {
