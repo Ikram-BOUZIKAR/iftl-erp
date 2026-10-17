@@ -4,6 +4,8 @@ import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
 import { getCurrencySymbol } from '../../utils/currency';
 
+const INST_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
+
 const NIVEAUX = [
   { value: 'licence_cnam',         label: 'Licence CNAM' },
   { value: 'licence_transitaire',  label: 'Licence Transitaire' },
@@ -166,10 +168,13 @@ export default function JustificatifPaiementPortail() {
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
       <header style={{ background: tok.blueDeep, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ height: 40, objectFit: 'contain' }} />
+        {import.meta.env.VITE_DEFAULT_LOGO_URL
+          ? <img src={import.meta.env.VITE_DEFAULT_LOGO_URL} alt={INST_NAME} style={{ height: 40, objectFit: 'contain' }} />
+          : <span style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: 1 }}>{INST_NAME}</span>
+        }
         <div>
           <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#fff' }}>Dépôt justificatif de paiement</p>
-          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>Institut de Formation Transport & Logistique</p>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{INST_NAME}</p>
         </div>
       </header>
 
@@ -190,7 +195,7 @@ export default function JustificatifPaiementPortail() {
                 Dépôt envoyé !
               </h2>
               <p style={{ margin: '0 0 24px', fontSize: 14, color: tok.muted, lineHeight: 1.6 }}>
-                Votre justificatif a bien été reçu. L'équipe IFTL le traitera dans les plus brefs délais.
+                Votre justificatif a bien été reçu. L'équipe {INST_NAME} le traitera dans les plus brefs délais.
               </p>
               <button onClick={reset}
                 style={{

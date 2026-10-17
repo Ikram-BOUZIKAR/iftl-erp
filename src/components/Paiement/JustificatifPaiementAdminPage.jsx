@@ -266,7 +266,7 @@ function generateRecu(etudiant, devise = 'MAD') {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('Institut de Formation', M, 15);
+  doc.text(import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'Institut de Formation', M, 15);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.text('REÇU DE PAIEMENT', M, 22);

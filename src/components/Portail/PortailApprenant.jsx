@@ -7,6 +7,7 @@ import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
+import { INSTITUTE_NAME, EMAIL_DOMAIN } from '../../utils/brandingConfig';
 import { RentreeSchedule } from '../Planning/PlanningRentreePage';
 import { generateAttestationSoutenance, generateAttestationReussite, generateFicheApprenant } from '../../services/pdfService';
 import { badgesService, getBadge, BADGE_CATALOGUE } from '../../services/badgesService';
@@ -1042,7 +1043,7 @@ const PLATFORMS = [
 function RessourcesTab() {
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-400 font-medium">Plateformes numériques accessibles avec votre compte IFTL</p>
+      <p className="text-xs text-slate-400 font-medium">Plateformes numériques accessibles avec votre compte {INSTITUTE_NAME}</p>
       {PLATFORMS.map(p => (
         <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer"
            className="block rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
@@ -1070,8 +1071,8 @@ function RessourcesTab() {
       ))}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
         <p className="text-xs text-blue-700 font-medium">
-          💡 Utilisez vos identifiants IFTL communiqués par l'administration.
-          Problème ? <a href="mailto:scolarite@iftl.ma" className="underline">scolarite@iftl.ma</a>
+          💡 Utilisez vos identifiants {INSTITUTE_NAME} communiqués par l'administration.
+          Problème ? <a href={`mailto:scolarite@${EMAIL_DOMAIN}`} className="underline">scolarite@{EMAIL_DOMAIN}</a>
         </p>
       </div>
     </div>
@@ -1216,7 +1217,7 @@ function NotificationsTab({ groupeId, studentGroupe }) {
                     </div>
                     {a.contenu && <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{a.contenu}</p>}
                     <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
-                      <span>{a.auteurNom || 'IFTL Administration'}</span>
+                      <span>{a.auteurNom || `${INSTITUTE_NAME} Administration`}</span>
                       <span>{date}</span>
                     </div>
                   </div>
@@ -1331,7 +1332,7 @@ function TransportTab({ studentId, studentNom, studentPrenom, studentCode }) {
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-xl">🚌</div>
             <div>
               <p className="text-white font-bold text-base">Abonnement Transport actif</p>
-              <p className="text-green-100 text-xs">Navette IFTL — {new Date(abonnement.dateDebut?.toDate?.() || abonnement.dateDebut).toLocaleDateString('fr-MA', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+              <p className="text-green-100 text-xs">Navette — {new Date(abonnement.dateDebut?.toDate?.() || abonnement.dateDebut).toLocaleDateString('fr-MA', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
             </div>
             <span className="ml-auto bg-white text-green-700 text-xs font-bold px-3 py-1 rounded-full">Confirmé</span>
           </div>
@@ -1365,7 +1366,7 @@ function TransportTab({ studentId, studentNom, studentPrenom, studentCode }) {
           <span className="text-2xl">⏸️</span>
           <div>
             <p className="text-white font-bold">Abonnement suspendu</p>
-            <p className="text-orange-100 text-xs">Navette IFTL — {abonnement.pointRassemblement}</p>
+            <p className="text-orange-100 text-xs">Navette — {abonnement.pointRassemblement}</p>
           </div>
         </div>
         <div className="px-6 py-5 bg-orange-50">
@@ -1410,7 +1411,7 @@ function TransportTab({ studentId, studentNom, studentPrenom, studentCode }) {
         <div className="px-6 py-4 flex items-center gap-3 border-b border-slate-100" style={{ background: '#f8fafc' }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl" style={{ background: '#e0f2fe' }}>🚌</div>
           <div>
-            <p className="font-bold text-slate-800">Navette IFTL</p>
+            <p className="font-bold text-slate-800">Navette</p>
             <p className="text-xs text-slate-400">Souscrire à l'abonnement transport</p>
           </div>
         </div>

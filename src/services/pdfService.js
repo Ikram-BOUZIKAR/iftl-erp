@@ -5,6 +5,10 @@ import { fr } from 'date-fns/locale';
 import IFTL_LOGO from '../assets/iftlLogo.js';
 import { formatCurrency } from '../utils/currency';
 
+const INSTITUTE_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
+const INSTITUTE_SHORT = INSTITUTE_NAME.split(/\s+/).slice(0, 2).join(' ');
+const IS_DEMO = import.meta.env.MODE === 'demo';
+
 // ─── Brand constants ──────────────────────────────────────────────────────────
 
 const BRAND = {
@@ -54,10 +58,18 @@ function drawIftlHeader(doc, title, subtitle) {
   doc.setFillColor(...BRAND.yellow);
   doc.rect(0, 38, w, 3, 'F');
 
-  // IFTL logo
+  // Institute logo / name
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
-  doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+  } else {
+    doc.setTextColor(...BRAND.blue);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 13 + i * 7, { align: 'center' }));
+    doc.setTextColor(...BRAND.white);
+  }
 
   // Document title (right-aligned, white on blue)
   doc.setTextColor(...BRAND.white);
@@ -94,7 +106,7 @@ function drawFooter(doc) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(...BRAND.white);
     doc.text(
-      'Document généré automatiquement — IFTL · Institut de Formation dans les métiers Transport & Logistique',
+      `Document généré automatiquement — ${INSTITUTE_NAME}`,
       w / 2,
       h - 3.5,
       { align: 'center' }
@@ -547,7 +559,15 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
 
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(6, 1, 32, 20, 1, 1, 'F');
-  doc.addImage(IFTL_LOGO, 'PNG', 7, 2, 30, 18);
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', 7, 2, 30, 18);
+  } else {
+    doc.setTextColor(...BRAND.blue);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 22, 7 + i * 5, { align: 'center' }));
+    doc.setTextColor(255, 255, 255);
+  }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -813,7 +833,7 @@ export function generatePlanningPDF(sessionsByGroupOrSessions, groupes, interven
   doc.setFontSize(6);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(255, 255, 255);
-  doc.text('Document généré automatiquement — IFTL · Institut de Formation dans les métiers Transport & Logistique', PW / 2, PH - 3, { align: 'center' });
+  doc.text(`Document généré automatiquement — ${INSTITUTE_NAME}`, PW / 2, PH - 3, { align: 'center' });
   const dateStr = format(new Date(), 'yyyyMMdd');
   doc.text(`Imprimé le ${format(new Date(), 'dd/MM/yyyy')}`, PW - 10, PH - 3, { align: 'right' });
 
@@ -1005,7 +1025,15 @@ export function generatePV(groupe, students, modules, notesByStudent, anneeAcad 
 
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(W - 62, 1, 50, 20, 2, 2, 'F');
-  doc.addImage(IFTL_LOGO, 'PNG', W - 61, 2, 48, 18);
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', W - 61, 2, 48, 18);
+  } else {
+    doc.setTextColor(...NAVY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, W - 37, 7 + i * 5, { align: 'center' }));
+    doc.setTextColor(255, 255, 255);
+  }
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
@@ -1184,7 +1212,15 @@ export function generateReleve1A(student, info, modules, summary = {}) {
 
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
-  doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+  } else {
+    doc.setTextColor(...BRAND.blue);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 13 + i * 7, { align: 'center' }));
+    doc.setTextColor(...BRAND.white);
+  }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
@@ -1325,7 +1361,15 @@ export function generateReleve2A(student, info, modules, summary2A = {}) {
 
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
-  doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
+  } else {
+    doc.setTextColor(...BRAND.blue);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 13 + i * 7, { align: 'center' }));
+    doc.setTextColor(...BRAND.white);
+  }
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
@@ -1504,10 +1548,12 @@ export function generateAttestationSoutenance(student, opts = {}) {
   // ── Intro ──
   y += 10;
   const introLines = doc.splitTextToSize(
-    'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport ' +
-    'et de la Logistique « IFTL », institut public à gestion déléguée créé en vertu du Décret n° 2-25-250 ' +
-    'du 1 Kaada 1446 (29 avril 2025), placé sous la tutelle du Ministère de l\'Inclusion économique, de la Petite ' +
-    'entreprise, de l\'Emploi et des Compétences et situé au Pôle urbain de Nouaceur LOT P\'41-Nouaceur,',
+    IS_DEMO
+      ? `Je soussigné, le Directeur Général de ${INSTITUTE_NAME},`
+      : 'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport ' +
+        'et de la Logistique « IFTL », institut public à gestion déléguée créé en vertu du Décret n° 2-25-250 ' +
+        'du 1 Kaada 1446 (29 avril 2025), placé sous la tutelle du Ministère de l\'Inclusion économique, de la Petite ' +
+        'entreprise, de l\'Emploi et des Compétences et situé au Pôle urbain de Nouaceur LOT P\'41-Nouaceur,',
     w - 28
   );
   doc.setFont('helvetica', 'normal');
@@ -1549,7 +1595,7 @@ export function generateAttestationSoutenance(student, opts = {}) {
 
   const bodyLines = doc.splitTextToSize(
     `est inscrit(e) en ${anneeFiliere} année de la filière : ${filiere}, au titre de l'année de formation ${anneeFormation}, ` +
-    `et a satisfait aux conditions d'assiduité et d'évaluation continue requises par l'IFTL.`,
+    `et a satisfait aux conditions d'assiduité et d'évaluation continue requises par ${INSTITUTE_NAME}.`,
     w - 28
   );
   doc.setFont('helvetica', 'normal');
@@ -1620,10 +1666,12 @@ export function generateAttestationReussite(student, opts = {}) {
   // ── Intro ──
   y += 10;
   const introLines = doc.splitTextToSize(
-    'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport ' +
-    'et de la Logistique « IFTL », institut public à gestion déléguée créé en vertu du Décret n° 2-25-250 ' +
-    'du 1 Kaada 1446 (29 avril 2025), placé sous la tutelle du Ministère de l\'Inclusion économique, de la Petite ' +
-    'entreprise, de l\'Emploi et des Compétences et situé au Pôle urbain de Nouaceur LOT P\'41-Nouaceur,',
+    IS_DEMO
+      ? `Je soussigné, le Directeur Général de ${INSTITUTE_NAME},`
+      : 'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport ' +
+        'et de la Logistique « IFTL », institut public à gestion déléguée créé en vertu du Décret n° 2-25-250 ' +
+        'du 1 Kaada 1446 (29 avril 2025), placé sous la tutelle du Ministère de l\'Inclusion économique, de la Petite ' +
+        'entreprise, de l\'Emploi et des Compétences et situé au Pôle urbain de Nouaceur LOT P\'41-Nouaceur,',
     w - 28
   );
   doc.setFont('helvetica', 'normal');
@@ -1663,7 +1711,7 @@ export function generateAttestationReussite(student, opts = {}) {
   const body1Lines = doc.splitTextToSize(
     `a validé avec succès l'ensemble des modules pédagogiques et professionnels relatifs à la Formation de niveau ` +
     `${niveau} dans la filière : ${filiere}, au titre de l'année académique ${anneeAcademique}, conformément aux normes ` +
-    `en vigueur, et dans le plein respect des critères d'assiduité, de discipline et de performance exigés par l'IFTL.`,
+    `en vigueur, et dans le plein respect des critères d'assiduité, de discipline et de performance exigés par ${INSTITUTE_NAME}.`,
     w - 28
   );
   doc.text(body1Lines, 14, y);
@@ -1671,7 +1719,7 @@ export function generateAttestationReussite(student, opts = {}) {
 
   const body2Lines = doc.splitTextToSize(
     `Ce résultat a été arrêté en application des délibérations du Conseil de gestion et de coordination pédagogique ` +
-    `de l'IFTL, tenu le ${dateDelib}, et dûment consignées dans le procès-verbal correspondant.`,
+    `de ${INSTITUTE_NAME}, tenu le ${dateDelib}, et dûment consignées dans le procès-verbal correspondant.`,
     w - 28
   );
   doc.text(body2Lines, 14, y);
@@ -1717,10 +1765,18 @@ function drawIftlHeaderAttestation(doc, docTitle) {
   doc.setFillColor(...BRAND.yellow);
   doc.rect(0, 42, w, 3, 'F');
 
-  // IFTL logo
+  // Institute logo / name
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(10, 3, 48, 36, 2, 2, 'F');
-  doc.addImage(IFTL_LOGO, 'PNG', 11, 4, 46, 32);
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 4, 46, 32);
+  } else {
+    doc.setTextColor(...BRAND.blue);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 34, 14 + i * 7, { align: 'center' }));
+    doc.setTextColor(...BRAND.white);
+  }
 
   // Document type – right side
   doc.setFont('helvetica', 'bold');
@@ -1767,12 +1823,12 @@ function drawSignatureBlock(doc, y, dateFait) {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('M. KARAOUANE Mohamed', w - 14, y, { align: 'right' });
+  if (!IS_DEMO) doc.text('M. KARAOUANE Mohamed', w - 14, y, { align: 'right' });
   y += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(...BRAND.grey);
-  doc.text('Directeur Général de l\'IFTL', w - 14, y, { align: 'right' });
+  doc.text(`Directeur Général de ${INSTITUTE_NAME}`, w - 14, y, { align: 'right' });
   y += 16;
 
   // Signature line
@@ -1798,12 +1854,12 @@ export function generateDocumentAdministratif(doc_) {
   };
 
   const BODY_TEXTS = {
-    attestation_scolarite: (d) => `est bien inscrit(e) à l'IFTL pour l'année académique 2026-2027${d.filiereCode ? `, dans la filière ${d.filiereCode}` : ''}.`,
-    attestation_stage: () => `a effectué un stage dans le cadre de sa formation à l'IFTL au titre de l'année académique 2026-2027.`,
+    attestation_scolarite: (d) => `est bien inscrit(e) à ${INSTITUTE_NAME} pour l'année académique 2026-2027${d.filiereCode ? `, dans la filière ${d.filiereCode}` : ''}.`,
+    attestation_stage: () => `a effectué un stage dans le cadre de sa formation à ${INSTITUTE_NAME} au titre de l'année académique 2026-2027.`,
     convention_stage: () => `fait l'objet d'une convention de stage établie conformément à la réglementation en vigueur.`,
-    diplome: (d) => `a obtenu le diplôme sanctionnant la filière ${d.filiereCode || 'de formation'} à l'issue de sa formation à l'IFTL.`,
-    certificat_formation: (d) => `a suivi et validé la formation dispensée à l'IFTL${d.filiereCode ? ` dans la filière ${d.filiereCode}` : ''}.`,
-    releve_notes: () => `a obtenu les notes consignées dans le présent relevé, établi conformément aux délibérations du Conseil de gestion de l'IFTL.`,
+    diplome: (d) => `a obtenu le diplôme sanctionnant la filière ${d.filiereCode || 'de formation'} à l'issue de sa formation à ${INSTITUTE_NAME}.`,
+    certificat_formation: (d) => `a suivi et validé la formation dispensée à ${INSTITUTE_NAME}${d.filiereCode ? ` dans la filière ${d.filiereCode}` : ''}.`,
+    releve_notes: () => `a obtenu les notes consignées dans le présent relevé, établi conformément aux délibérations du Conseil de gestion de ${INSTITUTE_NAME}.`,
   };
 
   const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -1836,7 +1892,9 @@ export function generateDocumentAdministratif(doc_) {
   pdfDoc.setFont('helvetica', 'normal');
   pdfDoc.setFontSize(11);
   pdfDoc.setTextColor(30, 41, 59);
-  const intro = 'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport et de la Logistique « IFTL », atteste que :';
+  const intro = IS_DEMO
+    ? `Je soussigné, le Directeur Général de ${INSTITUTE_NAME}, atteste que :`
+    : 'Je soussigné, M. KARAOUANE Mohamed, Directeur Général de l\'Institut de Formation aux Métiers du Transport et de la Logistique « IFTL », atteste que :';
   const introLines = pdfDoc.splitTextToSize(intro, w - 28);
   pdfDoc.text(introLines, 14, y);
   y += introLines.length * 6 + 8;
@@ -1853,7 +1911,7 @@ export function generateDocumentAdministratif(doc_) {
   pdfDoc.setFont('helvetica', 'normal');
   pdfDoc.setFontSize(11);
   pdfDoc.setTextColor(30, 41, 59);
-  const bodyFn = BODY_TEXTS[doc_.type] || (() => 'est titulaire du présent document administratif émis par l\'IFTL.');
+  const bodyFn = BODY_TEXTS[doc_.type] || (() => `est titulaire du présent document administratif émis par ${INSTITUTE_NAME}.`);
   const bodyLines = pdfDoc.splitTextToSize(bodyFn(doc_), w - 28);
   pdfDoc.text(bodyLines, 14, y);
   y += bodyLines.length * 6 + 6;
@@ -2027,7 +2085,7 @@ export async function generateFicheApprenant(student, userProfile, groupe) {
   doc.setFontSize(7);
   doc.setTextColor(180, 180, 180);
   doc.text('Cachet', 14 + 18, sigY + 15, { align: 'center' });
-  doc.text('IFTL', 14 + 18, sigY + 20, { align: 'center' });
+  doc.text(INSTITUTE_SHORT, 14 + 18, sigY + 20, { align: 'center' });
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7.5);
@@ -2043,7 +2101,7 @@ export async function generateFicheApprenant(student, userProfile, groupe) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(...BRAND.darkBlue);
-  doc.text('Document officiel IFTL — Ne pas modifier — Valable pour l\'année académique en cours', w / 2, noticeY + 6.5, { align: 'center' });
+  doc.text(`Document officiel ${INSTITUTE_NAME} — Ne pas modifier — Valable pour l'année académique en cours`, w / 2, noticeY + 6.5, { align: 'center' });
 
   drawPageBorder(doc);
   drawFooter(doc);

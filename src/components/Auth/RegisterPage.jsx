@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase
 import { auth, db } from '../../services/firebase';
 import { sendEmail } from '../../services/emailService';
 import { useBranding } from '../../contexts/BrandingContext';
+import { INSTITUTE_NAME, EMAIL_DOMAIN } from '../../utils/brandingConfig';
 
 const BRAND = { blue: '#005989', yellow: '#f5c845', red: '#c8141b', green: '#c8d45d', orange: '#d75930' };
 
@@ -116,7 +117,7 @@ export default function RegisterPage() {
           await firebaseUser.delete();
           setErrors(e => ({
             ...e,
-            codeApprenant: 'Un compte avec ce code existe déjà. Contactez l\'administration (scolarite@iftl.ma) pour récupérer vos accès.',
+            codeApprenant: `Un compte avec ce code existe déjà. Contactez l'administration (scolarite@${EMAIL_DOMAIN}) pour récupérer vos accès.`,
           }));
           setLoading(false);
           return;
@@ -159,10 +160,10 @@ export default function RegisterPage() {
       try {
         const roleLabel = ROLES.find(r => r.id === role)?.label || role;
         await sendEmail(db, {
-          to: 'scolarite@iftl.ma',
-          toName: 'Scolarité IFTL',
+          to: `scolarite@${EMAIL_DOMAIN}`,
+          toName: `Scolarité ${INSTITUTE_NAME}`,
           subject: `Nouvelle demande de compte — ${form.prenom} ${form.nom} (${roleLabel})`,
-          htmlContent: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f1f5f9;margin:0;padding:0"><div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><div style="background:linear-gradient(135deg,#002d47,#005989);padding:24px 32px"><h1 style="color:#f5c845;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">IFTL</h1><p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:12px">Institut de Formation en Transport &amp; Logistique</p></div><div style="padding:28px 32px"><h2 style="color:#001829;margin:0 0 16px;font-size:18px">Nouvelle demande de compte</h2><p style="color:#334155;line-height:1.6">Un nouveau compte est en attente de validation dans l'interface d'administration (Paramètres → Utilisateurs → En attente).</p><table style="width:100%;border-collapse:collapse;margin:20px 0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden"><tr style="background:#f8fafc"><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600;width:130px;border-bottom:1px solid #e2e8f0">Nom</td><td style="padding:10px 14px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${form.prenom} ${form.nom}</td></tr><tr><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Email</td><td style="padding:10px 14px;font-size:13px;border-bottom:1px solid #e2e8f0">${form.email}</td></tr><tr style="background:#f8fafc"><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Rôle demandé</td><td style="padding:10px 14px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${roleLabel}</td></tr>${form.telephone ? `<tr><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600">Téléphone</td><td style="padding:10px 14px;font-size:13px">${form.telephone}</td></tr>` : ''}${form.codeApprenant ? `<tr style="background:#f8fafc"><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600">Code apprenant</td><td style="padding:10px 14px;font-size:13px;font-weight:700">${form.codeApprenant}</td></tr>` : ''}</table><p style="color:#64748b;font-size:13px;line-height:1.6">Connectez-vous à l'interface d'administration pour valider ou refuser ce compte.</p></div><div style="background:#001829;padding:14px 24px;text-align:center;color:rgba(255,255,255,0.4);font-size:11px">IFTL — Loi n°09-08 — CNDP A-PO-268/2024</div></div></body></html>`,
+          htmlContent: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f1f5f9;margin:0;padding:0"><div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><div style="background:linear-gradient(135deg,#002d47,#005989);padding:24px 32px"><h1 style="color:#f5c845;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">${INSTITUTE_NAME}</h1><p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:12px">Gestion pédagogique</p></div><div style="padding:28px 32px"><h2 style="color:#001829;margin:0 0 16px;font-size:18px">Nouvelle demande de compte</h2><p style="color:#334155;line-height:1.6">Un nouveau compte est en attente de validation dans l'interface d'administration (Paramètres → Utilisateurs → En attente).</p><table style="width:100%;border-collapse:collapse;margin:20px 0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden"><tr style="background:#f8fafc"><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600;width:130px;border-bottom:1px solid #e2e8f0">Nom</td><td style="padding:10px 14px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${form.prenom} ${form.nom}</td></tr><tr><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Email</td><td style="padding:10px 14px;font-size:13px;border-bottom:1px solid #e2e8f0">${form.email}</td></tr><tr style="background:#f8fafc"><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Rôle demandé</td><td style="padding:10px 14px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${roleLabel}</td></tr>${form.telephone ? `<tr><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600">Téléphone</td><td style="padding:10px 14px;font-size:13px">${form.telephone}</td></tr>` : ''}${form.codeApprenant ? `<tr style="background:#f8fafc"><td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:600">Code apprenant</td><td style="padding:10px 14px;font-size:13px;font-weight:700">${form.codeApprenant}</td></tr>` : ''}</table><p style="color:#64748b;font-size:13px;line-height:1.6">Connectez-vous à l'interface d'administration pour valider ou refuser ce compte.</p></div><div style="background:#001829;padding:14px 24px;text-align:center;color:rgba(255,255,255,0.4);font-size:11px">${INSTITUTE_NAME}</div></div></body></html>`,
           logToFirestore: false,
         });
       } catch { /* non-blocking */ }
@@ -331,7 +332,7 @@ export default function RegisterPage() {
             type="email"
             value={form.email}
             onChange={e => set('email', e.target.value)}
-            placeholder={role === 'intervenant' ? 'prenom.nom@iftl.ma' : 'votre@email.com'}
+            placeholder={role === 'intervenant' ? `prenom.nom@${EMAIL_DOMAIN}` : 'votre@email.com'}
             hint={role === 'intervenant' ? 'Adresse professionnelle de préférence' : undefined}
             error={errors.email}
             icon={

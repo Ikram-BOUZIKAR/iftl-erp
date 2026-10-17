@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { INSTITUTE_NAME, EMAIL_DOMAIN } from '../../utils/brandingConfig';
 import { collection, getDocs, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
@@ -752,7 +753,7 @@ function ConfigTab() {
     setTesting(true);
     try {
       await sendEmail(db, {
-        to: 'directeur@iftl.ma',
+        to: `directeur@${EMAIL_DOMAIN}`,
         toName: 'Direction',
         subject: 'Test de configuration Brevo — ERP',
         htmlContent: `<div style="font-family:Arial,sans-serif;padding:24px">
@@ -762,7 +763,7 @@ function ConfigTab() {
         </div>`,
         textContent: 'Test de configuration Brevo — ERP. La configuration est opérationnelle.',
       });
-      toast.success('Email de test envoyé à directeur@iftl.ma');
+      toast.success(`Email de test envoyé à directeur@${EMAIL_DOMAIN}`);
     } catch (err) {
       toast.error(`Erreur : ${err.message}`);
     } finally {
@@ -849,7 +850,7 @@ function ConfigTab() {
           <li>Dans votre tableau de bord Brevo, allez dans <strong>SMTP &amp; API → Clés API</strong>.</li>
           <li>Créez une nouvelle clé API et copiez-la.</li>
           <li>Collez-la dans le champ ci-dessus et cliquez sur <strong>Enregistrer</strong>.</li>
-          <li>Vérifiez votre domaine expéditeur (<code>iftl.ma</code>) dans <strong>Expéditeurs &amp; IP</strong>.</li>
+          <li>Vérifiez votre domaine expéditeur (<code>{EMAIL_DOMAIN}</code>) dans <strong>Expéditeurs &amp; IP</strong>.</li>
           <li>Cliquez sur <strong>Tester la configuration</strong> pour valider l'envoi.</li>
         </ol>
       </div>
@@ -878,7 +879,7 @@ function ConfigTab() {
           </div>
           <div className="bg-slate-50 rounded-lg p-3">
             <p className="text-xs text-slate-500 mb-0.5">Adresse email</p>
-            <p className="font-semibold text-slate-800">no-reply@iftl.ma</p>
+            <p className="font-semibold text-slate-800">no-reply@{EMAIL_DOMAIN}</p>
           </div>
         </div>
         <p className="text-xs text-slate-400 mt-3">

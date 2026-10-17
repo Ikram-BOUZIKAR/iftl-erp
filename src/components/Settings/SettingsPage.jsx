@@ -306,7 +306,7 @@ function ModalCreateUser({ onClose, onCreated }) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email *</label>
-            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inp} placeholder="prenom.nom@iftl.ma" required />
+            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inp} placeholder={`prenom.nom@${import.meta.env.VITE_EMAIL_DOMAIN || 'iftl.ma'}`} required />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Mot de passe initial *</label>
@@ -708,7 +708,7 @@ function PaletteIcon() {
 // ─── Color Presets ────────────────────────────────────────────────────────────
 
 const COLOR_PRESETS = [
-  { label: 'IFTL',     primary: '#005989', accent: '#f5c845' },
+  { label: 'Bleu Océan', primary: '#005989', accent: '#f5c845' },
   { label: 'Indigo',   primary: '#4f46e5', accent: '#f59e0b' },
   { label: 'Emeraude', primary: '#059669', accent: '#fbbf24' },
   { label: 'Grenat',   primary: '#9b1c1c', accent: '#fcd34d' },

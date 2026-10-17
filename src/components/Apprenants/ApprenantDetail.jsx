@@ -8,6 +8,7 @@ import { db, auth } from '../../services/firebase';
 import { collection, query, where, getDocs, orderBy, setDoc, doc, getDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { generateFicheApprenant } from '../../services/pdfService';
+import { INSTITUTE_NAME, EMAIL_DOMAIN } from '../../utils/brandingConfig';
 
 const STATUT_LABELS = {
   present: 'Présent',
@@ -76,8 +77,8 @@ function genEmailIftl(prenom, nom) {
   const p = toAscii(prenom);
   const n = toAscii(nom);
   if (!p && !n) return null;
-  if (!n) return `${p}@iftl.ma`;
-  return `${n}.${p}@iftl.ma`;
+  if (!n) return `${p}@${EMAIL_DOMAIN}`;
+  return `${n}.${p}@${EMAIL_DOMAIN}`;
 }
 
 function InfoField({ label, value }) {
@@ -323,7 +324,7 @@ function BulletinCard({ item }) {
 async function createCompteApprenant(student, emailIftl) {
   const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
   if (!apiKey) throw new Error('Clé API Firebase manquante');
-  if (!emailIftl) throw new Error('Email IFTL non générable (prénom/nom manquant)');
+  if (!emailIftl) throw new Error('Email institutionnel non générable (prénom/nom manquant)');
 
   // Check if Firestore users doc already linked
   const existingSnap = await getDocs(query(collection(db, 'users'), where('studentId', '==', student.id)));
@@ -740,13 +741,13 @@ export default function ApprenantDetail() {
                 </div>
               </div>
 
-              {/* Compte IFTL */}
+              {/* Compte institutionnel */}
               <div>
-                <SectionHeader title="Compte IFTL" />
+                <SectionHeader title={`Compte ${INSTITUTE_NAME}`} />
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">
-                      Email IFTL
+                      Email institutionnel
                     </p>
                     {emailIftl ? (
                       <button

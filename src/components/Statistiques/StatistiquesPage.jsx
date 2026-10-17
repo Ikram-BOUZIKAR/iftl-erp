@@ -770,7 +770,7 @@ export default function StatistiquesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-800">{t('statistiques.title')}</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Tableau de bord analytique — IFTL</p>
+          <p className="text-slate-400 text-sm mt-0.5">Tableau de bord analytique — {import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL'}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Group filter */}

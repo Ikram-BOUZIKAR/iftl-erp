@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { INSTITUTE_NAME } from '../../utils/brandingConfig';
 
 function IcoClose() { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>; }
 function IcoChevron({ open }) { return <svg className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>; }
@@ -109,7 +110,7 @@ const GUIDE_CONTENT = {
       },
       {
         icon: '🚌',
-        title: 'Transport — Navette IFTL',
+        title: 'Transport — Navette',
         description: 'Souscrivez à l\'abonnement navette et gérez votre point de rassemblement.',
         steps: [
           { label: 'Souscrire', detail: 'Dans l\'onglet Transport, choisissez votre point de rassemblement parmi : Zaouia, Aéroport Med 5 - Terminal 1, Station Afriquia - AL Madina Deroua, Station Total - Sapino.' },
@@ -173,7 +174,7 @@ const GUIDE_CONTENT = {
         steps: [
           { label: 'Taux de présence', detail: 'Vue synthétique par groupe et par apprenant avec codes couleur (vert = bon, orange = alerte, rouge = danger).' },
           { label: 'Alertes automatiques', detail: 'Les apprenants dépassant le seuil d\'absences sont mis en avant automatiquement.' },
-          { label: 'Export PDF', detail: 'Générez un rapport PDF complet des absences par année académique avec l\'en-tête officielle IFTL.' },
+          { label: 'Export PDF', detail: `Générez un rapport PDF complet des absences par année académique avec l'en-tête officielle ${INSTITUTE_NAME}.` },
         ]
       },
       {
@@ -184,7 +185,7 @@ const GUIDE_CONTENT = {
           { label: 'Saisie des notes', detail: 'Sélectionnez le module, le groupe, l\'évaluation (CC, EFM…) et saisissez les notes individuellement.' },
           { label: 'Calcul automatique', detail: 'Les moyennes sont calculées automatiquement : EFM × 60% + autres × 40%. Rattrapage plafonné à 12/20.' },
           { label: 'Accès intervenants', detail: 'Les intervenants saisissent leurs propres notes via leur portail. La scolarité et la direction y ont accès en lecture.' },
-          { label: 'Bulletin PDF', detail: 'Générez les bulletins individuels avec l\'en-tête officielle IFTL, la signature et le cachet.' },
+          { label: 'Bulletin PDF', detail: `Générez les bulletins individuels avec l'en-tête officielle ${INSTITUTE_NAME}, la signature et le cachet.` },
         ]
       },
       {
@@ -210,7 +211,7 @@ const GUIDE_CONTENT = {
       },
       {
         icon: '🚌',
-        title: 'Transport — Navette IFTL',
+        title: 'Transport — Navette',
         description: 'Gérez les véhicules, conducteurs, abonnements et points de rassemblement.',
         steps: [
           { label: 'Véhicules', detail: 'Enregistrez les véhicules de la navette avec immatriculation, marque, capacité et conducteur affecté.' },
@@ -324,7 +325,7 @@ const GUIDE_CONTENT = {
       {
         icon: '🚌',
         title: 'Transport',
-        description: 'Supervision de la navette IFTL.',
+        description: 'Supervision de la navette.',
         steps: [
           { label: 'Véhicules & conducteurs', detail: 'Vue de tous les véhicules avec leur conducteur assigné, capacité et état.' },
           { label: 'Abonnements', detail: 'Nombre d\'apprenants abonnés par point de rassemblement et taux de remplissage des navettes.' },
@@ -363,7 +364,7 @@ async function downloadGuidePDF(guide) {
   doc.setTextColor(255, 255, 255, 0.75);
   doc.text(guide.subtitle, margin, 20);
   doc.setFontSize(7);
-  doc.text('Institut de Formation Transport & Logistique — IFTL', w - margin, 24, { align: 'right' });
+  doc.text(INSTITUTE_NAME, w - margin, 24, { align: 'right' });
 
   let y = 36;
 
@@ -430,11 +431,11 @@ async function downloadGuidePDF(guide) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
-    doc.text('IFTL — Institut de Formation Transport & Logistique', margin, 291);
+    doc.text(INSTITUTE_NAME, margin, 291);
     doc.text(`Page ${p} / ${total}`, w - margin, 291, { align: 'right' });
   }
 
-  doc.save(`Guide_ERP_IFTL_${guide.title.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Guide_ERP_${INSTITUTE_NAME.replace(/\s+/g, '_')}_${guide.title.replace(/\s+/g, '_')}.pdf`);
 }
 
 // ── Accordion section ─────────────────────────────────────────────────────────

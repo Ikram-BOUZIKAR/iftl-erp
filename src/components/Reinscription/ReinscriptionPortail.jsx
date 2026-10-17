@@ -5,6 +5,9 @@ import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
 import { getCurrencySymbol } from '../../utils/currency';
 
+const INST_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
+const EMAIL_DOMAIN = import.meta.env.VITE_EMAIL_DOMAIN || 'iftl.ma';
+
 const DEFAULT_CONFIG = {
   anneeReinscription: '2026-2027',
   montant: 8500,
@@ -118,7 +121,10 @@ function MobileHeader({ step, annee }) {
       background: tok.blueDeep, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 20,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ height: 36, objectFit: 'contain' }} />
+        {import.meta.env.VITE_DEFAULT_LOGO_URL
+          ? <img src={import.meta.env.VITE_DEFAULT_LOGO_URL} alt={INST_NAME} style={{ height: 36, objectFit: 'contain' }} />
+          : <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: 1 }}>{INST_NAME}</span>
+        }
         <div>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Réinscription</p>
           <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{annee}</p>
@@ -324,17 +330,20 @@ export default function ReinscriptionPortail() {
         <div style={{ width: 64, height: 64, borderRadius: '50%', background: tok.blueTint, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={tok.muted} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
         </div>
-        <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ height: 36, objectFit: 'contain', marginBottom: 20, opacity: 0.7 }} />
+        {import.meta.env.VITE_DEFAULT_LOGO_URL
+          ? <img src={import.meta.env.VITE_DEFAULT_LOGO_URL} alt={INST_NAME} style={{ height: 36, objectFit: 'contain', marginBottom: 20, opacity: 0.7 }} />
+          : <span style={{ fontSize: 20, fontWeight: 900, color: '#005989', letterSpacing: 1, marginBottom: 20, display: 'block' }}>{INST_NAME}</span>
+        }
         <h2 style={{ margin: '0 0 12px', fontSize: 22, fontWeight: 800, color: tok.ink, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Campagne fermée</h2>
         <p style={{ margin: '0 0 8px', fontSize: 15, color: tok.muted, lineHeight: 1.6 }}>
           Les réinscriptions pour l'année <strong style={{ color: tok.ink }}>{config.anneeReinscription}</strong> ne sont pas encore ouvertes.
         </p>
         <p style={{ margin: '0 0 28px', fontSize: 14, color: tok.muted }}>Contactez la scolarité pour plus d'informations.</p>
-        <a href="mailto:scolarite@iftl.ma" style={{
+        <a href={`mailto:scolarite@${EMAIL_DOMAIN}`} style={{
           display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px',
           background: tok.blueTint, border: `1.5px solid ${tok.border}`, borderRadius: 10,
           fontSize: 14, fontWeight: 600, color: tok.blue, textDecoration: 'none',
-        }}>scolarite@iftl.ma</a>
+        }}>{`scolarite@${EMAIL_DOMAIN}`}</a>
       </div>
     </div>
   );
@@ -354,7 +363,7 @@ export default function ReinscriptionPortail() {
         </p>
         <div style={{ background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '14px 18px', marginBottom: 32, textAlign: 'left' }}>
           <p style={{ margin: 0, fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
-            <strong>Important :</strong> apportez votre reçu de virement bancaire ou chèque à la scolarité IFTL pour finaliser votre dossier.
+            <strong>Important :</strong> apportez votre reçu de virement bancaire ou chèque à la scolarité {INST_NAME} pour finaliser votre dossier.
           </p>
         </div>
         <div style={{ padding: '16px 20px', background: tok.blueTint, borderRadius: 12, display: 'inline-block', width: '100%', boxSizing: 'border-box' }}>
@@ -414,7 +423,10 @@ export default function ReinscriptionPortail() {
         <div className="reinsc-sidebar">
           {/* Logo */}
           <div style={{ marginBottom: 44 }}>
-            <img src="/Logo IFTL avec Signature.png" alt="IFTL" style={{ height: 42, objectFit: 'contain', marginBottom: 24, filter: 'brightness(0) invert(1)' }} />
+            {import.meta.env.VITE_DEFAULT_LOGO_URL
+              ? <img src={import.meta.env.VITE_DEFAULT_LOGO_URL} alt={INST_NAME} style={{ height: 42, objectFit: 'contain', marginBottom: 24, filter: 'brightness(0) invert(1)' }} />
+              : <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: 2, marginBottom: 24, display: 'block' }}>{INST_NAME}</span>
+            }
             <h1 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.25, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {t('reinscription.portal_title')}
             </h1>
@@ -431,10 +443,10 @@ export default function ReinscriptionPortail() {
           {/* Bottom contact */}
           <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 24 }}>
             <p style={{ margin: '0 0 6px', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Besoin d'aide ?</p>
-            <a href="mailto:scolarite@iftl.ma" style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)', textDecoration: 'none' }}>
-              scolarite@iftl.ma
+            <a href={`mailto:scolarite@${EMAIL_DOMAIN}`} style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)', textDecoration: 'none' }}>
+              {`scolarite@${EMAIL_DOMAIN}`}
             </a>
-            <p style={{ margin: '6px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>IFTL · Nouaceur</p>
+            <p style={{ margin: '6px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{INST_NAME}</p>
           </div>
         </div>
 
@@ -624,7 +636,7 @@ export default function ReinscriptionPortail() {
                   <div>
                     <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#92400e' }}>Conservez votre reçu de paiement</p>
                     <p style={{ margin: 0, fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
-                      Apportez le justificatif original (reçu de virement ou chèque remis) à la <strong>scolarité IFTL</strong> lors de votre prochaine visite pour valider votre inscription.
+                      Apportez le justificatif original (reçu de virement ou chèque remis) à la <strong>scolarité {INST_NAME}</strong> lors de votre prochaine visite pour valider votre inscription.
                     </p>
                   </div>
                 </div>

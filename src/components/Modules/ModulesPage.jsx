@@ -114,7 +114,7 @@ function downloadCSVTemplate() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'canevas_modules_iftl.csv';
+  a.download = 'canevas_modules.csv';
   a.click();
   URL.revokeObjectURL(url);
 }

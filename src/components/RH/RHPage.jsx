@@ -199,7 +199,7 @@ function PersonnelModal({ personnel, onClose, onSaved }) {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
-                placeholder="prenom.nom@iftl.ma"
+                placeholder={`prenom.nom@${import.meta.env.VITE_EMAIL_DOMAIN || 'iftl.ma'}`}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989]" />
             </div>
           </fieldset>

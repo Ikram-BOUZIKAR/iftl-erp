@@ -67,10 +67,10 @@ function buildAndDownloadPDF(intervenant, sessions, modules, groupes, weekStart)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(255, 255, 255);
-  doc.text('IFTL', 14, 13);
+  doc.text(import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL', 14, 13);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
-  doc.text('Institut de Formation dans les métiers Transport & Logistique', 14, 19);
+  doc.text(import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'Institut de Formation dans les métiers Transport & Logistique', 14, 19);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text(`Planning de ${intervenant.prenom} ${intervenant.nom}`, 14, 26);

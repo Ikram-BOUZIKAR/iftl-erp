@@ -10,6 +10,8 @@
 import { doc, getDoc, setDoc, addDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
+const INSTITUTE_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
+const EMAIL_DOMAIN = import.meta.env.VITE_EMAIL_DOMAIN || 'iftl.ma';
 
 async function getBrandingSender(db) {
   try {
@@ -135,14 +137,13 @@ function baseLayout(content) {
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif">
 <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
   <div style="background:linear-gradient(135deg,#002d47 0%,#005989 100%);padding:28px 32px;text-align:center">
-    <h1 style="color:#f5c845;margin:0;font-size:26px;font-weight:900;letter-spacing:2px">IFTL</h1>
-    <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:13px;letter-spacing:1px">Institut de Formation en Transport &amp; Logistique</p>
+    <h1 style="color:#f5c845;margin:0;font-size:26px;font-weight:900;letter-spacing:2px">${INSTITUTE_NAME}</h1>
   </div>
   <div style="padding:32px 36px;background:#f8fafc;color:#1e293b">
     ${content}
   </div>
   <div style="background:#001829;padding:16px 24px;text-align:center;color:rgba(255,255,255,0.4);font-size:11px">
-    IFTL &mdash; Loi n&deg;09-08 &mdash; CNDP A-PO-268/2024 &mdash; <a href="https://iftl.ma" style="color:rgba(255,255,255,0.4)">iftl.ma</a>
+    ${INSTITUTE_NAME} &mdash; <a href="https://${EMAIL_DOMAIN}" style="color:rgba(255,255,255,0.4)">${EMAIL_DOMAIN}</a>
   </div>
 </div>
 </body></html>`;
@@ -171,7 +172,7 @@ function relancePaiementHtml({ studentPrenom, studentNom, montantDu, echeance, f
       </tr>
     </table>
     <p style="line-height:1.7">Merci de régulariser votre situation auprès du secrétariat dans les meilleurs délais.</p>
-    <p style="line-height:1.7;color:#64748b;font-size:13px">Pour tout renseignement, contactez-nous à <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a>.</p>
+    <p style="line-height:1.7;color:#64748b;font-size:13px">Pour tout renseignement, contactez-nous à <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a>.</p>
     <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration</strong></p>
   `);
 }
@@ -242,7 +243,7 @@ function bulletinHtml({ studentNom, groupeNom, annee }) {
     </div>
     <p style="line-height:1.7">Votre bulletin de notes est désormais disponible sur votre espace étudiant.</p>
     <p style="line-height:1.7;color:#64748b;font-size:13px">Connectez-vous au portail ou contactez le secrétariat pour en obtenir une copie imprimée.</p>
-    <a href="https://iftl.ma" style="${btnStyle()}">Accéder au portail</a>
+    <a href="#" style="${btnStyle()}">Accéder au portail</a>
     <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'équipe pédagogique</strong></p>
   `);
 }
@@ -270,12 +271,11 @@ function bienvenueHtml({ studentNom, studentPrenom, filiere, groupe }) {
       <h2 style="margin:0 0 8px;color:#1e40af;font-size:18px">Bienvenue !</h2>
       <p style="color:#1d4ed8;margin:0;font-size:14px">${filiere}${groupe ? ` — ${groupe}` : ''}</p>
     </div>
-    <p style="line-height:1.7">Nous sommes ravis de vous accueillir au sein de l'Institut de Formation Transport &amp; Logistique.</p>
+    <p style="line-height:1.7">Nous sommes ravis de vous accueillir au sein de ${INSTITUTE_NAME}.</p>
     <p style="line-height:1.7">Votre dossier a été validé et votre inscription est confirmée. Vous serez contacté(e) prochainement pour les détails pratiques de votre rentrée.</p>
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin:20px 0">
       <p style="margin:0 0 8px;font-weight:600;color:#374151;font-size:14px">Contacts utiles :</p>
-      <p style="margin:4px 0;font-size:13px;color:#64748b">Scolarité : <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
-      <p style="margin:4px 0;font-size:13px;color:#64748b">Site web : <a href="https://iftl.ma" style="color:#005989">iftl.ma</a></p>
+      <p style="margin:4px 0;font-size:13px;color:#64748b">Scolarité : <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
     </div>
     <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La direction</strong></p>
   `);
@@ -376,9 +376,9 @@ function planningHtmlEmail({ toName, semaineDebut, semaineFin, nbSeances, planni
     <div style="overflow-x:auto;margin:20px 0">${planningHtml}</div>
     <p style="line-height:1.7;color:#64748b;font-size:13px">
       En cas d'empêchement ou pour toute question, veuillez nous contacter dès que possible à
-      <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a>.
+      <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a>.
     </p>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'équipe pédagogique IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'équipe pédagogique ${INSTITUTE_NAME}</strong></p>
   `);
 }
 
@@ -400,8 +400,8 @@ function absenceHtmlEmail({ toName, moduleNom, dateSeance, heureDebut, heureFin,
     </div>
     ${messageCustom ? `<p style="line-height:1.7;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 18px;font-size:14px">${messageCustom}</p>` : ''}
     <p style="line-height:1.7">Merci de justifier votre absence auprès du secrétariat dans les meilleurs délais.</p>
-    <p style="line-height:1.7;color:#64748b;font-size:13px">Contact : <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration IFTL</strong></p>
+    <p style="line-height:1.7;color:#64748b;font-size:13px">Contact : <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration ${INSTITUTE_NAME}</strong></p>
   `);
 }
 
@@ -412,9 +412,9 @@ export async function sendPlanningEmail(db, { toEmail, toName, semaineDebut, sem
   return sendEmail(db, {
     to: toEmail,
     toName,
-    subject: `Votre planning IFTL — semaine du ${semaineDebut} au ${semaineFin}`,
+    subject: `Votre planning — semaine du ${semaineDebut} au ${semaineFin}`,
     htmlContent: planningHtmlEmail({ toName, semaineDebut, semaineFin, nbSeances, planningHtml }),
-    textContent: `Bonjour ${toName},\n\nVotre planning pour la semaine du ${semaineDebut} au ${semaineFin} : ${nbSeances} séance(s).\n\nCordialement,\nL'équipe pédagogique IFTL`,
+    textContent: `Bonjour ${toName},\n\nVotre planning pour la semaine du ${semaineDebut} au ${semaineFin} : ${nbSeances} séance(s).\n\nCordialement,\nL'équipe pédagogique ${INSTITUTE_NAME}`,
   });
 }
 
@@ -429,8 +429,8 @@ export async function sendAlertAbsenceEmail(db, { toEmail, toName, score, thresh
   const textColor = isCritical ? '#991b1b' : '#92400e';
   const niveau = isCritical ? 'CRITIQUE' : 'VIGILANCE';
   const subject = isCritical
-    ? `🔴 Absences critiques — ${toName} — IFTL`
-    : `⚠️ Alerte absences — ${toName} — IFTL`;
+    ? `🔴 Absences critiques — ${toName} — ${INSTITUTE_NAME}`
+    : `⚠️ Alerte absences — ${toName} — ${INSTITUTE_NAME}`;
   const htmlContent = baseLayout(`
     <p style="font-size:15px;line-height:1.7">Bonjour <strong>${toName}</strong>,</p>
     <p style="line-height:1.7">Votre taux d'absences non justifiées a atteint le seuil <strong style="color:${color}">${niveau}</strong> :</p>
@@ -440,8 +440,8 @@ export async function sendAlertAbsenceEmail(db, { toEmail, toName, score, thresh
     </div>
     <p style="line-height:1.7">Nous vous invitons à vous présenter à l'administration pour régulariser votre situation dès que possible.</p>
     <p style="line-height:1.7">${isCritical ? '<strong>Toute nouvelle absence non justifiée pourra engager une procédure disciplinaire.</strong>' : 'Merci de veiller à régulariser vos absences avant le prochain contrôle.'}</p>
-    <p style="line-height:1.7;color:#64748b;font-size:13px">Contact : <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration IFTL</strong></p>
+    <p style="line-height:1.7;color:#64748b;font-size:13px">Contact : <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>L'administration ${INSTITUTE_NAME}</strong></p>
   `);
   return sendEmail(db, { to: toEmail, toName, subject, htmlContent });
 }
@@ -453,9 +453,9 @@ export async function sendAbsenceEmail(db, { toEmail, toName, moduleNom, dateSea
   return sendEmail(db, {
     to: toEmail,
     toName,
-    subject: `Absence enregistrée — ${moduleNom} — IFTL`,
+    subject: `Absence enregistrée — ${moduleNom} — ${INSTITUTE_NAME}`,
     htmlContent: absenceHtmlEmail({ toName, moduleNom, dateSeance, heureDebut, heureFin, groupeNom, messageCustom }),
-    textContent: `Bonjour ${toName},\n\nUne absence a été enregistrée pour :\nModule : ${moduleNom}\nDate : ${dateSeance}\nHoraire : ${heureDebut}–${heureFin}\nGroupe : ${groupeNom}\n${messageCustom ? '\n' + messageCustom : ''}\n\nMerci de la justifier auprès du secrétariat.\n\nCordialement,\nL'administration IFTL`,
+    textContent: `Bonjour ${toName},\n\nUne absence a été enregistrée pour :\nModule : ${moduleNom}\nDate : ${dateSeance}\nHoraire : ${heureDebut}–${heureFin}\nGroupe : ${groupeNom}\n${messageCustom ? '\n' + messageCustom : ''}\n\nMerci de la justifier auprès du secrétariat.\n\nCordialement,\nL'administration ${INSTITUTE_NAME}`,
   });
 }
 
@@ -482,9 +482,9 @@ function reinscriptionValideeHtml({ prenom, nom, annee, niveau, filiere }) {
     </table>
     <p style="line-height:1.7">N'oubliez pas d'apporter votre <strong>justificatif de paiement original</strong> (reçu de virement ou chèque remis) à la scolarité pour finaliser votre dossier.</p>
     <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
-      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
     </div>
-    <p style="margin-top:28px;line-height:1.7">Nous vous souhaitons une excellente année académique.<br><strong>La scolarité IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Nous vous souhaitons une excellente année académique.<br><strong>La scolarité ${INSTITUTE_NAME}</strong></p>
   `);
 }
 
@@ -498,9 +498,9 @@ function reinscriptionRefuseeHtml({ prenom, nom, annee, niveau }) {
     <p style="line-height:1.7">Nous avons examiné votre demande de réinscription pour l'année académique <strong>${annee}</strong> et nous ne sommes malheureusement pas en mesure de la valider en l'état.</p>
     <p style="line-height:1.7">Nous vous invitons à <strong>contacter la scolarité</strong> pour obtenir plus d'informations et discuter des démarches à suivre.</p>
     <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
-      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
     </div>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité ${INSTITUTE_NAME}</strong></p>
   `);
 }
 
@@ -509,9 +509,9 @@ export async function sendReinscriptionValidee(db, { email, prenom, nom, annee, 
   return sendEmail(db, {
     to: email,
     toName: `${prenom} ${nom}`,
-    subject: `Réinscription confirmée — ${annee} — IFTL`,
+    subject: `Réinscription confirmée — ${annee} — ${INSTITUTE_NAME}`,
     htmlContent: reinscriptionValideeHtml({ prenom, nom, annee, niveau, filiere }),
-    textContent: `Bonjour ${prenom} ${nom},\n\nVotre réinscription pour ${niveau} — année ${annee} est confirmée.\n\nN'oubliez pas d'apporter votre justificatif de paiement à la scolarité.\n\nCordialement,\nLa scolarité IFTL`,
+    textContent: `Bonjour ${prenom} ${nom},\n\nVotre réinscription pour ${niveau} — année ${annee} est confirmée.\n\nN'oubliez pas d'apporter votre justificatif de paiement à la scolarité.\n\nCordialement,\nLa scolarité ${INSTITUTE_NAME}`,
   });
 }
 
@@ -520,9 +520,9 @@ export async function sendReinscriptionRefusee(db, { email, prenom, nom, annee, 
   return sendEmail(db, {
     to: email,
     toName: `${prenom} ${nom}`,
-    subject: `Réinscription — Demande non retenue — IFTL ${annee}`,
+    subject: `Réinscription — Demande non retenue — ${INSTITUTE_NAME} ${annee}`,
     htmlContent: reinscriptionRefuseeHtml({ prenom, nom, annee, niveau }),
-    textContent: `Bonjour ${prenom} ${nom},\n\nNous ne sommes pas en mesure de valider votre demande de réinscription (${niveau} — ${annee}).\nContactez la scolarité pour plus d'informations : scolarite@iftl.ma\n\nCordialement,\nLa scolarité IFTL`,
+    textContent: `Bonjour ${prenom} ${nom},\n\nNous ne sommes pas en mesure de valider votre demande de réinscription (${niveau} — ${annee}).\nContactez la scolarité pour plus d'informations : scolarite@${EMAIL_DOMAIN}\n\nCordialement,\nLa scolarité ${INSTITUTE_NAME}`,
   });
 }
 
@@ -551,7 +551,7 @@ function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
     </table>
     ${statut === 'accepte' ? `
       <p style="line-height:1.7">Votre dossier de candidature a été retenu. Vous serez contacté(e) prochainement par la scolarité pour les modalités d'inscription définitive.</p>
-      <p style="line-height:1.7">Bienvenue à l'IFTL !</p>
+      <p style="line-height:1.7">Bienvenue à ${INSTITUTE_NAME} !</p>
     ` : statut === 'liste_attente' ? `
       <p style="line-height:1.7">Votre dossier a été examiné avec attention. Vous êtes actuellement inscrit(e) sur notre liste d'attente. Nous vous contacterons dès qu'une place se libère.</p>
     ` : statut === 'refuse' ? `
@@ -562,9 +562,9 @@ function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
       <p style="line-height:1.7">Votre dossier de candidature est actuellement en cours d'examen par notre équipe pédagogique. Nous vous informerons de la suite dans les meilleurs délais.</p>
     `}
     <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
-      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@iftl.ma" style="color:#005989">scolarite@iftl.ma</a></p>
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
     </div>
-    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité IFTL</strong></p>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité ${INSTITUTE_NAME}</strong></p>
   `);
 }
 
@@ -580,8 +580,8 @@ export async function sendCandidatureStatut(db, { email, prenom, nom, ref, filie
   return sendEmail(db, {
     to: email,
     toName: `${prenom} ${nom}`,
-    subject: `${meta.label} — Candidature IFTL${ref ? ' · ' + ref : ''}`,
+    subject: `${meta.label} — Candidature ${INSTITUTE_NAME}${ref ? ' · ' + ref : ''}`,
     htmlContent: html,
-    textContent: `Bonjour ${prenom} ${nom},\n\nStatut de votre candidature IFTL : ${meta.label}.\nRéf : ${ref || '—'}\n\nContactez-nous : scolarite@iftl.ma\n\nCordialement,\nLa scolarité IFTL`,
+    textContent: `Bonjour ${prenom} ${nom},\n\nStatut de votre candidature ${INSTITUTE_NAME} : ${meta.label}.\nRéf : ${ref || '—'}\n\nContactez-nous : scolarite@${EMAIL_DOMAIN}\n\nCordialement,\nLa scolarité ${INSTITUTE_NAME}`,
   });
 }

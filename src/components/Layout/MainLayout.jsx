@@ -8,6 +8,7 @@ import TopNav from './TopNav';
 import { HelpButton } from '../UI/HelpGuide';
 import LanguageSwitcher from '../UI/LanguageSwitcher';
 import { useBranding } from '../../contexts/BrandingContext';
+import { IS_DEMO, INSTITUTE_NAME } from '../../utils/brandingConfig';
 
 const DATE_LOCALES = { fr: frLocale, en: enUS, ar: arLocale };
 
@@ -146,6 +147,13 @@ function SidebarLayout({ auth, children }) {
             </Link>
           </div>
         </header>
+
+        {/* ── Demo banner ─────────────────────────────────────────────────── */}
+        {IS_DEMO && (
+          <div className="bg-amber-400 text-amber-900 text-center text-xs font-bold py-1.5 px-4">
+            ⚠️ Mode Démonstration — {INSTITUTE_NAME} · Données fictives, aucune action réelle
+          </div>
+        )}
 
         {/* ── Content ─────────────────────────────────────────────────────── */}
         <main className="flex-1 p-3 sm:p-5 lg:p-6">

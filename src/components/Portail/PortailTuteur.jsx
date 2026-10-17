@@ -3,6 +3,7 @@ import { doc, getDoc, collection, query, where, getDocs, orderBy, addDoc } from 
 import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
 import { sendEmail } from '../../services/emailService';
+import { INSTITUTE_NAME, EMAIL_DOMAIN } from '../../utils/brandingConfig';
 
 const NAVY  = '#001829';
 const BLUE  = '#005989';
@@ -291,10 +292,10 @@ function EmailTab({ tuteurUser, student }) {
     try {
       const tuteurNom = `${tuteurUser?.prenom || ''} ${tuteurUser?.nom || ''}`.trim() || 'Tuteur';
       const studentNom = student ? `${student.prenom || ''} ${student.nom || ''}`.trim() : '—';
-      const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f1f5f9;margin:0;padding:0"><div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><div style="background:linear-gradient(135deg,#002d47,#005989);padding:24px 32px"><h1 style="color:#f5c845;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">IFTL</h1><p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:12px">Message d'un tuteur/parent</p></div><div style="padding:28px 32px"><p style="color:#334155;line-height:1.6"><strong>De :</strong> ${tuteurNom} (${tuteurUser?.email || ''})</p><p style="color:#334155;line-height:1.6"><strong>Apprenant concerné :</strong> ${studentNom}${student?.code ? ` (${student.code})` : ''}</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/><h2 style="color:#001829;margin:0 0 12px;font-size:16px">${subject}</h2><div style="color:#334155;line-height:1.7;white-space:pre-wrap">${message}</div><hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0"/><p style="color:#64748b;font-size:12px">Ce message a été envoyé depuis le portail tuteur IFTL.</p></div><div style="background:#001829;padding:14px 24px;text-align:center;color:rgba(255,255,255,0.4);font-size:11px">IFTL — Loi n°09-08 — CNDP A-PO-268/2024</div></div></body></html>`;
+      const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f1f5f9;margin:0;padding:0"><div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)"><div style="background:linear-gradient(135deg,#002d47,#005989);padding:24px 32px"><h1 style="color:#f5c845;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">${INSTITUTE_NAME}</h1><p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:12px">Message d'un tuteur/parent</p></div><div style="padding:28px 32px"><p style="color:#334155;line-height:1.6"><strong>De :</strong> ${tuteurNom} (${tuteurUser?.email || ''})</p><p style="color:#334155;line-height:1.6"><strong>Apprenant concerné :</strong> ${studentNom}${student?.code ? ` (${student.code})` : ''}</p><hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/><h2 style="color:#001829;margin:0 0 12px;font-size:16px">${subject}</h2><div style="color:#334155;line-height:1.7;white-space:pre-wrap">${message}</div><hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0"/><p style="color:#64748b;font-size:12px">Ce message a été envoyé depuis le portail tuteur ${INSTITUTE_NAME}.</p></div><div style="background:#001829;padding:14px 24px;text-align:center;color:rgba(255,255,255,0.4);font-size:11px">${INSTITUTE_NAME}</div></div></body></html>`;
       await sendEmail(db, {
-        to: 'scolarite@iftl.ma',
-        toName: 'Scolarité IFTL',
+        to: `scolarite@${EMAIL_DOMAIN}`,
+        toName: `Scolarité ${INSTITUTE_NAME}`,
         subject: `[Tuteur] ${subject}`,
         htmlContent,
         textContent: `De : ${tuteurNom} (${tuteurUser?.email || ''})\nApprenant : ${studentNom}\n\n${message}`,
@@ -348,7 +349,7 @@ function EmailTab({ tuteurUser, student }) {
     <Card>
       <div className="px-5 py-4 border-b border-slate-100">
         <h3 className="font-semibold text-slate-800">Contacter la scolarité</h3>
-        <p className="text-xs text-slate-400 mt-0.5">Votre message sera transmis à scolarite@iftl.ma</p>
+        <p className="text-xs text-slate-400 mt-0.5">Votre message sera transmis à scolarite@{EMAIL_DOMAIN}</p>
       </div>
       <form onSubmit={handleSend} className="p-5 space-y-4">
         <div>
@@ -514,7 +515,7 @@ export default function PortailTuteur({ auth }) {
             <h3 className="text-lg font-bold text-slate-800 mb-2">Aucun apprenant lié</h3>
             <p className="text-slate-500 text-sm">
               Votre compte n'est pas encore lié à un apprenant.
-              Contactez la scolarité : <a href="mailto:scolarite@iftl.ma" className="text-[#005989] font-medium">scolarite@iftl.ma</a>
+              Contactez la scolarité : <a href={`mailto:scolarite@${EMAIL_DOMAIN}`} className="text-[#005989] font-medium">scolarite@{EMAIL_DOMAIN}</a>
             </p>
           </Card>
         )}
