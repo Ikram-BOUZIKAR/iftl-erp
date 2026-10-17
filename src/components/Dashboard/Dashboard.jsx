@@ -420,8 +420,8 @@ export default function Dashboard({ auth }) {
           value={students.length}
           trend={students.length > 0 ? t('dashboard.kpi_trend_month', { count: Math.min(students.length, 3) }) : '—'}
           IconComponent={IconUsers}
-          from={BRAND.blue}
-          toColor="#003d63"
+          from="#2C2085"
+          toColor="#1B1464"
           isLink
           linkTo="/apprenants"
         />
@@ -430,8 +430,8 @@ export default function Dashboard({ auth }) {
           value={activeGroupes.length}
           trend={activeGroupes.length > 0 ? t('dashboard.kpi_trend_active', { count: activeGroupes.length }) : '—'}
           IconComponent={IconArchive}
-          from="#6a7d10"
-          toColor={BRAND.green}
+          from="#00C9A7"
+          toColor="#00957D"
           isLink
           linkTo="/groupes"
         />
@@ -444,8 +444,8 @@ export default function Dashboard({ auth }) {
             ? t('dashboard.kpi_trend_planned')
             : '—'}
           IconComponent={IconCalendar}
-          from={BRAND.orange}
-          toColor="#b04020"
+          from="#FF6B35"
+          toColor="#CC4400"
           isLink
           linkTo="/planning"
         />

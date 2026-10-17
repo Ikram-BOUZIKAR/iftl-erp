@@ -80,7 +80,7 @@ function SidebarLayout({ auth, children }) {
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'lg:ml-60' : 'lg:ml-[60px]'}`}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-5 h-14 shadow-sm">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-5 h-14 shadow-sm" style={{ borderTopColor: '#FF6B35', borderTopWidth: '2px' }}>
 
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -118,7 +118,7 @@ function SidebarLayout({ auth, children }) {
               {today}
             </div>
 
-            <HelpButton role={userProfile?.role || 'admin'} color="#005989" />
+            <HelpButton role={userProfile?.role || 'admin'} color="#2C2085" />
 
             <button className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
               title={t('header.notifications')}>
@@ -131,7 +131,7 @@ function SidebarLayout({ auth, children }) {
               className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 transition-colors group"
               title={t('header.my_profile')}>
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #005989, #0077b6)' }}>
+                style={{ background: 'linear-gradient(135deg, #2C2085, #FF6B35)' }}>
                 <span className="text-white text-[11px] font-black">{initials}</span>
               </div>
               <div className="hidden sm:block text-left">

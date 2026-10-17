@@ -1,11 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light;
+
+  /* ── Direction B — Impulsion tokens ── */
+  --dir-sidebar-from: #1B1464;
+  --dir-sidebar-to: #2C2085;
+  --dir-accent: #FF6B35;
+  --dir-accent-dark: #CC4400;
+  --dir-teal: #00C9A7;
+  --dir-teal-dark: #00957D;
+  --dir-text: #1A1A2E;
+  --dir-text-muted: #6B7280;
+  --dir-surface: #FFFFFF;
+  --dir-bg: #F4F5F7;
+  --dir-border: #E5E7EB;
 }
 
 body {

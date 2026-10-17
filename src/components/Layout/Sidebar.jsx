@@ -155,13 +155,13 @@ function Item({ item, open, badgeCount = 0 }) {
       end={!!item.exact}
       className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 group"
       style={active
-        ? { background: 'rgba(255,255,255,0.16)', color: '#fff' }
+        ? { background: 'rgba(255,107,53,0.22)', color: '#fff' }
         : { color: 'rgba(255,255,255,0.55)' }
       }
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#fff'; }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = '#fff'; } }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; } }}
     >
-      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: '#f5c845' }} />}
+      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: '#FF6B35' }} />}
 
       <Ico k={item.icon} />
 
@@ -177,10 +177,10 @@ function Item({ item, open, badgeCount = 0 }) {
       )}
 
       {!open && (
-        <div className="pointer-events-none absolute left-[52px] top-1/2 -translate-y-1/2 bg-[#1e293b] text-white text-xs font-medium px-2.5 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[60] shadow-xl border border-white/10">
+        <div className="pointer-events-none absolute left-[52px] top-1/2 -translate-y-1/2 bg-[#1B1464] text-white text-xs font-medium px-2.5 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-[60] shadow-xl border border-white/10">
           {label}
           {badgeCount > 0 && <span className="ml-1.5 bg-red-500 text-white text-[9px] px-1 py-0.5 rounded-full font-bold">{badgeCount}</span>}
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#1e293b]" />
+          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#1B1464]" />
         </div>
       )}
     </NavLink>
@@ -203,7 +203,7 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
   return (
     <aside
       className={`fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 overflow-hidden ${open ? 'w-60 translate-x-0' : 'w-60 lg:w-[60px] -translate-x-full lg:translate-x-0'}`}
-      style={{ background: 'linear-gradient(180deg,#002d47 0%,#003d63 30%,#005989 70%,#004a73 100%)' }}
+      style={{ background: 'linear-gradient(180deg,#1B1464 0%,#221575 30%,#2C2085 70%,#221575 100%)' }}
     >
       {/* ── Logo ───────────────────────────────────────────────────────── */}
       <div className={`flex items-center shrink-0 h-14 border-b border-white/10 ${open ? 'px-4 gap-3' : 'justify-center'}`}>
@@ -268,8 +268,8 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
         {open ? (
           <div className="flex items-center gap-2.5 px-1 py-1 rounded-xl group hover:bg-white/10 transition cursor-default">
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow"
-              style={{ background: '#f5c845' }}>
-              <span className="text-xs font-black" style={{ color: '#003d63' }}>{initials}</span>
+              style={{ background: '#FF6B35' }}>
+              <span className="text-xs font-black text-white">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-semibold truncate leading-tight">{displayName}</p>
@@ -286,8 +286,8 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
         ) : (
           <>
             <div className="w-8 h-8 rounded-full flex items-center justify-center shadow"
-              style={{ background: '#f5c845' }} title={displayName}>
-              <span className="text-xs font-black" style={{ color: '#003d63' }}>{initials}</span>
+              style={{ background: '#FF6B35' }} title={displayName}>
+              <span className="text-xs font-black text-white">{initials}</span>
             </div>
             <button onClick={logout} title={t('header.logout')}
               className="p-1.5 rounded-lg transition hover:bg-white/20"

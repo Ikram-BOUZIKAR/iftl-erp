@@ -85,7 +85,7 @@ function Dropdown({ group, role, onClose }) {
           to={item.to}
           onClick={onClose}
           className={({ isActive }) =>
-            `flex items-center px-4 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`
+            `flex items-center px-4 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-violet-50 text-violet-800' : 'text-slate-700 hover:bg-slate-50'}`
           }
         >
           {t(item.labelKey, { defaultValue: item.labelKey })}
@@ -139,7 +139,7 @@ export default function TopNav({ auth, children }) {
       <nav
         ref={navRef}
         className="sticky top-0 z-40 shadow-md"
-        style={{ background: `var(--brand-primary, #005989)` }}
+        style={{ background: 'linear-gradient(90deg, #1B1464 0%, #2C2085 100%)' }}
         dir={isRTL ? 'rtl' : 'ltr'}
       >
         <div className="flex items-center h-[58px] px-4 gap-2">
@@ -220,7 +220,7 @@ export default function TopNav({ auth, children }) {
             className="flex items-center gap-2 px-2.5 py-1 rounded-xl hover:bg-white/10 transition-colors"
           >
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shrink-0"
-              style={{ background: `var(--brand-accent, #f5c845)`, color: `var(--brand-primary, #005989)` }}>
+              style={{ background: '#FF6B35', color: '#fff' }}>
               {initials}
             </div>
             <div className="hidden sm:block text-left">
@@ -247,7 +247,7 @@ export default function TopNav({ auth, children }) {
           <div className="lg:hidden bg-white border-t border-slate-100 max-h-[80vh] overflow-y-auto">
             <NavLink to="/" end onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center px-4 py-3 text-sm font-semibold border-b border-slate-100 ${isActive ? 'text-indigo-700 bg-indigo-50' : 'text-slate-700'}`
+                `flex items-center px-4 py-3 text-sm font-semibold border-b border-slate-100 ${isActive ? 'text-violet-800 bg-violet-50' : 'text-slate-700'}`
               }>
               {t('nav.dashboard')}
             </NavLink>
@@ -262,7 +262,7 @@ export default function TopNav({ auth, children }) {
                   {visible.map(item => (
                     <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
                       className={({ isActive }) =>
-                        `flex items-center px-6 py-2.5 text-sm font-medium border-b border-slate-50 ${isActive ? 'text-indigo-700 bg-indigo-50' : 'text-slate-600 hover:bg-slate-50'}`
+                        `flex items-center px-6 py-2.5 text-sm font-medium border-b border-slate-50 ${isActive ? 'text-violet-800 bg-violet-50' : 'text-slate-600 hover:bg-slate-50'}`
                       }>
                       {t(item.labelKey, { defaultValue: item.labelKey })}
                     </NavLink>
