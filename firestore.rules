@@ -40,7 +40,7 @@ service cloud.firestore {
     match /groupes/{docId} {
       allow read: if isAuth();
       allow create, update: if hasRole(['admin', 'scolarite', 'direction']);
-      allow delete: if hasRole(['admin']);
+      allow delete: if hasRole(['admin', 'direction']);
     }
 
     // ── Modules ────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ service cloud.firestore {
     match /intervenants/{docId} {
       allow read: if isAuth();
       allow create, update: if hasRole(['admin', 'direction']);
-      allow delete: if hasRole(['admin']);
+      allow delete: if hasRole(['admin', 'direction']);
     }
 
     // ── Sessions / Planning ────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ service cloud.firestore {
     match /planning/{docId} {
       allow read: if isAuth();
       allow create, update: if hasRole(['admin', 'direction']);
-      allow delete: if hasRole(['admin']);
+      allow delete: if hasRole(['admin', 'direction']);
     }
 
     // ── Présences / Émargement ─────────────────────────────────────────────────
@@ -132,7 +132,7 @@ service cloud.firestore {
     match /rapports/{docId} {
       allow read: if hasRole(['admin', 'direction', 'scolarite']);
       allow create, update: if hasRole(['admin', 'direction']);
-      allow delete: if hasRole(['admin']);
+      allow delete: if hasRole(['admin', 'direction']);
     }
 
     match /logs_audit/{docId} {

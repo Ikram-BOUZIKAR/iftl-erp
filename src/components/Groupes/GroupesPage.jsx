@@ -359,7 +359,13 @@ export default function GroupesPage() {
     const ok = await confirm({ title: t('groupes.delete_confirm'), message: `"${nom}" sera définitivement supprimé.`, danger: true, confirmLabel: 'Supprimer' });
     if (!ok) return;
     try { await groupesService.delete(id); refetch(); toast.success('Groupe supprimé'); }
-    catch (err) { toast.error('Erreur : ' + err.message); }
+    catch (err) {
+      if (err.code === 'permission-denied') {
+        toast.error('Permissions insuffisantes pour supprimer ce groupe.');
+      } else {
+        toast.error('Erreur : ' + err.message);
+      }
+    }
   };
 
   const getIntervenantName = (id) => {
