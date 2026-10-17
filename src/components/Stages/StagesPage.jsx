@@ -8,6 +8,7 @@ import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
 import { useTranslation } from 'react-i18next';
+import SignatureModal from './SignatureModal';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -447,6 +448,7 @@ export default function StagesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [terminating, setTerminating] = useState(null);
+  const [signing, setSigning] = useState(null);
 
   const loadStages = useCallback(async () => {
     try {
@@ -609,6 +611,23 @@ export default function StagesPage() {
                           </button>
                         )}
                         <button
+                          onClick={() => setSigning(s)}
+                          className={`text-xs font-medium px-2 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                            s.signatureStatus === 'signed' || s.signatureStatus === 'demo_signed'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : s.signatureStatus === 'pending'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-[#005989]/10 text-[#005989] border border-[#005989]/20 hover:bg-[#005989]/20'
+                          }`}
+                          title="Signature électronique"
+                        >
+                          {s.signatureStatus === 'signed' || s.signatureStatus === 'demo_signed'
+                            ? '✓ Signé'
+                            : s.signatureStatus === 'pending'
+                              ? '⏳ En attente'
+                              : '✍ Signer'}
+                        </button>
+                        <button
                           onClick={() => { setEditing(s); setShowForm(true); }}
                           className="text-xs font-medium px-2 py-1 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
                         >
@@ -645,6 +664,13 @@ export default function StagesPage() {
           stage={terminating}
           onClose={() => setTerminating(null)}
           onSaved={loadStages}
+        />
+      )}
+      {signing && (
+        <SignatureModal
+          stage={signing}
+          onClose={() => setSigning(null)}
+          onSigned={() => { setSigning(null); loadStages(); }}
         />
       )}
     </div>

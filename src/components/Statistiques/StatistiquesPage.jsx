@@ -5,6 +5,8 @@ import {
 } from 'recharts';
 import { collection, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
 import { formatCurrency } from '../../utils/currency';
@@ -34,6 +36,7 @@ const TABS = [
   { id: 'absences',     label: 'Absences'       },
   { id: 'paiements',    label: 'Paiements'      },
   { id: 'intervenants', label: 'Intervenants'   },
+  { id: 'rapport',      label: '📊 Rapport BI'  },
 ];
 
 const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
@@ -100,7 +103,7 @@ const CustomTooltip = ({ active, payload, label, fmt: fmtFn }) => {
 };
 
 // ── 1. Vue Générale ──────────────────────────────────────────────────────────
-function VueGenerale({ students, groupes, modules, intervenants, presences, absences, factures, sessions, loading }) {
+function VueGenerale({ students, groupes, modules, intervenants, presences, absences, factures, sessions, notes, loading }) {
   const { t } = useTranslation();
   const presenceRate = useMemo(() => {
     if (!presences.length) return null;
@@ -115,6 +118,25 @@ function VueGenerale({ students, groupes, modules, intervenants, presences, abse
       return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((acc, f) => acc + (Number(f.montantPaye) || Number(f.montant) || 0), 0);
   }, [factures]);
+
+  const tauxReussite = useMemo(() => {
+    const vals = notes.map(n => Number(n.note ?? n.valeur ?? n.score)).filter(v => !isNaN(v));
+    if (!vals.length) return null;
+    return Math.round((vals.filter(v => v >= 10).length / vals.length) * 100);
+  }, [notes]);
+
+  const totalEncaisse = useMemo(() => {
+    return factures.reduce((acc, f) => acc + (Number(f.montantPaye) || 0), 0);
+  }, [factures]);
+
+  const apprenantARisque = useMemo(() => {
+    const countByStudent = {};
+    absences.forEach(a => {
+      const sid = a.apprenantId || a.etudiantId || a.studentId || a.userId;
+      if (sid) countByStudent[sid] = (countByStudent[sid] || 0) + 1;
+    });
+    return Object.values(countByStudent).filter(count => count >= 5).length;
+  }, [absences]);
 
   const presenceSparkData = useMemo(() => {
     return [
@@ -149,6 +171,34 @@ function VueGenerale({ students, groupes, modules, intervenants, presences, abse
           sub={`${presences.length} enregistrements`}
         />
         <KpiCard label={t('statistiques.kpi_sessions')} value={fmt(sessions.length)} icon="📅" color={YELLOW} sub={`${sessions.filter(s => s.statut === 'terminee').length} terminées`} />
+      </div>
+
+      {/* Performance KPIs */}
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Performance</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <KpiCard
+            label="Taux de réussite"
+            value={tauxReussite != null ? `${tauxReussite}%` : '—'}
+            icon="🏆"
+            color={tauxReussite == null ? SLATE : tauxReussite >= 70 ? '#16a34a' : tauxReussite >= 50 ? '#d97706' : RED}
+            sub={`${notes.length} notes analysées`}
+          />
+          <KpiCard
+            label="Total encaissé"
+            value={totalEncaisse > 0 ? `${(totalEncaisse / 1000).toFixed(0)}k MAD` : '—'}
+            icon="💰"
+            color="#16a34a"
+            sub={`${factures.length} paiements`}
+          />
+          <KpiCard
+            label="Apprenants à risque"
+            value={fmt(apprenantARisque)}
+            icon="⚠️"
+            color={apprenantARisque > 0 ? RED : '#16a34a'}
+            sub="≥ 5 absences"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
