@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { collection, writeBatch, doc, getDocs, query } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, query, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { SEED_GROUPES, SEED_STUDENTS, SEED_JUSTIFICATIFS } from '../../data/seedData';
+import { SEED_GROUPES, SEED_STUDENTS, SEED_JUSTIFICATIFS, SEED_BRANDING, SEED_INTERVENANTS, SEED_MODULES, SEED_SESSIONS, SEED_PRESENCES, SEED_FACTURES } from '../../data/seedData';
 
 const BRAND = { blue: '#005989', yellow: '#f5c845', red: '#c8141b', green: '#c8d45d', orange: '#d75930' };
 
@@ -45,6 +45,11 @@ function Step({ num, title, desc, status, onRun, loading }) {
   );
 }
 
+async function writeDoc(collectionPath, docId, data) {
+  const ref = doc(db, collectionPath, docId);
+  await setDoc(ref, { ...data, importedAt: new Date() });
+}
+
 async function batchWrite(collectionName, items, idField = null) {
   const BATCH_SIZE = 450;
   let count = 0;
@@ -68,8 +73,8 @@ async function checkExisting(collectionName) {
 }
 
 export default function ImportDataPage() {
-  const [steps, setSteps] = useState({ groupes: 'idle', students: 'idle', paiements: 'idle' });
-  const [loading, setLoading] = useState({ groupes: false, students: false, paiements: false });
+  const [steps, setSteps] = useState({ groupes: 'idle', students: 'idle', paiements: 'idle', branding: 'idle', intervenants: 'idle', modules: 'idle', planning: 'idle', factures: 'idle' });
+  const [loading, setLoading] = useState({ groupes: false, students: false, paiements: false, branding: false, intervenants: false, modules: false, planning: false, factures: false });
   const [results, setResults] = useState({});
   const [log, setLog] = useState([]);
 
@@ -116,6 +121,56 @@ export default function ImportDataPage() {
         }
       }
 
+      if (step === 'branding') {
+        await writeDoc('settings', 'branding', SEED_BRANDING);
+        addLog(`✓ Branding "Institut Horizon Formation" configuré`, 'ok');
+      }
+
+      if (step === 'intervenants') {
+        const existing = await checkExisting('intervenants');
+        if (existing > 0) {
+          addLog(`⚠ ${existing} formateurs déjà présents — import ignoré`, 'warn');
+        } else {
+          const count = await batchWrite('intervenants', SEED_INTERVENANTS, 'id');
+          addLog(`✓ ${count} formateurs importés`, 'ok');
+          setResults(prev => ({ ...prev, intervenants: count }));
+        }
+      }
+
+      if (step === 'modules') {
+        const existing = await checkExisting('modules');
+        if (existing > 0) {
+          addLog(`⚠ ${existing} modules déjà présents — import ignoré`, 'warn');
+        } else {
+          const count = await batchWrite('modules', SEED_MODULES, 'id');
+          addLog(`✓ ${count} modules importés`, 'ok');
+          setResults(prev => ({ ...prev, modules: count }));
+        }
+      }
+
+      if (step === 'planning') {
+        const existSess = await checkExisting('sessions');
+        if (existSess > 0) {
+          addLog(`⚠ ${existSess} séances déjà présentes — import ignoré`, 'warn');
+        } else {
+          const cSess = await batchWrite('sessions', SEED_SESSIONS, 'id');
+          const cPres = await batchWrite('presences', SEED_PRESENCES);
+          addLog(`✓ ${cSess} séances + ${cPres} présences importées`, 'ok');
+          setResults(prev => ({ ...prev, planning: cSess }));
+        }
+      }
+
+      if (step === 'factures') {
+        const existing = await checkExisting('factures');
+        if (existing > 0) {
+          addLog(`⚠ ${existing} factures déjà présentes — import ignoré`, 'warn');
+        } else {
+          const count = await batchWrite('factures', SEED_FACTURES, 'id');
+          addLog(`✓ ${count} factures importées`, 'ok');
+          setResults(prev => ({ ...prev, factures: count }));
+        }
+      }
+
       setSteps(prev => ({ ...prev, [step]: 'done' }));
     } catch (err) {
       console.error(err);
@@ -127,9 +182,14 @@ export default function ImportDataPage() {
   };
 
   const runAll = async () => {
+    await runStep('branding');
     await runStep('groupes');
     await runStep('students');
+    await runStep('intervenants');
+    await runStep('modules');
+    await runStep('planning');
     await runStep('paiements');
+    await runStep('factures');
   };
 
   const logColors = { info: 'text-slate-600', ok: 'text-green-700', warn: 'text-amber-700', error: 'text-red-700' };
@@ -154,7 +214,7 @@ export default function ImportDataPage() {
           <p className="text-sm font-semibold" style={{ color: BRAND.orange }}>Opération irréversible</p>
           <p className="text-xs text-slate-600 mt-0.5">
             L'import ne s'exécute qu'une seule fois : si des données existent déjà, l'opération est ignorée.
-            <br />Données : <strong>149 apprenants 1A TS</strong> + <strong>142 apprenants 2A TS</strong> + <strong>55 Licence CNAM</strong> = 346 apprenants · 14 groupes.
+            <br />Collections : branding · groupes · apprenants · formateurs · modules · planning · présences · paiements · factures.
           </p>
         </div>
       </div>
@@ -162,19 +222,44 @@ export default function ImportDataPage() {
       {/* Steps */}
       <div className="space-y-3">
         <Step
-          num="1" title="Import des groupes" status={steps.groupes} loading={loading.groupes}
-          desc={`14 groupes (1A TS, 2A TS, Licence CNAM) — ${SEED_GROUPES.length} entrées`}
+          num="1" title="Branding Institut Horizon Formation" status={steps.branding} loading={loading.branding}
+          desc="Nom, couleurs, devise MAD, coordonnées"
+          onRun={() => runStep('branding')}
+        />
+        <Step
+          num="2" title="Import des groupes" status={steps.groupes} loading={loading.groupes}
+          desc={`${SEED_GROUPES.length} groupes (LOG, INF, COM, ECM)`}
           onRun={() => runStep('groupes')}
         />
         <Step
-          num="2" title="Import des apprenants" status={steps.students} loading={loading.students}
-          desc={`346 apprenants avec CIN, code, filière et groupe — ${SEED_STUDENTS.length} entrées`}
+          num="3" title="Import des apprenants" status={steps.students} loading={loading.students}
+          desc={`${SEED_STUDENTS.length} apprenants avec CIN, code, filière et groupe`}
           onRun={() => runStep('students')}
         />
         <Step
-          num="3" title="Import des dépôts de paiement" status={steps.paiements} loading={loading.paiements}
+          num="4" title="Import des formateurs" status={steps.intervenants} loading={loading.intervenants}
+          desc={`${SEED_INTERVENANTS.length} formateurs – LOG, INF, COM, ECM`}
+          onRun={() => runStep('intervenants')}
+        />
+        <Step
+          num="5" title="Import des modules" status={steps.modules} loading={loading.modules}
+          desc={`${SEED_MODULES.length} modules (10 par filière)`}
+          onRun={() => runStep('modules')}
+        />
+        <Step
+          num="6" title="Planning & Présences" status={steps.planning} loading={loading.planning}
+          desc={`${SEED_SESSIONS.length} séances Oct 2025 + ${SEED_PRESENCES.length} présences`}
+          onRun={() => runStep('planning')}
+        />
+        <Step
+          num="7" title="Import des dépôts de paiement" status={steps.paiements} loading={loading.paiements}
           desc={`${SEED_JUSTIFICATIFS.length} dépôts démo — 3 soldés · 5 partiels · 2 en attente/refusés`}
           onRun={() => runStep('paiements')}
+        />
+        <Step
+          num="8" title="Import des factures" status={steps.factures} loading={loading.factures}
+          desc={`${SEED_FACTURES.length} factures – 5 soldées · 15 partielles · 5 impayées`}
+          onRun={() => runStep('factures')}
         />
       </div>
 
