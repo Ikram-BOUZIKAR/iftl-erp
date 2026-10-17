@@ -105,7 +105,20 @@ jobs:
           VITE_USE_FIREBASE_EMULATORS: "false"
 
       - name: Write demo service account key
-        run: echo "$FIREBASE_TOKEN_DEMO" > /tmp/sa_demo.json
+        run: |
+          python3 -c "
+          import os, json, sys
+          v = os.environ['FIREBASE_TOKEN_DEMO']
+          start = v.find('{')
+          if start < 0:
+              print('ERROR: no { found in secret'); sys.exit(1)
+          v = v[start:]
+          d, _ = json.JSONDecoder().raw_decode(v)
+          open('/tmp/sa_demo.json', 'w').write(json.dumps(d))
+          print('Written OK, type:', d.get('type'))
+          print('project_id:', d.get('project_id'))
+          print('client_email:', d.get('client_email'))
+          "
         env:
           FIREBASE_TOKEN_DEMO: ${{ secrets.FIREBASE_TOKEN_DEMO }}
 
