@@ -4,3 +4,9 @@ export const SEED_STUDENTS = [{"id":"TS0277","codeApprenant":"TS0277","nom":"LEM
 
 // Vide en production — données réelles dans Firestore, pas dans le code source
 export const SEED_JUSTIFICATIFS = [];
+export const SEED_BRANDING = {};
+export const SEED_INTERVENANTS = [];
+export const SEED_MODULES = [];
+export const SEED_SESSIONS = [];
+export const SEED_PRESENCES = [];
+export const SEED_FACTURES = [];
