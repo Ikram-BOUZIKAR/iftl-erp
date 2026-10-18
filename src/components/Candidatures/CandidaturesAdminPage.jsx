@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useCandidatures, useGroupes } from '../../hooks/useData';
 import { candidaturesService, historiqueService } from '../../services/firestore';
@@ -236,6 +236,21 @@ export default function CandidaturesAdminPage() {
     } catch (err) { toast.error(err.message); }
     setShowRefusModal(null);
     setMotifRefus('');
+  };
+
+  const viewFile = async (docKey) => {
+    if (selected?.fichierUrls?.[docKey]) {
+      window.open(selected.fichierUrls[docKey], '_blank');
+      return;
+    }
+    try {
+      const snap = await getDoc(doc(db, 'candidatures', selected.id, 'fichiers', docKey));
+      if (snap.exists()) {
+        window.open(snap.data().data, '_blank');
+      } else {
+        toast.error('Document non disponible.');
+      }
+    } catch { toast.error('Impossible d\'ouvrir le document.'); }
   };
 
   const handleComplement = async () => {
@@ -763,7 +778,7 @@ export default function CandidaturesAdminPage() {
                 <div className="p-4 space-y-2 text-xs">
                   <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px] mb-2">Vérification des pièces</p>
                   {DOCS_CHECKLIST_KEYS.map(key => {
-                    const hasFile = selected.fichierUrls?.[key];
+                    const hasFile = selected.fichierKeys?.includes(key) || !!selected.fichierUrls?.[key];
                     const state   = selected.docsValidation?.[key] || (hasFile ? 'en_attente' : 'absent');
                     const stateStyles = {
                       valide:     'bg-green-50 border-green-200',
@@ -790,8 +805,8 @@ export default function CandidaturesAdminPage() {
                             }`}>{stateLabel[state] || state}</p>
                           </div>
                           {hasFile && (
-                            <a href={selected.fichierUrls[key]} target="_blank" rel="noreferrer"
-                              className="text-[#005989] hover:underline text-[10px] shrink-0">Voir</a>
+                            <button onClick={() => viewFile(key)}
+                              className="text-[#005989] hover:underline text-[10px] shrink-0">Voir</button>
                           )}
                         </div>
                         {hasFile && state !== 'absent' && (

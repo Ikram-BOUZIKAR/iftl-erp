@@ -92,6 +92,13 @@ service cloud.firestore {
         allow create: if hasRole(['admin', 'scolarite']);
         allow update, delete: if false;
       }
+
+      match /fichiers/{fileKey} {
+        // Écriture publique lors de la soumission ; lecture réservée au staff
+        allow create: if true;
+        allow read: if hasRole(['admin', 'scolarite', 'direction']);
+        allow update, delete: if false;
+      }
     }
 
     // Index CIN→docId pour le portail suivi sans exposer la collection entière

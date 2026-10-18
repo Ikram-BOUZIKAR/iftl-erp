@@ -1,9 +1,30 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { collection, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
+
+// Convertit un File en data URI (images compressées, PDFs natifs)
+const toBase64 = (file, maxWidth = 700, quality = 0.72) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      if (!file.type.startsWith('image/')) { resolve(e.target.result); return; }
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 
 // ── Données référentiels ───────────────────────────────────────────────────────
 const FILIERES_BY_CAT = {
@@ -255,15 +276,25 @@ export default function CandidaturePage() {
         return;
       }
 
-      // Upload files to Firebase Storage
+      // Convertir et stocker chaque fichier en base64 dans une sous-collection
       const reference = genRef();
-      const fichierUrls = {};
+      const fichierKeys = [];
       for (const d of DOCS) {
         const file = files[d.key];
         if (file) {
-          const sRef = storageRef(storage, `candidatures/${reference}/${d.key}_${file.name}`);
-          await uploadBytes(sRef, file);
-          fichierUrls[d.key] = await getDownloadURL(sRef);
+          try {
+            const data = await toBase64(file);
+            await setDoc(doc(db, 'candidatures', cinNorm, 'fichiers', d.key), {
+              data,
+              contentType: file.type,
+              nom: file.name,
+              taille: file.size,
+              uploadedAt: new Date(),
+            });
+            fichierKeys.push(d.key);
+          } catch (uploadErr) {
+            console.warn(`Upload ${d.key}:`, uploadErr);
+          }
         }
       }
 
@@ -274,9 +305,9 @@ export default function CandidaturePage() {
         cin: cinNorm,
         email: emailNorm,
         ref: reference,
-        statut: 'recu',
-        fichierUrls,
-        nbFichiers: Object.keys(fichierUrls).length,
+        statut: 'soumise',
+        fichierKeys,
+        nbFichiers: fichierKeys.length,
         createdAt: new Date(),
       });
       // Create index entry for suivi page lookup

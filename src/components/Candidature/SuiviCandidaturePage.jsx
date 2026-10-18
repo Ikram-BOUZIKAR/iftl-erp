@@ -305,37 +305,45 @@ export default function SuiviCandidaturePage() {
             )}
 
             {/* Documents envoyés + état de validation */}
-            {candidature.fichierUrls && Object.keys(candidature.fichierUrls).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-4">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Documents envoyés</p>
-                <div className="space-y-2">
-                  {Object.entries(candidature.fichierUrls).map(([key, url]) => {
-                    const valState = candidature.docsValidation?.[key];
-                    const valStyles = {
-                      valide:     { cls: 'text-green-600 bg-green-50',  label: '✓ Validé' },
-                      refuse:     { cls: 'text-red-500 bg-red-50',     label: '✗ Rejeté' },
-                      en_attente: { cls: 'text-amber-600 bg-amber-50', label: '… En attente' },
-                    };
-                    const vs = valStyles[valState];
-                    return (
-                      <div key={key} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100">
-                        <span className="w-7 h-7 rounded-lg bg-[#005989]/10 flex items-center justify-center shrink-0">
-                          <svg className="w-3.5 h-3.5 text-[#005989]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        </span>
-                        <span className="text-sm text-slate-600 font-medium flex-1">{DOCS_LABELS[key] || key}</span>
-                        <div className="flex items-center gap-2">
-                          {vs && (
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${vs.cls}`}>{vs.label}</span>
-                          )}
-                          <a href={url} target="_blank" rel="noreferrer"
-                            className="text-[#005989] hover:underline text-xs">Voir</a>
+            {(() => {
+              const keys = candidature.fichierKeys ||
+                (candidature.fichierUrls ? Object.keys(candidature.fichierUrls) : []);
+              if (!keys.length) return null;
+              return (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Documents envoyés</p>
+                  <div className="space-y-2">
+                    {keys.map(key => {
+                      const valState = candidature.docsValidation?.[key];
+                      const valStyles = {
+                        valide:     { cls: 'text-green-600 bg-green-50',  label: '✓ Validé' },
+                        refuse:     { cls: 'text-red-500 bg-red-50',     label: '✗ Rejeté' },
+                        en_attente: { cls: 'text-amber-600 bg-amber-50', label: '… En attente' },
+                      };
+                      const vs = valStyles[valState];
+                      const legacyUrl = candidature.fichierUrls?.[key];
+                      return (
+                        <div key={key} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100">
+                          <span className="w-7 h-7 rounded-lg bg-[#005989]/10 flex items-center justify-center shrink-0">
+                            <svg className="w-3.5 h-3.5 text-[#005989]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          </span>
+                          <span className="text-sm text-slate-600 font-medium flex-1">{DOCS_LABELS[key] || key}</span>
+                          <div className="flex items-center gap-2">
+                            {vs && (
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${vs.cls}`}>{vs.label}</span>
+                            )}
+                            {legacyUrl && (
+                              <a href={legacyUrl} target="_blank" rel="noreferrer"
+                                className="text-[#005989] hover:underline text-xs">Voir</a>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Infos du dossier */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-5">
