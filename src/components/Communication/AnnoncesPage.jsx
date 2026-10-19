@@ -73,6 +73,7 @@ const TYPES_ANNONCE = [
   { value: 'urgent', label: 'Urgent', badgeClass: 'bg-red-100 text-red-700 animate-pulse', dotClass: 'bg-red-500' },
   { value: 'evenement', label: 'Événement', badgeClass: 'bg-emerald-100 text-emerald-700', dotClass: 'bg-emerald-500' },
   { value: 'administratif', label: 'Administratif', badgeClass: 'bg-slate-100 text-slate-600', dotClass: 'bg-slate-400' },
+  { value: 'enquete', label: 'Enquête satisfaction', badgeClass: 'bg-violet-100 text-violet-700', dotClass: 'bg-violet-500' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,6 +111,9 @@ const EMPTY_FORM = {
   pinned: false,
   cibleGroupes: [],
   cibleRoles: [],
+  lienFormulaire: '',
+  noteSatisfactionMoyenne: '',
+  nbReponses: '',
 };
 
 function AnnonceForm({ groupes, onClose, onSaved }) {
@@ -133,7 +137,7 @@ function AnnonceForm({ groupes, onClose, onSaved }) {
     if (!form.titre.trim() || !form.contenu.trim()) return;
     setSaving(true);
     try {
-      await addDoc(collection(db, 'annonces'), {
+      const payload = {
         titre: form.titre.trim(),
         contenu: form.contenu.trim(),
         type: form.type,
@@ -145,7 +149,13 @@ function AnnonceForm({ groupes, onClose, onSaved }) {
         cibleRoles: form.cibleRoles,
         pinned: form.pinned,
         vues: 0,
-      });
+      };
+      if (form.type === 'enquete') {
+        payload.lienFormulaire = form.lienFormulaire.trim() || null;
+        payload.noteSatisfactionMoyenne = form.noteSatisfactionMoyenne !== '' ? Number(form.noteSatisfactionMoyenne) : null;
+        payload.nbReponses = form.nbReponses !== '' ? Number(form.nbReponses) : null;
+      }
+      await addDoc(collection(db, 'annonces'), payload);
       toast.success('Annonce publiée');
       onSaved();
       onClose();
@@ -211,6 +221,49 @@ function AnnonceForm({ groupes, onClose, onSaved }) {
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005989] resize-none"
           />
         </div>
+
+        {/* Enquête fields */}
+        {form.type === 'enquete' && (
+          <div className="space-y-3 p-4 bg-violet-50 rounded-xl border border-violet-100">
+            <p className="text-xs font-bold text-violet-700 uppercase tracking-wide">Données enquête</p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Lien du formulaire</label>
+              <input
+                type="url"
+                value={form.lienFormulaire}
+                onChange={e => set('lienFormulaire', e.target.value)}
+                placeholder="https://forms.google.com/…"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Note moyenne /5</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={form.noteSatisfactionMoyenne}
+                  onChange={e => set('noteSatisfactionMoyenne', e.target.value)}
+                  placeholder="ex : 4.2"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nb de réponses</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.nbReponses}
+                  onChange={e => set('nbReponses', e.target.value)}
+                  placeholder="ex : 42"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Cible groupes */}
         {groupes.length > 0 && (
@@ -526,7 +579,7 @@ export default function AnnoncesPage() {
               )}
 
               {/* Contenu */}
-              <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
                 <div className={`prose prose-sm max-w-none ${expired ? 'opacity-60' : ''}`}>
                   {selected.contenu?.split('\n').map((line, i) => (
                     <p key={i} className="text-slate-700 leading-relaxed mb-2 last:mb-0">
@@ -534,6 +587,25 @@ export default function AnnoncesPage() {
                     </p>
                   ))}
                 </div>
+                {selected.type === 'enquete' && (selected.lienFormulaire || selected.noteSatisfactionMoyenne != null) && (
+                  <div className="p-4 bg-violet-50 rounded-xl border border-violet-100 space-y-2">
+                    <p className="text-xs font-bold text-violet-700 uppercase tracking-wide">Résultats enquête</p>
+                    {selected.noteSatisfactionMoyenne != null && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-black text-violet-700">{Number(selected.noteSatisfactionMoyenne).toFixed(1)}/5</span>
+                        {selected.nbReponses != null && (
+                          <span className="text-xs text-slate-500">{selected.nbReponses} réponse{selected.nbReponses !== 1 ? 's' : ''}</span>
+                        )}
+                      </div>
+                    )}
+                    {selected.lienFormulaire && (
+                      <a href={selected.lienFormulaire} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 underline underline-offset-2">
+                        Accéder au formulaire →
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

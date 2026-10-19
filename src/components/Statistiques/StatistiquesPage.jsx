@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -711,6 +711,29 @@ function Intervenants({ sessions, intervenants, loading }) {
 
 // ── 7. Rapport BI / Qualiopi ─────────────────────────────────────────────────
 function RapportBI({ students, notes, presences, absences, factures, loading }) {
+  const [derniereEnquete, setDerniereEnquete] = useState(null);
+
+  useEffect(() => {
+    const loadEnquete = async () => {
+      try {
+        const q = query(
+          collection(db, 'annonces'),
+          where('type', '==', 'enquete'),
+          orderBy('datePublication', 'desc'),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const data = snap.docs[0].data();
+          if (data.noteSatisfactionMoyenne) setDerniereEnquete(data);
+        }
+      } catch {
+        // silently ignore — Firestore index may not exist yet
+      }
+    };
+    loadEnquete();
+  }, []);
+
   const tauxReussite = useMemo(() => {
     const vals = notes.map(n => Number(n.note ?? n.valeur ?? n.score)).filter(v => !isNaN(v));
     if (!vals.length) return null;
@@ -726,6 +749,17 @@ function RapportBI({ students, notes, presences, absences, factures, loading }) 
   const totalEncaisse = useMemo(() => factures.reduce((acc, f) => acc + (Number(f.montantPaye) || 0), 0), [factures]);
   const totalFacture  = useMemo(() => factures.reduce((acc, f) => acc + (Number(f.montant) || 0), 0), [factures]);
   const tauxRecouvrement = totalFacture > 0 ? Math.round((totalEncaisse / totalFacture) * 100) : null;
+
+  const tauxInsertion = useMemo(() => {
+    const avecDonnee = students.filter(s => s.emploiApresFormation && s.emploiApresFormation !== '');
+    if (!avecDonnee.length) return null;
+    const enEmploi = avecDonnee.filter(s => s.emploiApresFormation === 'en_emploi').length;
+    return Math.round((enEmploi / avecDonnee.length) * 100);
+  }, [students]);
+
+  const noteSatisfaction = derniereEnquete?.noteSatisfactionMoyenne != null
+    ? Number(derniereEnquete.noteSatisfactionMoyenne)
+    : null;
 
   const indicateurs = [
     {
@@ -754,18 +788,22 @@ function RapportBI({ students, notes, presences, absences, factures, loading }) 
     },
     {
       code: 'I4', label: "Taux d'insertion professionnelle",
-      value: 'N/A',
-      desc: "Données non collectées — à activer dans le profil apprenant",
+      value: tauxInsertion != null ? `${tauxInsertion}%` : 'N/A',
+      desc: tauxInsertion != null
+        ? `${students.filter(s => s.emploiApresFormation === 'en_emploi').length} apprenants en emploi / ${students.filter(s => s.emploiApresFormation && s.emploiApresFormation !== '').length} lauréats renseignés`
+        : "Données non collectées — à activer dans le profil apprenant",
       objectif: '≥ 60%',
-      status: 'nd',
+      status: tauxInsertion == null ? 'nd' : tauxInsertion >= 60 ? 'ok' : tauxInsertion >= 40 ? 'warning' : 'danger',
       qualiopi: 'Critère 6 — Insertion professionnelle',
     },
     {
       code: 'I5', label: 'Satisfaction des apprenants',
-      value: 'N/A',
-      desc: "Enquête de satisfaction non configurée",
+      value: noteSatisfaction != null ? `${noteSatisfaction.toFixed(1)}/5` : 'N/A',
+      desc: noteSatisfaction != null
+        ? `Dernière enquête : ${derniereEnquete.nbReponses ? `${derniereEnquete.nbReponses} réponses` : 'note saisie manuellement'}`
+        : "Enquête de satisfaction non configurée",
       objectif: '≥ 4/5',
-      status: 'nd',
+      status: noteSatisfaction == null ? 'nd' : noteSatisfaction >= 4 ? 'ok' : noteSatisfaction >= 3 ? 'warning' : 'danger',
       qualiopi: 'Critère 7 — Satisfaction des parties prenantes',
     },
   ];
@@ -821,23 +859,29 @@ function RapportBI({ students, notes, presences, absences, factures, loading }) 
         })}
       </div>
 
-      <Card>
-        <CardTitle>Données manquantes — Actions recommandées</CardTitle>
-        <div className="space-y-2">
-          {[
-            { item: "Taux d'insertion professionnelle", action: "Ajouter le champ 'emploi_après_formation' dans les profils apprenants via l'onglet Apprenants" },
-            { item: 'Satisfaction des apprenants', action: "Créer une annonce de type 'Enquête' avec lien de formulaire — les réponses peuvent être saisies manuellement" },
-          ].map((r, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-slate-300 mt-0.5 text-lg">○</span>
-              <div>
-                <p className="text-sm font-semibold text-slate-700">{r.item}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{r.action}</p>
-              </div>
+      {(() => {
+        const manquants = [
+          tauxInsertion == null && { item: "Taux d'insertion professionnelle", action: "Ajouter le champ 'emploi après formation' dans les profils apprenants via l'onglet Apprenants" },
+          noteSatisfaction == null && { item: 'Satisfaction des apprenants', action: "Créer une annonce de type 'Enquête satisfaction' avec note saisie manuellement" },
+        ].filter(Boolean);
+        if (!manquants.length) return null;
+        return (
+          <Card>
+            <CardTitle>Données manquantes — Actions recommandées</CardTitle>
+            <div className="space-y-2">
+              {manquants.map((r, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-slate-300 mt-0.5 text-lg">○</span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">{r.item}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{r.action}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </Card>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

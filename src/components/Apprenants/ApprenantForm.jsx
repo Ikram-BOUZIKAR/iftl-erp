@@ -60,6 +60,10 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
     sessionConcours: initial?.sessionConcours || '',
     scoreAdmission: initial?.scoreAdmission || '',
     noteOral: initial?.noteOral !== undefined ? initial.noteOral : 12,
+    emploiApresFormation: initial?.emploiApresFormation || '',
+    dateEmploiApres: initial?.dateEmploiApres || '',
+    employeurApres: initial?.employeurApres || '',
+    posteApres: initial?.posteApres || '',
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -256,6 +260,28 @@ export default function ApprenantForm({ initial, groupes, onSave, onClose }) {
               />
             </div>
           </div>
+
+          {/* Section Insertion professionnelle */}
+          <SectionHeader title="Insertion professionnelle" />
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Situation après formation</label>
+            <select value={form.emploiApresFormation} onChange={e => set('emploiApresFormation', e.target.value)} className={selectClass}>
+              <option value="">— Non renseigné —</option>
+              <option value="en_emploi">En emploi</option>
+              <option value="en_formation">En formation / études</option>
+              <option value="demandeur_emploi">Demandeur d'emploi</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          {form.emploiApresFormation === 'en_emploi' && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Employeur" fieldKey="employeurApres" placeholder="Nom de l'entreprise" />
+                <Field label="Poste" fieldKey="posteApres" placeholder="Titre du poste" />
+              </div>
+              <Field label="Date de début d'emploi" fieldKey="dateEmploiApres" type="date" />
+            </>
+          )}
 
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
