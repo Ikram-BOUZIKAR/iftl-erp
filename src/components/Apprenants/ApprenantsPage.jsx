@@ -111,7 +111,7 @@ function rowToPayload(row, groupes) {
 }
 
 // ─── Import Modal ─────────────────────────────────────────────────────────────
-function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone }) {
+function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone, defaultNiveau }) {
   const toast = useToast();
   const { t } = useTranslation();
   const fileRef = useRef();
@@ -130,9 +130,11 @@ function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone }) {
       const parsed = parseCSV(ev.target.result);
       if (!parsed.length) { toast.error('Fichier vide ou format invalide'); return; }
       const enriched = parsed.map((row, idx) => {
-        const { errors, isDuplicate } = validateRow(row, existingCodes);
-        const payload = rowToPayload(row, groupes);
-        return { _idx: idx + 2, raw: row, payload, errors, isDuplicate };
+        // Si import depuis une vue niveau, pré-remplir le niveau manquant
+        const rowWithDefaults = defaultNiveau && !row.niveau ? { ...row, niveau: defaultNiveau } : row;
+        const { errors, isDuplicate } = validateRow(rowWithDefaults, existingCodes);
+        const payload = rowToPayload(rowWithDefaults, groupes);
+        return { _idx: idx + 2, raw: rowWithDefaults, payload, errors, isDuplicate };
       });
       setRows(enriched); setStep('preview');
     };
@@ -174,7 +176,7 @@ function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">{t('apprenants.import_title')}</h2>
+            <h2 className="text-lg font-bold text-slate-800">{t('apprenants.import_title')}{defaultNiveau ? ` — ${defaultNiveau}` : ''}</h2>
             <p className="text-xs text-slate-500 mt-0.5">Fichier CSV — colonnes : {CSV_HEADERS.join(', ')}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
@@ -184,6 +186,12 @@ function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone }) {
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {step === 'upload' && (
             <div className="space-y-5">
+              {defaultNiveau && (
+                <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700">
+                  <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Niveau <strong>{defaultNiveau}</strong> pré-rempli — la colonne <code>niveau</code> est facultative dans le CSV.</span>
+                </div>
+              )}
               <button onClick={downloadCSVTemplate} className="flex items-center gap-2 text-sm text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-4 py-2.5 rounded-lg transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 Télécharger le canevas CSV
@@ -373,7 +381,26 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
 }
 
 // ─── Liste des apprenants d'un niveau ─────────────────────────────────────────
-function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, onAdd }) {
+function exportGroupeCSV(students, groupes, niveauLabel) {
+  const rows = [CSV_HEADERS];
+  students.forEach(s => {
+    const g = groupes.find(gr => gr.id === s.groupeId);
+    rows.push([
+      s.nom || '', s.prenom || '', s.codeApprenant || '',
+      s.email || '', s.telephone || '', s.dateNaissance || '',
+      s.cin || '', s.genre || '', s.ville || '', s.adresse || '',
+      g?.nom || '', s.niveau || '',
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `apprenants_${niveauLabel.replace(/\s/g, '_')}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, onAdd, onImport }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [filterGroupe, setFilterGroupe] = useState('');
@@ -428,10 +455,24 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
             <p className="text-slate-500 text-xs mt-0.5">{filtered.length} apprenant{filtered.length !== 1 ? 's' : ''} affiché{filtered.length !== 1 ? 's' : ''} · {niveauStudents.length} au total</p>
           </div>
         </div>
-        <button onClick={onAdd} className="inline-flex items-center gap-2 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-          {t('apprenants.add')}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {niveau !== '_tous' && niveau !== '_autre' && onImport && (
+            <button onClick={() => onImport(niveau)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-sm font-medium rounded-lg transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              Importer CSV
+            </button>
+          )}
+          <button onClick={() => exportGroupeCSV(filtered, groupes, title)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:border-teal-400 hover:bg-teal-50 text-slate-700 hover:text-teal-700 text-sm font-medium rounded-lg transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Exporter CSV
+          </button>
+          <button onClick={onAdd} className="inline-flex items-center gap-2 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+            {t('apprenants.add')}
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -547,6 +588,9 @@ export default function ApprenantsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [importNiveau, setImportNiveau] = useState(null);
+
+  const openImport = (niv = null) => { setImportNiveau(niv || null); setShowImport(true); };
 
   const handleDelete = async (id, nom) => {
     const ok = await confirm({
@@ -605,6 +649,7 @@ export default function ApprenantsPage() {
           onEdit={openEdit}
           onDelete={handleDelete}
           onAdd={openAdd}
+          onImport={openImport}
         />
       ) : (
         <NiveauSelector
@@ -612,7 +657,7 @@ export default function ApprenantsPage() {
           groupes={groupes}
           onSelect={setSelectedNiveau}
           onAdd={openAdd}
-          onImport={() => setShowImport(true)}
+          onImport={openImport}
         />
       )}
 
@@ -627,9 +672,10 @@ export default function ApprenantsPage() {
 
       {showImport && (
         <ImportApprenantsModal
-          groupes={groupes}
+          groupes={uniqueGroupes}
           existingStudents={students}
-          onClose={() => setShowImport(false)}
+          defaultNiveau={importNiveau}
+          onClose={() => { setShowImport(false); setImportNiveau(null); }}
           onDone={() => { refetch(); }}
         />
       )}
