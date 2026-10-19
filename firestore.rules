@@ -135,6 +135,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if hasRole(['admin', 'direction']);
     }
+    // Compteur auto-incrémenté des reçus officiels (LC / MLAI)
+    match /settings/recu_counters {
+      allow read, write: if hasRole(['admin', 'direction', 'scolarite']);
+    }
     // Config réinscription : lisible publiquement (portail public en a besoin)
     match /settings/reinscription_config {
       allow read: if true;

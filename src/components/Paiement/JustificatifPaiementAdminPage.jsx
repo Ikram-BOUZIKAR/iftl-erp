@@ -5,6 +5,7 @@ import { useToast } from '../UI/Toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useBranding } from '../../contexts/BrandingContext';
+import ModalRecuOfficiel from './ModalRecuOfficiel';
 import { formatCurrency } from '../../utils/currency';
 
 const TARIFS = {
@@ -422,6 +423,7 @@ export default function JustificatifPaiementAdminPage() {
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState({}); // CIN → bool
   const [showBourseModal, setShowBourseModal] = useState(false);
+  const [selectedForRecuIFTL, setSelectedForRecuIFTL] = useState(null);
   const [editingAmount, setEditingAmount] = useState(null); // { id, value }
 
   const fetchData = useCallback(async () => {
@@ -686,6 +688,13 @@ export default function JustificatifPaiementAdminPage() {
                                 className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#005989] border border-[#005989]/30 rounded-lg hover:bg-[#005989]/8 transition-colors">
                                 📄 Reçu PDF
                               </button>
+                              {(e.niveau === 'licence_cnam' || e.niveau === 'mastere_mlai') && (
+                                <button
+                                  onClick={ev => { ev.stopPropagation(); setSelectedForRecuIFTL(e); }}
+                                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors">
+                                  🏛 Reçu IFTL
+                                </button>
+                              )}
                             </div>
                             <div className="space-y-1.5">
                               {e.depots.map(d => (
@@ -882,6 +891,20 @@ export default function JustificatifPaiementAdminPage() {
         <BourseModal
           onClose={() => setShowBourseModal(false)}
           onSaved={fetchData}
+        />
+      )}
+      {selectedForRecuIFTL && (
+        <ModalRecuOfficiel
+          prefix={selectedForRecuIFTL.niveau === 'licence_cnam' ? 'LC' : 'MLAI'}
+          cycle={selectedForRecuIFTL.niveau === 'licence_cnam' ? 'Licence CNAM' : 'Mastère MLAI'}
+          nom={selectedForRecuIFTL.nom || ''}
+          prenom={selectedForRecuIFTL.prenom || ''}
+          cin={selectedForRecuIFTL.cin || ''}
+          codeApprenant=""
+          promotion="2026-2027"
+          montantInit={selectedForRecuIFTL.totalValide || ''}
+          branding={branding}
+          onClose={() => setSelectedForRecuIFTL(null)}
         />
       )}
     </div>

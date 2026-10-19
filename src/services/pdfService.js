@@ -368,6 +368,206 @@ export function generateRecu(facture, etudiant, devise = 'MAD', branding = null)
   doc.save(`recu-${nom}-${dateStr}.pdf`);
 }
 
+// ─── generateRecuOfficielIFTL ─────────────────────────────────────────────────
+
+/**
+ * Generates the official IFTL payment receipt PDF (Reçu de Paiement).
+ * Only for Licence CNAM (LC prefix) and Mastère MLAI (MLAI prefix).
+ *
+ * @param {object} data
+ *   refNumero       - formatted reference e.g. 'LC001/2026'
+ *   nom             - student last name (uppercase)
+ *   prenom          - student first name
+ *   cin             - N° C.N.I.E.
+ *   codeApprenant   - N° d'inscription (may be empty)
+ *   cycle           - 'Licence CNAM' | 'Mastère MLAI'
+ *   promotion       - academic year e.g. '2026-2027'
+ *   montant         - amount (number)
+ *   montantLettres  - amount in French words
+ *   typeFrais       - e.g. "frais d'inscription"
+ *   modePaiement    - e.g. 'Virement bancaire'
+ *   refOperation    - N° Chèque / référence
+ *   banque          - bank / agency
+ *   versePar        - payer name
+ *   dateEmission    - formatted date string
+ */
+export function generateRecuOfficielIFTL(data, branding = null) {
+  _setBrand(branding);
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+
+  const {
+    refNumero = '',
+    nom = '',
+    prenom = '',
+    cin = '',
+    codeApprenant = '',
+    cycle = '',
+    promotion = '',
+    montant = 0,
+    montantLettres = '',
+    typeFrais = "frais d'inscription",
+    modePaiement = '',
+    refOperation = '',
+    banque = '',
+    versePar = '',
+    dateEmission = format(new Date(), 'dd MMMM yyyy', { locale: fr }),
+  } = data;
+
+  // ── Header (logo + title + reference) ───────────────────────────────────────
+  let y = drawIftlHeader(doc, 'REÇU DE PAIEMENT', `N° : ${refNumero}`);
+  y += 6;
+
+  // ── Intro text ───────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.black);
+  const introLines = doc.splitTextToSize(
+    "L'Institut de Formation aux Métiers du Transport et de la Logistique (IFTL) certifie avoir reçu de :",
+    w - 28
+  );
+  doc.text(introLines, 14, y);
+  y += introLines.length * 5 + 5;
+
+  // ── Student fields (bullet list style) ──────────────────────────────────────
+  const LABEL_W = 52;
+  const fields = [
+    { label: 'Nom', value: (nom || '').toUpperCase() },
+    { label: 'Prénom', value: prenom },
+    { label: 'N° C.N.I.E.', value: cin },
+    { label: "N° d'inscription", value: codeApprenant || '—' },
+    { label: 'Cycle', value: cycle },
+    { label: 'Promotion', value: promotion },
+  ];
+
+  fields.forEach(f => {
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...BRAND.grey);
+    doc.text('•', 16, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...BRAND.darkBlue);
+    doc.text(`${f.label} :`, 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...BRAND.black);
+    doc.text(String(f.value || '—'), 20 + LABEL_W, y);
+    y += 7;
+  });
+  y += 4;
+
+  // ── "La Somme de" section ────────────────────────────────────────────────────
+  y = sectionTitle(doc, 'La Somme De', y);
+
+  // Amount box
+  const amtStr = `${montantLettres} (${montant.toLocaleString('fr-MA')} DH)`;
+  const amtLines = doc.splitTextToSize(amtStr, w - 38);
+  const amtBoxH = amtLines.length * 6.5 + 10;
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(14, y, w - 28, amtBoxH, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text(amtLines, 20, y + 7);
+  y += amtBoxH + 5;
+
+  // Corresponding to ...
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.grey);
+  const correspondText = `Correspondant au règlement des ${typeFrais} au titre de l'année académique ${promotion}.`;
+  const correspondLines = doc.splitTextToSize(correspondText, w - 28);
+  doc.text(correspondLines, 14, y);
+  y += correspondLines.length * 5 + 8;
+
+  // ── Payment details section ──────────────────────────────────────────────────
+  y = sectionTitle(doc, 'Détails du Paiement', y);
+  y += 2;
+
+  const payDetails = [
+    { label: 'Mode de paiement', value: modePaiement },
+    { label: 'Référence de l\'opération / N° Chèque', value: refOperation || '—' },
+    { label: 'Banque / Agence', value: banque || '—' },
+    { label: 'Versé par', value: versePar },
+  ];
+
+  const PLABEL_W = 70;
+  payDetails.forEach(f => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...BRAND.darkBlue);
+    doc.text(`${f.label} :`, 16, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...BRAND.black);
+    doc.text(String(f.value || '—'), 16 + PLABEL_W, y);
+    y += 7;
+  });
+  y += 6;
+
+  // ── Legal statement ──────────────────────────────────────────────────────────
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.2);
+  doc.line(14, y, w - 14, y);
+  y += 6;
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.black);
+  const stmtLines = doc.splitTextToSize(
+    "Le présent reçu est délivré à l'intéressé(e) pour servir et valoir ce que de droit.",
+    w - 28
+  );
+  doc.text(stmtLines, 14, y);
+  y += stmtLines.length * 5 + 5;
+
+  // ── Mention légale ───────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.grey);
+  const mentionText = "Mention légale : Les frais d'inscription acquittés sont non remboursables sauf cas de force majeure dûment justifié et accepté par la direction de l'IFTL.";
+  const mentionLines = doc.splitTextToSize(mentionText, w - 28);
+  doc.text(mentionLines, 14, y);
+  y += mentionLines.length * 4.5 + 10;
+
+  // ── Date & Signature zone ────────────────────────────────────────────────────
+  const pageH = doc.internal.pageSize.getHeight();
+  const sigY = Math.max(y, pageH - 55);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.black);
+  doc.text(`Fait à Nouaceur, le ${dateEmission}`, 14, sigY);
+
+  // Signature box (right)
+  const sigBoxX = w - 14 - 70;
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(sigBoxX, sigY - 4, 70, 28, 2, 2, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text('La Direction', sigBoxX + 35, sigY + 4, { align: 'center' });
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Cachet & Signature', sigBoxX + 35, sigY + 10, { align: 'center' });
+
+  // Coral accent footer bar (no drawFooter — single page, no page number)
+  doc.setFillColor(...BRAND.coral);
+  doc.rect(0, pageH - 10, w, 10, 'F');
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...BRAND.white);
+  doc.text(`Document officiel — ${INSTITUTE_NAME}`, w / 2, pageH - 3.5, { align: 'center' });
+  doc.text(refNumero, w - 14, pageH - 3.5, { align: 'right' });
+
+  const safeNom = (nom || 'apprenant').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const safeRef = refNumero.replace(/[^a-z0-9]/gi, '_');
+  doc.save(`Recu_IFTL_${safeNom}_${safeRef}.pdf`);
+}
+
 // ─── generateBulletin ─────────────────────────────────────────────────────────
 
 /**

@@ -7,6 +7,7 @@ import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 import { generateRecu, generateSuiviPaiementPDF } from '../../services/pdfService';
+import ModalRecuOfficiel from '../Paiement/ModalRecuOfficiel';
 import { useTranslation } from 'react-i18next';
 import { useBranding } from '../../contexts/BrandingContext';
 import { formatCurrency, getCurrencySymbol } from '../../utils/currency';
@@ -536,6 +537,7 @@ export default function FacturationPage() {
   const [loading, setLoading] = useState(true);
   const [showNouvelleFacture, setShowNouvelleFacture] = useState(false);
   const [selectedForPaiement, setSelectedForPaiement] = useState(null);
+  const [selectedForRecuIFTL, setSelectedForRecuIFTL] = useState(null);
   const [filterStatut, setFilterStatut] = useState('');
   const [filterAnnee, setFilterAnnee] = useState('');
   const [filterFiliere, setFilterFiliere] = useState('');
@@ -778,6 +780,20 @@ export default function FacturationPage() {
                               <DocumentIcon />
                               Reçu PDF
                             </button>
+                            {(() => {
+                              const fl = (f.filiere || '').toLowerCase();
+                              const prefix = fl.includes('cnam') ? 'LC' : fl.includes('mlai') ? 'MLAI' : null;
+                              if (!prefix) return null;
+                              return (
+                                <button
+                                  onClick={() => setSelectedForRecuIFTL({ ...f, _recuPrefix: prefix })}
+                                  title="Reçu de Paiement Officiel IFTL"
+                                  className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 text-emerald-700 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap"
+                                >
+                                  🏛 Reçu IFTL
+                                </button>
+                              );
+                            })()}
                             <button
                               onClick={() => handleDelete(f)}
                               className="text-xs font-medium px-2.5 py-1.5 text-red-600 border border-red-100 rounded-lg hover:bg-red-50 transition-colors"
@@ -809,6 +825,20 @@ export default function FacturationPage() {
           facture={selectedForPaiement}
           onClose={() => setSelectedForPaiement(null)}
           onSaved={loadFactures}
+        />
+      )}
+      {selectedForRecuIFTL && (
+        <ModalRecuOfficiel
+          prefix={selectedForRecuIFTL._recuPrefix}
+          cycle={selectedForRecuIFTL._recuPrefix === 'LC' ? 'Licence CNAM' : 'Mastère MLAI'}
+          nom={selectedForRecuIFTL.studentNom || ''}
+          prenom={selectedForRecuIFTL.studentPrenom || ''}
+          cin={selectedForRecuIFTL.cin || ''}
+          codeApprenant={selectedForRecuIFTL.codeApprenant || ''}
+          promotion={selectedForRecuIFTL.anneeAcademique || '2026-2027'}
+          montantInit={selectedForRecuIFTL.montantPaye || selectedForRecuIFTL.montantTotal || ''}
+          branding={branding}
+          onClose={() => setSelectedForRecuIFTL(null)}
         />
       )}
     </div>
