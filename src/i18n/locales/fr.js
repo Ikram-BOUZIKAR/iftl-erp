@@ -16,6 +16,7 @@ const fr = {
     emargement:       'Émargement',
     modules:          'Modules & Référentiel',
     notes:            'Notes & Évaluations',
+    saisieNotes:      'Portail Saisie Notes',
     releves:          'Relevés de Notes',
     absences:         'Absences & Retards',
 

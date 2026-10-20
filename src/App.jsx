@@ -54,6 +54,7 @@ import ReinscriptionPortail  from './components/Reinscription/ReinscriptionPorta
 import ReinscriptionAdminPage from './components/Reinscription/ReinscriptionAdminPage';
 import JustificatifPaiementPortail   from './components/Paiement/JustificatifPaiementPortail';
 import JustificatifPaiementAdminPage from './components/Paiement/JustificatifPaiementAdminPage';
+import PortailSaisieNotes from './components/Notes/PortailSaisieNotes';
 import { BrandingProvider } from './contexts/BrandingContext';
 import './App.css';
 
@@ -139,6 +140,7 @@ function App() {
                         <Route path="/emargement/:id" element={<SessionAttendance />} />
                         <Route path="/modules"       element={<ModulesPage />} />
                         <Route path="/notes"         element={<NotesPage />} />
+                        <Route path="/saisie-notes"  element={<PortailSaisieNotes />} />
                         <Route path="/releves"       element={<RelevesPage />} />
                         <Route path="/absences"      element={<AbsencesPage />} />
                         {/* Population */}

@@ -3,6 +3,7 @@
 export const EVAL_TYPES = [
   { value: 'CC',           label: 'Contrôle Continu' },
   { value: 'EFM',          label: 'Examen Final de Module (EFM)' },
+  { value: 'EFF',          label: 'Examen de Fin de Formation (EFF)' },
   { value: 'PARTICIPATION', label: 'Participation' },
   { value: 'TD',           label: 'Travaux Dirigés' },
   { value: 'SOUTENANCE',   label: 'Soutenance' },
@@ -10,7 +11,7 @@ export const EVAL_TYPES = [
 ];
 
 // Types entered via the intervenant portal (as opposed to legacy admin evaluations)
-export const NEW_TYPE_SET = new Set(['CC', 'EFM', 'PARTICIPATION', 'TD', 'SOUTENANCE', 'RATTRAPAGE']);
+export const NEW_TYPE_SET = new Set(['CC', 'EFM', 'EFF', 'PARTICIPATION', 'TD', 'SOUTENANCE', 'RATTRAPAGE']);
 
 /**
  * Calculate module average using the new fixed-weight formula:
@@ -71,6 +72,33 @@ export function getMention(moy) {
   if (v >= 12) return { label: 'Assez bien',   color: 'sky'     };
   if (v >= 10) return { label: 'Passable',     color: 'yellow'  };
   return           { label: 'Insuffisant',  color: 'red'     };
+}
+
+// ── 2A Passage formula ────────────────────────────────────────────────────────
+// Moy2A×30% + Moy1A×20% + Stages×30% + EFF×20% = Moyenne de Passage
+// Any null component is excluded and the remaining weights are renormalized.
+export function calculerMoyennePassage({ moy2A, moy1A, stages, eff }) {
+  const parts = [
+    { v: moy2A,  w: 0.30 },
+    { v: moy1A,  w: 0.20 },
+    { v: stages, w: 0.30 },
+    { v: eff,    w: 0.20 },
+  ].filter(p => p.v !== null && p.v !== undefined && !isNaN(p.v));
+
+  if (parts.length === 0) return null;
+
+  const totalWeight = parts.reduce((s, p) => s + p.w, 0);
+  if (totalWeight === 0) return null;
+
+  const sum = parts.reduce((s, p) => s + p.v * (p.w / totalWeight), 0);
+  return Math.round(sum * 100) / 100;
+}
+
+export function getDecisionPassage(moy) {
+  if (moy === null || moy === undefined) return { decision: '—', color: 'slate' };
+  if (moy >= 10) return { decision: 'ADMIS(E)',      color: 'emerald' };
+  if (moy >= 8)  return { decision: 'AJOURNÉ(E)',    color: 'orange'  };
+  return               { decision: 'REDOUBLANT(E)', color: 'red'     };
 }
 
 // ── Deadline helpers ──────────────────────────────────────────────────────────

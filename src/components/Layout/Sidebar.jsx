@@ -53,9 +53,9 @@ function Ico({ k, cls = 'w-[18px] h-[18px] shrink-0' }) {
 // ── Role visibility ───────────────────────────────────────────────────────────
 const ACCESS = {
   admin:       null,  // null = all
-  direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
-  scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
-  intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/apprenants', '/annonces'],
+  direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
+  scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
+  intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/apprenants', '/annonces'],
   apprenant:   ['/', '/planning', '/notes', '/annonces'],
   parent:      ['/', '/notes', '/annonces'],
 };
@@ -81,6 +81,7 @@ const SECTIONS = [
       { to: '/emargement',       labelKey: 'nav.emargement',       icon: 'clipboard' },
       { to: '/modules',          labelKey: 'nav.modules',          icon: 'book' },
       { to: '/notes',            labelKey: 'nav.notes',            icon: 'award' },
+      { to: '/saisie-notes',     labelKey: 'nav.saisieNotes',      icon: 'clipboard' },
       { to: '/releves',          labelKey: 'nav.releves',          icon: 'doc' },
       { to: '/absences',         labelKey: 'nav.absences',         icon: 'alert' },
     ],
