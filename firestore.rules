@@ -124,6 +124,13 @@ service cloud.firestore {
       allow delete: if hasRole(['admin', 'direction']);
     }
 
+    // ── Portail saisie notes (staging) ─────────────────────────────────────────
+    match /saisie_notes_portail/{docId} {
+      allow create: if true;  // portail public — intervenant non authentifié
+      allow read, update: if hasRole(['admin', 'direction', 'scolarite']);
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
     // ── Paramètres ─────────────────────────────────────────────────────────────
     match /settings/{docId} {
       // Brevo API key stored here — restrict to admin/direction only

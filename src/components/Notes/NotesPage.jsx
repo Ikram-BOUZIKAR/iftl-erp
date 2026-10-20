@@ -9,6 +9,8 @@ import {
   query,
   where,
   writeBatch,
+  orderBy,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useGroupes } from '../../hooks/useData';
@@ -77,6 +79,7 @@ const TABS = [
   { key: 'bulletins', label: 'Bulletins' },
   { key: 'pv', label: 'PV du groupe' },
   { key: 'dashboard', label: 'Dashboard 2A' },
+  { key: 'portail', label: '📥 Portail entrant' },
 ];
 
 const EMPTY_EVAL_FORM = {
@@ -1573,6 +1576,309 @@ export default function NotesPage() {
           groupes={groupes}
         />
       )}
+      {activeTab === 'portail' && (
+        <PortailEntrantTab />
+      )}
+    </div>
+  );
+}
+
+// ── PORTAIL ENTRANT TAB ───────────────────────────────────────
+function PortailEntrantTab() {
+  const toast = useToast();
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [expanded, setExpanded]       = useState(null);
+  const [importing, setImporting]     = useState(null);
+  const [rejecting, setRejecting]     = useState(null);
+  const [filterStatut, setFilterStatut] = useState('en_attente');
+
+  const loadSubmissions = async () => {
+    setLoading(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'saisie_notes_portail'), orderBy('createdAt', 'desc')));
+      setSubmissions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error(err);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadSubmissions(); }, []);
+
+  const filtered = submissions.filter(s =>
+    filterStatut === 'all' ? true : s.statut === filterStatut
+  );
+
+  const handleImport = async (sub) => {
+    setImporting(sub.id);
+    try {
+      const evalRef = await addDoc(collection(db, 'evaluations'), {
+        type:             sub.type,
+        titre:            `${sub.type} — ${sub.moduleNom}`,
+        code:             `${sub.type}-${sub.groupeId}-${sub.date || ''}`,
+        moduleId:         sub.moduleId,
+        moduleNom:        sub.moduleNom,
+        groupeId:         sub.groupeId,
+        sessionAcademique: sub.semestre,
+        anneeAcademique:  sub.anneeAcademique || '2026-2027',
+        bareme:           20,
+        coefficient:      1,
+        source:           'portail',
+        intervenantNom:   sub.intervenantNom,
+        date:             sub.date,
+        createdAt:        serverTimestamp(),
+      });
+
+      const batch = writeBatch(db);
+      (sub.notes || []).forEach(n => {
+        if (!n.studentId) return;
+        const ref = doc(collection(db, 'notes'));
+        batch.set(ref, {
+          evaluationId:   evalRef.id,
+          studentId:      n.studentId,
+          note:           n.note,
+          absent:         n.absent || false,
+          anneeAcademique: sub.anneeAcademique || '2026-2027',
+          intervenantNom: sub.intervenantNom,
+          createdAt:      serverTimestamp(),
+          updatedAt:      serverTimestamp(),
+        });
+      });
+      await batch.commit();
+
+      await updateDoc(doc(db, 'saisie_notes_portail', sub.id), {
+        statut: 'importé',
+        importedAt: serverTimestamp(),
+        evaluationId: evalRef.id,
+      });
+      toast.success('Notes importées avec succès dans le système.');
+      loadSubmissions();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erreur lors de l\'import : ' + (err.message || ''));
+    } finally { setImporting(null); }
+  };
+
+  const handleReject = async (subId) => {
+    setRejecting(subId);
+    try {
+      await updateDoc(doc(db, 'saisie_notes_portail', subId), {
+        statut: 'rejeté',
+        rejectedAt: serverTimestamp(),
+      });
+      toast.success('Soumission rejetée.');
+      loadSubmissions();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erreur.');
+    } finally { setRejecting(null); }
+  };
+
+  const STATUT_STYLE = {
+    en_attente: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'En attente' },
+    importé:    { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Importé' },
+    rejeté:     { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejeté' },
+  };
+
+  const pending = submissions.filter(s => s.statut === 'en_attente').length;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-lg font-bold text-slate-800">Saisies reçues via le portail public</h3>
+          <p className="text-sm text-slate-500">
+            {pending > 0
+              ? <><span className="font-bold text-amber-600">{pending}</span> soumission(s) en attente de validation</>
+              : 'Toutes les soumissions ont été traitées'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Filter chips */}
+          {[
+            { key: 'en_attente', label: `En attente (${submissions.filter(s => s.statut === 'en_attente').length})` },
+            { key: 'importé',    label: `Importés (${submissions.filter(s => s.statut === 'importé').length})` },
+            { key: 'rejeté',     label: `Rejetés (${submissions.filter(s => s.statut === 'rejeté').length})` },
+            { key: 'all',        label: 'Tout voir' },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilterStatut(f.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                filterStatut === f.key
+                  ? 'bg-[#005989] text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+          <button onClick={loadSubmissions} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">
+            ↻ Actualiser
+          </button>
+        </div>
+      </div>
+
+      {/* Lien portail */}
+      <div className="bg-[#f0f7fc] border border-[#005989]/20 rounded-xl p-4 flex items-center gap-3">
+        <span className="text-2xl">🔗</span>
+        <div>
+          <p className="font-semibold text-slate-800 text-sm">Lien du portail public</p>
+          <p className="text-xs text-slate-500 font-mono">{window.location.origin}/portail-notes</p>
+        </div>
+        <button
+          onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/portail-notes`); toast.success('Lien copié !'); }}
+          className="ml-auto px-3 py-1.5 bg-[#005989] text-white rounded-lg text-xs font-bold hover:bg-[#003c5a] transition-colors"
+        >
+          Copier le lien
+        </button>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-7 h-7 border-2 border-[#005989] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && filtered.length === 0 && (
+        <div className="text-center py-16 text-slate-400">
+          <p className="text-4xl mb-3">📭</p>
+          <p className="font-semibold">Aucune soumission {filterStatut !== 'all' ? `"${filterStatut}"` : ''}</p>
+        </div>
+      )}
+
+      {/* Cards */}
+      {!loading && filtered.map(sub => {
+        const st = STATUT_STYLE[sub.statut] || STATUT_STYLE.en_attente;
+        const isOpen = expanded === sub.id;
+        const noteCount = (sub.notes || []).filter(n => !n.absent && n.note !== null && n.note !== undefined).length;
+        const absentCount = (sub.notes || []).filter(n => n.absent).length;
+        const createdLabel = sub.createdAt?.toDate
+          ? sub.createdAt.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '—';
+
+        return (
+          <div key={sub.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            {/* Card header */}
+            <div
+              className="p-4 flex items-center gap-3 cursor-pointer select-none"
+              onClick={() => setExpanded(isOpen ? null : sub.id)}
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#e8f4fb] flex items-center justify-center text-lg shrink-0">📝</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-slate-800 text-sm">{sub.groupeNom}</span>
+                  <span className="text-slate-400 text-xs">·</span>
+                  <span className="text-slate-600 text-sm truncate max-w-[200px]">{sub.moduleNom}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                  <span className="text-xs text-slate-400">{sub.intervenantNom} · {sub.date}</span>
+                  <span className="text-xs text-slate-400">{sub.type} · {sub.semestre}</span>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs text-slate-400">{createdLabel}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  <span className="font-semibold text-[#005989]">{noteCount}</span> notes · <span className="font-semibold text-amber-600">{absentCount}</span> abs.
+                </p>
+              </div>
+              <span className="text-slate-400 text-xs ml-1">{isOpen ? '▲' : '▼'}</span>
+            </div>
+
+            {/* Expanded content */}
+            {isOpen && (
+              <div className="border-t border-slate-100">
+                {/* Notes table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        <th className="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Apprenant</th>
+                        <th className="px-4 py-2 text-center text-xs font-bold text-slate-500 uppercase tracking-wide w-24">Note / 20</th>
+                        <th className="px-4 py-2 text-center text-xs font-bold text-slate-500 uppercase tracking-wide w-20">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(sub.notes || []).map((n, i) => (
+                        <tr key={n.studentId || i} className="border-t border-slate-100 hover:bg-slate-50">
+                          <td className="px-4 py-2.5">
+                            <span className="font-medium text-slate-800">{n.nom} {n.prenom}</span>
+                            {n.code && <span className="ml-2 text-xs text-slate-400">{n.code}</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            {n.absent
+                              ? <span className="text-xs font-bold text-amber-600">ABS</span>
+                              : <span className={`font-bold ${
+                                  n.note === null ? 'text-slate-400'
+                                  : n.note >= 10 ? 'text-emerald-600'
+                                  : n.note >= 8  ? 'text-amber-600'
+                                  : 'text-red-600'
+                                }`}>{n.note !== null ? n.note : '—'}</span>
+                            }
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            {n.absent
+                              ? <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">Absent</span>
+                              : n.note !== null
+                                ? <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${n.note >= 10 ? 'bg-emerald-100 text-emerald-700' : n.note >= 8 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                                    {n.note >= 10 ? 'Validé' : n.note >= 8 ? 'Rattrapage' : 'Non validé'}
+                                  </span>
+                                : <span className="text-xs text-slate-400">—</span>
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Actions */}
+                {sub.statut === 'en_attente' && (
+                  <div className="p-4 bg-amber-50 border-t border-amber-100 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-amber-700 font-medium">
+                      ⚠ Cette saisie est en attente — vérifiez les données avant d'importer.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleReject(sub.id)}
+                        disabled={rejecting === sub.id}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-red-100 text-red-600 hover:bg-red-200 transition-colors disabled:opacity-50"
+                      >
+                        {rejecting === sub.id ? '…' : 'Rejeter'}
+                      </button>
+                      <button
+                        onClick={() => handleImport(sub)}
+                        disabled={importing === sub.id}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#005989] text-white hover:bg-[#003c5a] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {importing === sub.id
+                          ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Import en cours…</>
+                          : '✓ Valider & Importer'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {sub.statut === 'importé' && (
+                  <div className="p-3 bg-emerald-50 border-t border-emerald-100">
+                    <p className="text-xs text-emerald-700 font-medium text-center">
+                      ✓ Notes intégrées dans le système · Évaluation ID : {sub.evaluationId || '—'}
+                    </p>
+                  </div>
+                )}
+                {sub.statut === 'rejeté' && (
+                  <div className="p-3 bg-red-50 border-t border-red-100">
+                    <p className="text-xs text-red-600 font-medium text-center">✗ Soumission rejetée</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

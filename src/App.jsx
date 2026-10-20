@@ -55,6 +55,7 @@ import ReinscriptionAdminPage from './components/Reinscription/ReinscriptionAdmi
 import JustificatifPaiementPortail   from './components/Paiement/JustificatifPaiementPortail';
 import JustificatifPaiementAdminPage from './components/Paiement/JustificatifPaiementAdminPage';
 import PortailSaisieNotes from './components/Notes/PortailSaisieNotes';
+import PortailNotesPublic from './components/Notes/PortailNotesPublic';
 import { BrandingProvider } from './contexts/BrandingContext';
 import './App.css';
 
@@ -94,6 +95,7 @@ function App() {
             <Route path="/suivi-candidature" element={<SuiviCandidaturePage />} />
             <Route path="/reinscription" element={<ReinscriptionPortail />} />
             <Route path="/justificatif-paiement" element={<JustificatifPaiementPortail />} />
+            <Route path="/portail-notes" element={<PortailNotesPublic />} />
             <Route path="/resultats" element={<PortailResultats />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/portail-apprenant" element={
