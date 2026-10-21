@@ -43,7 +43,13 @@ export function useAuth() {
           setUser(firebaseUser);
           setUserProfile(profile);
           setPendingAccount(false);
+        } else if (firebaseUser.isAnonymous) {
+          // Anonymous users (portail notes public) have no staff profile — don't grant any role
+          setUser(firebaseUser);
+          setUserProfile({ uid: firebaseUser.uid, email: null, role: null });
+          setPendingAccount(false);
         } else {
+          // Authenticated non-anonymous user with no Firestore profile — treat as pending apprenant
           setUser(firebaseUser);
           setUserProfile({ uid: firebaseUser.uid, email: firebaseUser.email, role: 'apprenant' });
           setPendingAccount(false);

@@ -11,7 +11,7 @@ export default function PrivateRoute({ auth, children }) {
     );
   }
 
-  if (!auth.isAuthenticated) {
+  if (!auth.isAuthenticated || auth.user?.isAnonymous) {
     return <Navigate to="/login" replace />;
   }
 
