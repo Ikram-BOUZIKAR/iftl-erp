@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useGroupes, useIntervenants } from '../../hooks/useData';
@@ -285,10 +286,17 @@ function GroupeDetailPanel({ groupe, onClose, toast }) {
   );
 }
 
+const getNiveauKey = (g) => {
+  if (g.typeFormation === 'Qualification') return 'QUALIF';
+  if (g.anneePromotion === '2ème année') return '2A TS';
+  return '1A TS';
+};
+
 export default function GroupesPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: groupes, loading, refetch } = useGroupes();
   const { data: intervenants } = useIntervenants();
   const [activeTab,      setActiveTab]      = useState('groupes');
@@ -425,7 +433,11 @@ export default function GroupesPage() {
         <div className="flex gap-2 pt-3 border-t border-slate-100">
           <button onClick={() => setSelectedGroupe(g)}
             className="flex-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-3 py-1.5 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors text-center">
-            👥 Apprenants
+            👥 Liste
+          </button>
+          <button onClick={() => navigate(`/apprenants?niveau=${getNiveauKey(g)}&groupeId=${g.id}`)}
+            className="flex-1 text-xs font-semibold text-[#005989] hover:text-[#004a73] px-3 py-1.5 border border-[#005989]/30 rounded-lg hover:bg-[#005989]/5 transition-colors text-center">
+            → Apprenants
           </button>
           <button onClick={() => openEdit(g)}
             className="text-xs font-medium text-slate-600 hover:text-slate-800 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">

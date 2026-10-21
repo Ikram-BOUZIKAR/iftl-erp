@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useStudents, useGroupes } from '../../hooks/useData';
@@ -716,8 +716,18 @@ export default function ApprenantsPage() {
   const { t } = useTranslation();
   const { data: students, loading, refetch } = useStudents();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
-  const [selectedNiveau, setSelectedNiveau] = useState(null);
-  const [selectedGroupe, setSelectedGroupe] = useState(null);
+  const [searchParams] = useSearchParams();
+  const [selectedNiveau, setSelectedNiveau] = useState(() => {
+    const niv = searchParams.get('niveau');
+    return niv || null;
+  });
+  const [selectedGroupe, setSelectedGroupe] = useState(() => {
+    const gid = searchParams.get('groupeId');
+    const niv = searchParams.get('niveau');
+    if (gid && niv) return gid;
+    if (niv === '_tous' || niv === '_autre') return '_tous';
+    return null;
+  });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showImport, setShowImport] = useState(false);
