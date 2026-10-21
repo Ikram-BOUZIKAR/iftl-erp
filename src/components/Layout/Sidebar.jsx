@@ -133,10 +133,11 @@ const SECTIONS = [
   {
     labelKey: 'nav.section_settings',
     items: [
-      { to: '/parametres',             labelKey: 'nav.parametres',  icon: 'cog' },
-      { to: '/admin/passage-niveau',   labelKey: 'nav.parametres',  icon: 'trending' },
-      { to: '/admin/repair-groupes',   labelKey: 'nav.parametres',  icon: 'cog' },
-      { to: '/admin/deduplication',    labelKey: 'nav.parametres',  icon: 'users' },
+      { to: '/parametres',                     labelKey: 'nav.parametres',  icon: 'cog' },
+      { to: '/admin/affectation-population',  labelKey: 'nav.affectation_population', icon: 'users' },
+      { to: '/admin/passage-niveau',          labelKey: 'nav.parametres',  icon: 'trending' },
+      { to: '/admin/repair-groupes',          labelKey: 'nav.parametres',  icon: 'cog' },
+      { to: '/admin/deduplication',           labelKey: 'nav.parametres',  icon: 'users' },
     ],
   },
 ];

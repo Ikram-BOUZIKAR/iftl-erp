@@ -43,6 +43,7 @@ const fr = {
     rapports:         'Rapports',
     statistiques:     'Statistiques',
     parametres:       'Paramètres',
+    affectation_population: 'Affectation population',
   },
 
   breadcrumb: {
