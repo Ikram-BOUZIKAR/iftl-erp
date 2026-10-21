@@ -93,6 +93,7 @@ const SECTIONS = [
       { to: '/groupes',                          labelKey: 'nav.groupes',                 icon: 'layers'   },
       { to: '/intervenants',                     labelKey: 'nav.intervenants',            icon: 'userTie'  },
       { to: '/admin/creation-groupes-2026',      labelKey: 'nav.creation_groupes_2026',   icon: 'star'     },
+      { to: '/admin/import-population',          labelKey: 'nav.import_population',       icon: 'userPlus' },
     ],
   },
   {
