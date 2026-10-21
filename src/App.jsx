@@ -49,7 +49,6 @@ import RepairGroupesPage    from './components/Admin/RepairGroupesPage';
 import PassageNiveauPage    from './components/Admin/PassageNiveauPage';
 import DeduplicationPage    from './components/Admin/DeduplicationPage';
 import EDTImportPage        from './components/Admin/EDTImportPage';
-import AffectationPopulationPage from './components/Admin/AffectationPopulationPage';
 import CreationGroupes2026Page   from './components/Admin/CreationGroupes2026Page';
 import RelevesPage          from './components/Releves/RelevesPage';
 import ReinscriptionPortail  from './components/Reinscription/ReinscriptionPortail';
@@ -181,7 +180,6 @@ function App() {
                         <Route path="/admin/passage-niveau"    element={<PassageNiveauPage />} />
                         <Route path="/admin/deduplication"     element={<DeduplicationPage />} />
                         <Route path="/admin/import-edt"        element={<EDTImportPage />} />
-                        <Route path="/admin/affectation-population" element={<AffectationPopulationPage />} />
                         <Route path="/admin/creation-groupes-2026" element={<CreationGroupes2026Page />} />
                         <Route path="*"              element={<Navigate to="/" replace />} />
                       </Routes>

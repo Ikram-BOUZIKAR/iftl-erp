@@ -92,7 +92,6 @@ const SECTIONS = [
       { to: '/apprenants',                       labelKey: 'nav.apprenants',              icon: 'users'    },
       { to: '/groupes',                          labelKey: 'nav.groupes',                 icon: 'layers'   },
       { to: '/intervenants',                     labelKey: 'nav.intervenants',            icon: 'userTie'  },
-      { to: '/admin/affectation-population',     labelKey: 'nav.affectation_population',  icon: 'userPlus' },
       { to: '/admin/creation-groupes-2026',      labelKey: 'nav.creation_groupes_2026',   icon: 'star'     },
     ],
   },
