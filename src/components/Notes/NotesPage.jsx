@@ -1648,7 +1648,7 @@ function PortailEntrantTab() {
       const evalRef = await addDoc(collection(db, 'evaluations'), {
         type:             sub.type,
         titre:            `${sub.type} — ${sub.moduleNom}`,
-        code:             `${sub.type}-${sub.groupeId}-${sub.date || ''}`,
+        code:             `${sub.type}-${sub.date || ''}-${(sub.moduleNom || '').split(/[\s\-–—]/)[0].toUpperCase().slice(0, 8)}`,
         moduleId:         sub.moduleId,
         moduleNom:        sub.moduleNom,
         groupeId:         sub.groupeId,
