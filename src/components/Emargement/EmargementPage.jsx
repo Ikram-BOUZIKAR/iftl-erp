@@ -44,6 +44,7 @@ export default function EmargementPage() {
   const [filterStatut, setFilterStatut] = useState('');
   const [filterGroupe, setFilterGroupe] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const [filterSpecificDate, setFilterSpecificDate] = useState('');
   const [search, setSearch] = useState('');
   const [showLibreModal, setShowLibreModal] = useState(false);
   const sessionsRef = useRef([]);
@@ -126,7 +127,10 @@ export default function EmargementPage() {
     const matchSearch = !q || moduleName.toLowerCase().includes(q) || s.salle?.toLowerCase().includes(q) ||
       getGroupeName(s.groupeId).toLowerCase().includes(q);
     let matchDate = true;
-    if (filterDate === 'today') {
+    if (filterSpecificDate) {
+      const d = toJsDate(s.date);
+      matchDate = d ? d.toISOString().split('T')[0] === filterSpecificDate : false;
+    } else if (filterDate === 'today') {
       const d = toJsDate(s.date); d && d.setHours(0, 0, 0, 0);
       matchDate = d && d.getTime() === today.getTime();
     } else if (filterDate === 'week') {
@@ -190,12 +194,28 @@ export default function EmargementPage() {
             className="w-full text-sm border border-slate-300 rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 focus:border-[#005989] transition-colors"
           />
         </div>
-        <select value={filterDate} onChange={e => setFilterDate(e.target.value)}
+        <select value={filterDate} onChange={e => { setFilterDate(e.target.value); setFilterSpecificDate(''); }}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
           <option value="">Toutes les dates</option>
           <option value="today">Aujourd'hui</option>
           <option value="week">Cette semaine</option>
         </select>
+        <div className="flex items-center gap-1">
+          <input
+            type="date"
+            value={filterSpecificDate}
+            onChange={e => { setFilterSpecificDate(e.target.value); if (e.target.value) setFilterDate(''); }}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white"
+            title="Aller à une date précise"
+          />
+          {filterSpecificDate && (
+            <button
+              onClick={() => setFilterSpecificDate('')}
+              className="text-xs text-slate-400 hover:text-slate-600 px-2 py-2"
+              title="Effacer la date"
+            >✕</button>
+          )}
+        </div>
         <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
           className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
           <option value="">{t('common.all')}</option>

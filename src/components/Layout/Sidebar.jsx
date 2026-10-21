@@ -135,10 +135,11 @@ const SECTIONS = [
   {
     labelKey: 'nav.section_settings',
     items: [
-      { to: '/parametres',                     labelKey: 'nav.parametres',  icon: 'cog' },
-      { to: '/admin/passage-niveau',          labelKey: 'nav.parametres',  icon: 'trending' },
-      { to: '/admin/repair-groupes',          labelKey: 'nav.parametres',  icon: 'cog' },
-      { to: '/admin/deduplication',           labelKey: 'nav.parametres',  icon: 'users' },
+      { to: '/parametres',                     labelKey: 'nav.parametres',      icon: 'cog'      },
+      { to: '/admin/passage-niveau',          labelKey: 'nav.passage_niveau',  icon: 'trending' },
+      { to: '/admin/import-edt',              labelKey: 'nav.import_edt',      icon: 'calendar' },
+      { to: '/admin/repair-groupes',          labelKey: 'nav.repair_groupes',  icon: 'cog'      },
+      { to: '/admin/deduplication',           labelKey: 'nav.deduplication',   icon: 'users'    },
     ],
   },
 ];

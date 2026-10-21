@@ -45,7 +45,11 @@ const fr = {
     parametres:       'Paramètres',
     affectation_population: 'Affectation population',
     creation_groupes_2026:  'Créer groupes 2026-2027',
-    import_population:      'Import population 2026-2027',
+    import_population:      'Import Population',
+    passage_niveau:         'Passage de niveau',
+    repair_groupes:         'Réparation groupes',
+    deduplication:          'Déduplication apprenants',
+    import_edt:             'Import EDT',
   },
 
   breadcrumb: {
