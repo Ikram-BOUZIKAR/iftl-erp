@@ -44,6 +44,7 @@ const fr = {
     statistiques:     'Statistiques',
     parametres:       'Paramètres',
     affectation_population: 'Affectation population',
+    creation_groupes_2026:  'Créer groupes 2026-2027',
   },
 
   breadcrumb: {

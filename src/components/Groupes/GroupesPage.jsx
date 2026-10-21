@@ -7,18 +7,23 @@ import { groupesService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
 
-const FILIERE_CODES = ['TMLI', 'LIPF', 'GOL', 'ECMD', 'DMVT', 'LE', 'CTM', 'CTP'];
+const FILIERE_CODES = ['TMLI', 'LIPF', 'GOL', 'GOLE', 'ECMD', 'DMVT', 'LE', 'OFLP', 'AEL', 'ADEE', 'CTM', 'CTP', 'CRM'];
 const FILIERE_LABELS = {
   TMLI: 'Transport Multimodal et Logistique Internationale',
   LIPF: 'Logistique Industrielle et Pilotage des Flux',
   GOL:  "Gestionnaire des opérations logistiques et d'entrepôt",
+  GOLE: "Gestion des Opérations Logistiques et d'Entrepôt",
   ECMD: 'E-Commerce, Marketing Digital et Distribution',
   DMVT: 'Diagnostic et Maintenance des Véhicules de Transport',
   LE:   "Logistique d'entreposage",
+  OFLP: "Opérateur(trice) en Fret et Logistique de la Plateforme",
+  AEL:  "Agent(e) d'Exploitation Logistique",
+  ADEE: 'Agent(e) Diagnostic Électronique Automobile',
   CTM:  'Conducteur(rice) en transport routier – Option Marchandises',
   CTP:  'Conducteur(rice) en transport routier – Option Personnes',
+  CRM:  'Conducteur(trice) Routier(ère) de Marchandises',
 };
-const FILIERE_TYPE = { TMLI:'Technicien Spécialisé', LIPF:'Technicien Spécialisé', GOL:'Technicien Spécialisé', ECMD:'Technicien Spécialisé', DMVT:'Technicien Spécialisé', LE:'Technicien Spécialisé', CTM:'Qualification', CTP:'Qualification' };
+const FILIERE_TYPE = { TMLI:'Technicien Spécialisé', LIPF:'Technicien Spécialisé', GOL:'Technicien Spécialisé', GOLE:'Technicien Spécialisé', ECMD:'Technicien Spécialisé', DMVT:'Technicien Spécialisé', LE:'Technicien Spécialisé', OFLP:'Technicien Spécialisé', AEL:'Technicien Spécialisé', ADEE:'Technicien Spécialisé', CTM:'Qualification', CTP:'Qualification', CRM:'Qualification' };
 const TYPES_FORMATION = ['Technicien Spécialisé', 'Qualification', 'Licence CNAM', 'Licence Transitaire', 'Mastère ESLI MLAI'];
 const ANNEES_PROMOTION = ['1ère année', '2ème année'];
 const TYPES_AVEC_ANNEE = new Set(['Technicien Spécialisé', 'Qualification', 'Mastère ESLI MLAI']);
