@@ -32,13 +32,13 @@ function normalizeNiveau(raw) {
 }
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
-const CSV_HEADERS = ['nom','prenom','codeApprenant','email','telephone','dateNaissance','cin','genre','ville','adresse','groupe','niveau'];
+const CSV_HEADERS = ['nom','prenom','codeApprenant','email','telephone','dateNaissance','cin','genre','ville','adresse','groupe','niveau','filiereCode','anneeAcademique'];
 
 function downloadCSVTemplate() {
   const rows = [
     CSV_HEADERS,
-    ['BEN ALI','Mohamed','TS0417','mohamed.benali@email.com','0612345678','2004-03-15','BE123456','M','Casablanca','123 Rue de la Paix','TS.A','1A TS'],
-    ['IDRISSI','Fatima','TS0418','fatima.idrissi@email.com','0698765432','2003-07-22','CI654321','F','Rabat','45 Av Hassan II','TS.B','2A TS'],
+    ['BEN ALI','Mohamed','TS0417','mohamed.benali@email.com','0612345678','2004-03-15','BE123456','M','Casablanca','123 Rue de la Paix','TS.A','1A TS','TMLI','2026-2027'],
+    ['IDRISSI','Fatima','TS0418','fatima.idrissi@email.com','0698765432','2003-07-22','CI654321','F','Rabat','45 Av Hassan II','TS.B','2A TS','LIPF','2026-2027'],
   ];
   const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -107,6 +107,10 @@ function rowToPayload(row, groupes) {
     ville: (row.ville || '').trim(),
     adresse: (row.adresse || '').trim(),
     groupeId, groupeNomSource: groupeNom, niveau, anneeFormation, statut: 'actif',
+    ...(row.filiereCode ? { filiereCode: (row.filiereCode || row.filierecode || '').trim().toUpperCase() } : {}),
+    ...(row.anneeAcademique || row['annee academique'] || row.anneeacademique
+      ? { anneeAcademique: (row.anneeAcademique || row['annee academique'] || row.anneeacademique || '').trim() }
+      : {}),
   };
 }
 
