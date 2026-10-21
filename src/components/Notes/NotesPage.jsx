@@ -1856,6 +1856,11 @@ function PortailEntrantTab() {
               </div>
               <div className="text-right shrink-0">
                 <p className="text-xs text-slate-400">{createdLabel}</p>
+                {sub.codeModification && (
+                  <p className="text-xs font-mono font-bold text-[#005989] mt-0.5 cursor-pointer" title="Copier le code" onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(sub.codeModification); }}>
+                    🔖 {sub.codeModification}
+                  </p>
+                )}
                 <p className="text-xs text-slate-500 mt-0.5">
                   <span className="font-semibold text-[#005989]">{noteCount}</span> notes · <span className="font-semibold text-amber-600">{absentCount}</span> abs.
                 </p>

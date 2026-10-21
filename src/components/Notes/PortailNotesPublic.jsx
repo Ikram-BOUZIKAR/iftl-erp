@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  collection, getDocs, addDoc, getDoc, doc,
+  collection, getDocs, addDoc, updateDoc, getDoc, doc,
   query, where, serverTimestamp,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
+
+function genCode() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  return 'IFTL-' + Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
 
 const INST_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
 const INST_LOGO = import.meta.env.VITE_DEFAULT_LOGO_URL || null;
@@ -169,6 +174,16 @@ export default function PortailNotesPublic() {
   const [storedCode, setStoredCode]   = useState(null);
   const [showCode, setShowCode]       = useState(false);
 
+  // Step 0 — Mode modification
+  const [modifMode, setModifMode]       = useState(false);
+  const [modifCode, setModifCode]       = useState('');
+  const [modifLoading, setModifLoading] = useState(false);
+  const [modifError, setModifError]     = useState('');
+
+  // Submission tracking
+  const [editId, setEditId]               = useState(null);   // Firestore doc ID en cours de modification
+  const [submissionCode, setSubmissionCode] = useState('');
+
   // Data
   const [groupes, setGroupes]             = useState([]);
   const [intervenants, setIntervenants]   = useState([]);
@@ -247,6 +262,49 @@ export default function PortailNotesPublic() {
     }, 400);
   };
 
+  // Lookup existing submission by tracking code
+  const handleModifLookup = async () => {
+    const code = modifCode.trim().toUpperCase();
+    if (!code) { setModifError('Saisissez votre code de suivi.'); return; }
+    setModifLoading(true); setModifError('');
+    try {
+      const snap = await getDocs(query(collection(db, 'saisie_notes_portail'), where('codeModification', '==', code)));
+      if (snap.empty) { setModifError('Code introuvable. Vérifiez votre code ou contactez la scolarité.'); setModifLoading(false); return; }
+      const sub = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      if (sub.statut === 'importé') {
+        setModifError('Cette saisie a déjà été intégrée dans le système. Contactez la scolarité pour toute modification.');
+        setModifLoading(false); return;
+      }
+      if (sub.statut === 'rejeté') {
+        setModifError('Cette saisie a été rejetée. Effectuez une nouvelle saisie ou contactez la scolarité.');
+        setModifLoading(false); return;
+      }
+      // Pre-fill form
+      setEditId(sub.id);
+      setSubmissionCode(code);
+      setIntervenantId('__autre__');
+      setIntervenantAutre(sub.intervenantNom || '');
+      setDate(sub.date || new Date().toISOString().slice(0, 10));
+      setEvalType(sub.type || 'CC');
+      setSemestre(sub.semestre || 'S1');
+      // Load groupe + students + modules
+      await onGroupeChange(sub.groupeId);
+      setModuleId('__autre__');
+      setModuleAutre(sub.moduleNom || '');
+      setGroupeNom(sub.groupeNom || '');
+      // Pre-fill notes after students load
+      if (sub.notes?.length) {
+        const init = {};
+        sub.notes.forEach(n => { init[n.studentId] = { note: n.note !== null && n.note !== undefined ? String(n.note) : '', absent: Boolean(n.absent) }; });
+        setNotes(init);
+      }
+      setStep(1); scrollTop();
+    } catch (err) {
+      console.error(err);
+      setModifError('Erreur de connexion. Réessayez.');
+    } finally { setModifLoading(false); }
+  };
+
   // Load modules + students on groupe change
   const onGroupeChange = async id => {
     const g = groupes.find(x => x.id === id);
@@ -320,7 +378,7 @@ export default function PortailNotesPublic() {
     if (filledCount === 0) { setSaveErr('Saisissez au moins une note ou marquez un absent.'); return; }
     setSaving(true);
     try {
-      await addDoc(collection(db, 'saisie_notes_portail'), {
+      const payload = {
         intervenantNom: effectiveIntervenantNom.trim(),
         date, groupeId, groupeNom,
         moduleId:   moduleId === '__autre__' ? '__autre__' : moduleId,
@@ -332,8 +390,22 @@ export default function PortailNotesPublic() {
           const v = notes[s.id] || { note: '', absent: false };
           return { studentId: s.id, nom: s.nom || '', prenom: s.prenom || '', code: s.code || '', note: v.absent ? null : (v.note === '' ? null : parseFloat(v.note)), absent: Boolean(v.absent) };
         }),
-        createdAt: serverTimestamp(),
-      });
+      };
+      if (editId) {
+        // Modification d'une saisie existante
+        await updateDoc(doc(db, 'saisie_notes_portail', editId), { ...payload, updatedAt: serverTimestamp() });
+        setSubmissionCode(submissionCode); // keep existing code
+      } else {
+        // Nouvelle saisie
+        const code = genCode();
+        const ref = await addDoc(collection(db, 'saisie_notes_portail'), {
+          ...payload,
+          codeModification: code,
+          createdAt: serverTimestamp(),
+        });
+        setSubmissionCode(code);
+        setEditId(ref.id);
+      }
       setStep(4); scrollTop();
     } catch (err) {
       console.error(err);
@@ -347,6 +419,8 @@ export default function PortailNotesPublic() {
     setGroupeId(''); setGroupeNom(''); setModuleId(''); setModuleNom(''); setModuleAutre('');
     setEvalType('CC'); setSemestre('S1'); setStudents([]); setNotes({});
     setE1({}); setE2({}); setSaveErr(null); setSearch('');
+    setEditId(null); setSubmissionCode('');
+    setModifMode(false); setModifCode(''); setModifError('');
   };
 
   const goStep = n => { setStep(n); scrollTop(); };
@@ -410,53 +484,88 @@ export default function PortailNotesPublic() {
           </div>
         )}
 
-        {/* ═══ STEP 0 — CODE D'ACCÈS ═══════════════════════════ */}
+        {/* ═══ STEP 0 — CODE D'ACCÈS + MODE MODIF ═══════════════ */}
         {ready && step === 0 && (
           <div className="pn-animate">
             <div style={{ background: C.card, borderRadius: 24, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '44px 32px', textAlign: 'center' }}>
               {/* Lock icon */}
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: C.brandLight, border: `2px solid ${C.brand}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, margin: '0 auto 22px' }}>🔐</div>
-
-              <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 900, color: C.ink }}>Accès réservé</h1>
-              <p style={{ margin: '0 0 28px', fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
-                Ce portail est réservé aux intervenant(e)s de {INST_NAME}.<br />
-                Saisissez le code d'accès communiqué par la scolarité.
-              </p>
-
-              <div style={{ maxWidth: 320, margin: '0 auto' }}>
-                <div style={{ position: 'relative', marginBottom: 16 }}>
-                  <FInput
-                    type={showCode ? 'text' : 'password'}
-                    value={codeInput}
-                    onChange={e => { setCodeInput(e.target.value); setCodeError(''); }}
-                    onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
-                    placeholder="Code d'accès"
-                    autoFocus
-                    style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, letterSpacing: '0.12em', paddingRight: 44 }}
-                  />
-                  <button
-                    onClick={() => setShowCode(v => !v)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.muted }}
-                    tabIndex={-1}
-                  >{showCode ? '🙈' : '👁'}</button>
-                </div>
-
-                {codeError && (
-                  <div style={{ background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 10, padding: '10px 14px', marginBottom: 14, color: C.error, fontSize: 13, fontWeight: 600 }}>
-                    ⚠ {codeError}
-                  </div>
-                )}
-
-                {!storedCode && ready && (
-                  <p style={{ fontSize: 12, color: C.warning, marginBottom: 14 }}>
-                    ⚠ Aucun code configuré — accès libre pour l'instant.
-                  </p>
-                )}
-
-                <Btn full onClick={handleCodeSubmit} loading={codeChecking}>
-                  {codeChecking ? 'Vérification…' : 'Accéder au portail →'}
-                </Btn>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: C.brandLight, border: `2px solid ${C.brand}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, margin: '0 auto 22px' }}>
+                {modifMode ? '✏️' : '🔐'}
               </div>
+
+              {/* Tabs */}
+              <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 12, padding: 4, maxWidth: 320, margin: '0 auto 28px', gap: 4 }}>
+                {[
+                  { key: false, label: '📝 Nouvelle saisie' },
+                  { key: true,  label: '✏️ Modifier ma saisie' },
+                ].map(t => (
+                  <button key={String(t.key)} onClick={() => { setModifMode(t.key); setModifError(''); setCodeError(''); }}
+                    style={{ flex: 1, fontFamily: font, fontSize: 12, fontWeight: 700, padding: '8px 6px', borderRadius: 9, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                      background: modifMode === t.key ? C.card : 'transparent',
+                      color: modifMode === t.key ? C.brand : C.muted,
+                      boxShadow: modifMode === t.key ? '0 1px 6px rgba(0,0,0,0.1)' : 'none',
+                    }}>{t.label}</button>
+                ))}
+              </div>
+
+              {!modifMode ? (
+                <>
+                  <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 900, color: C.ink }}>Accès réservé</h1>
+                  <p style={{ margin: '0 0 28px', fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
+                    Ce portail est réservé aux intervenant(e)s de {INST_NAME}.<br />
+                    Saisissez le code d'accès communiqué par la scolarité.
+                  </p>
+                  <div style={{ maxWidth: 320, margin: '0 auto' }}>
+                    <div style={{ position: 'relative', marginBottom: 16 }}>
+                      <FInput
+                        type={showCode ? 'text' : 'password'}
+                        value={codeInput}
+                        onChange={e => { setCodeInput(e.target.value); setCodeError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
+                        placeholder="Code d'accès"
+                        autoFocus
+                        style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, letterSpacing: '0.12em', paddingRight: 44 }}
+                      />
+                      <button onClick={() => setShowCode(v => !v)} tabIndex={-1}
+                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.muted }}>
+                        {showCode ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                    {codeError && <div style={{ background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 10, padding: '10px 14px', marginBottom: 14, color: C.error, fontSize: 13, fontWeight: 600 }}>⚠ {codeError}</div>}
+                    {!storedCode && ready && <p style={{ fontSize: 12, color: C.warning, marginBottom: 14 }}>⚠ Aucun code configuré — accès libre.</p>}
+                    <Btn full onClick={handleCodeSubmit} loading={codeChecking}>
+                      {codeChecking ? 'Vérification…' : 'Accéder au portail →'}
+                    </Btn>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 900, color: C.ink }}>Modifier une saisie</h1>
+                  <p style={{ margin: '0 0 28px', fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
+                    Saisissez le code de suivi reçu après votre dépôt.<br />
+                    La modification n'est possible que tant que la saisie<br />n'a pas été validée par la scolarité.
+                  </p>
+                  <div style={{ maxWidth: 320, margin: '0 auto' }}>
+                    <FInput
+                      type="text"
+                      value={modifCode}
+                      onChange={e => { setModifCode(e.target.value.toUpperCase()); setModifError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handleModifLookup()}
+                      placeholder="IFTL-XXXXXX"
+                      autoFocus
+                      style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, letterSpacing: '0.12em', marginBottom: 16, fontFamily: 'monospace' }}
+                    />
+                    {modifError && (
+                      <div style={{ background: modifError.includes('intégrée') || modifError.includes('rejetée') ? '#fef3c7' : C.errorBg, border: `1px solid ${modifError.includes('intégrée') || modifError.includes('rejetée') ? '#fde68a' : '#fca5a5'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, color: modifError.includes('intégrée') || modifError.includes('rejetée') ? C.warning : C.error, fontSize: 13, fontWeight: 600, lineHeight: 1.6 }}>
+                        {modifError.includes('intégrée') || modifError.includes('rejetée') ? 'ℹ️' : '⚠'} {modifError}
+                      </div>
+                    )}
+                    <Btn full onClick={handleModifLookup} loading={modifLoading}>
+                      {modifLoading ? 'Recherche…' : 'Retrouver ma saisie →'}
+                    </Btn>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -754,6 +863,22 @@ export default function PortailNotesPublic() {
                   <span key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: C.brandLight, borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.inkMid }}>{p.icon} {p.label}</span>
                 ))}
               </div>
+              {/* Code de suivi */}
+              {submissionCode && (
+                <div style={{ background: `linear-gradient(135deg, ${C.brandLight}, #e0f2fe)`, border: `1.5px solid ${C.brand}30`, borderRadius: 16, padding: '18px 20px', marginBottom: 20 }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>🔖 Votre code de suivi</p>
+                  <p style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 900, color: C.brand, letterSpacing: '0.12em', fontFamily: 'monospace' }}>{submissionCode}</p>
+                  <p style={{ margin: '0 0 12px', fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
+                    Conservez ce code pour modifier votre saisie si nécessaire<br />
+                    (tant qu'elle n'a pas été validée par la scolarité).
+                  </p>
+                  <button onClick={() => navigator.clipboard?.writeText(submissionCode)}
+                    style={{ fontFamily: font, fontSize: 12, fontWeight: 700, padding: '7px 16px', borderRadius: 8, border: `1.5px solid ${C.brand}40`, background: C.card, color: C.brand, cursor: 'pointer' }}>
+                    📋 Copier le code
+                  </button>
+                </div>
+              )}
+
               <div style={{ background: C.brandTint, borderRadius: 14, padding: '14px 18px', marginBottom: 28, fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
                 🔒 En attente de validation par la scolarité avant intégration.
               </div>
