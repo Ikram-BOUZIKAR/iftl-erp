@@ -18,10 +18,10 @@ const GROUPES_2026 = [
   // 2A TS — 6 groupes
   { nom: '2TS-A', filiereCode: 'TMLI', filiere: 'Transport Multimodal et Logistique Internationale',        typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
   { nom: '2TS-B', filiereCode: 'TMLI', filiere: 'Transport Multimodal et Logistique Internationale',        typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
-  { nom: '2TS-C', filiereCode: 'OFLP', filiere: "Opérateur(trice) en Fret et Logistique de la Plateforme", typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
-  { nom: '2TS-D', filiereCode: 'AEL',  filiere: "Agent(e) d'Exploitation Logistique",                      typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
+  { nom: '2TS-C', filiereCode: 'LIPF', filiere: 'Logistique Industrielle et Pilotage des Flux',             typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
+  { nom: '2TS-D', filiereCode: 'GOLE', filiere: "Gestion des Opérations Logistiques et d'Entrepôt",        typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
   { nom: '2TS-E', filiereCode: 'ECMD', filiere: 'E-Commerce, Marketing Digital et Distribution',            typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
-  { nom: '2TS-F', filiereCode: 'ADEE', filiere: 'Agent(e) Diagnostic Électronique Automobile',              typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
+  { nom: '2TS-F', filiereCode: 'DMVT', filiere: 'Diagnostic et Maintenance des Véhicules de Transport',    typeFormation: 'Technicien Spécialisé', niveau: 'Technicien Spécialisé', anneePromotion: '2ème année', annee: '2026-2027', statut: 'actif', actif: true },
   // QUALIF
   { nom: 'Conducteur Routier de Marchandises', filiereCode: 'CRM', filiere: 'Conducteur(trice) Routier(ère) de Marchandises', typeFormation: 'Qualification', niveau: 'Qualification', anneePromotion: '', annee: '2026-2027', statut: 'actif', actif: true },
 ];

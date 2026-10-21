@@ -89,9 +89,11 @@ const SECTIONS = [
   {
     labelKey: 'nav.section_people',
     items: [
-      { to: '/apprenants',   labelKey: 'nav.apprenants',   icon: 'users' },
-      { to: '/groupes',      labelKey: 'nav.groupes',      icon: 'layers' },
-      { to: '/intervenants', labelKey: 'nav.intervenants', icon: 'userTie' },
+      { to: '/apprenants',                       labelKey: 'nav.apprenants',              icon: 'users'    },
+      { to: '/groupes',                          labelKey: 'nav.groupes',                 icon: 'layers'   },
+      { to: '/intervenants',                     labelKey: 'nav.intervenants',            icon: 'userTie'  },
+      { to: '/admin/affectation-population',     labelKey: 'nav.affectation_population',  icon: 'userPlus' },
+      { to: '/admin/creation-groupes-2026',      labelKey: 'nav.creation_groupes_2026',   icon: 'star'     },
     ],
   },
   {
@@ -134,8 +136,6 @@ const SECTIONS = [
     labelKey: 'nav.section_settings',
     items: [
       { to: '/parametres',                     labelKey: 'nav.parametres',  icon: 'cog' },
-      { to: '/admin/affectation-population',  labelKey: 'nav.affectation_population', icon: 'users' },
-      { to: '/admin/creation-groupes-2026',  labelKey: 'nav.creation_groupes_2026',  icon: 'layers' },
       { to: '/admin/passage-niveau',          labelKey: 'nav.parametres',  icon: 'trending' },
       { to: '/admin/repair-groupes',          labelKey: 'nav.parametres',  icon: 'cog' },
       { to: '/admin/deduplication',           labelKey: 'nav.parametres',  icon: 'users' },
