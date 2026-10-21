@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  collection, getDocs, addDoc, query, where, serverTimestamp,
+  collection, getDocs, addDoc, getDoc, doc,
+  query, where, serverTimestamp,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
@@ -10,16 +11,15 @@ const INST_LOGO = import.meta.env.VITE_DEFAULT_LOGO_URL || null;
 const ANNEE = '2026-2027';
 
 const EVAL_TYPES = [
-  { value: 'CC',            label: 'Contrôle Continu',            abbr: 'CC',   color: '#6366f1' },
-  { value: 'EFM',           label: 'Examen Final de Module',       abbr: 'EFM',  color: '#0891b2' },
-  { value: 'EFF',           label: 'Examen de Fin de Formation',   abbr: 'EFF',  color: '#7c3aed' },
-  { value: 'RATTRAPAGE',    label: 'Rattrapage',                   abbr: 'RAT',  color: '#d97706' },
-  { value: 'PARTICIPATION', label: 'Participation / Discipline',   abbr: 'PART', color: '#059669' },
-  { value: 'TD',            label: 'Travaux Dirigés',              abbr: 'TD',   color: '#0d6efd' },
-  { value: 'SOUTENANCE',    label: 'Soutenance',                   abbr: 'SOUT', color: '#dc2626' },
+  { value: 'CC',            label: 'Contrôle Continu',          color: '#6366f1' },
+  { value: 'EFM',           label: 'Examen Final de Module',     color: '#0891b2' },
+  { value: 'EFF',           label: 'Examen de Fin de Formation', color: '#7c3aed' },
+  { value: 'RATTRAPAGE',    label: 'Rattrapage',                 color: '#d97706' },
+  { value: 'PARTICIPATION', label: 'Participation / Discipline', color: '#059669' },
+  { value: 'TD',            label: 'Travaux Dirigés',            color: '#0d6efd' },
+  { value: 'SOUTENANCE',    label: 'Soutenance',                 color: '#dc2626' },
 ];
 
-// ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
   brand:        '#005989',
   brandDeep:    '#003c5a',
@@ -43,14 +43,12 @@ const C = {
 };
 
 const font = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
-
 const inputBase = {
   width: '100%', fontFamily: font, fontSize: 14, fontWeight: 500,
   color: C.ink, background: C.card,
   border: `1.5px solid ${C.inputBorder}`, borderRadius: 10,
   padding: '11px 14px', outline: 'none', boxSizing: 'border-box',
-  transition: 'border-color 0.18s, box-shadow 0.18s',
-  appearance: 'none',
+  transition: 'border-color 0.18s, box-shadow 0.18s', appearance: 'none',
 };
 
 const STEPS = [
@@ -59,30 +57,25 @@ const STEPS = [
   { n: 3, icon: '✏️', label: 'Saisie des notes' },
 ];
 
-// ── Micro-components ────────────────────────────────────────────────────────
+// ── Micro-components ────────────────────────────────────────────
 function NoteStatus({ note }) {
   if (note === '' || note === null || note === undefined) return null;
   const n = parseFloat(note);
   if (isNaN(n)) return null;
   const color = n >= 10 ? C.success : n >= 8 ? C.warning : C.error;
-  const label = n >= 10 ? '✓' : n >= 8 ? '~' : '✗';
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 20, height: 20, borderRadius: '50%', fontSize: 11, fontWeight: 800,
-      background: color, color: '#fff', flexShrink: 0,
-    }}>{label}</span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', fontSize: 11, fontWeight: 800, background: color, color: '#fff', flexShrink: 0 }}>
+      {n >= 10 ? '✓' : n >= 8 ? '~' : '✗'}
+    </span>
   );
 }
 
 function Badge({ type }) {
   const t = EVAL_TYPES.find(e => e.value === type) || EVAL_TYPES[0];
   return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: 20,
-      fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase',
-      background: t.color + '22', color: t.color, border: `1px solid ${t.color}44`,
-    }}>{t.label}</span>
+    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', background: t.color + '22', color: t.color, border: `1px solid ${t.color}44` }}>
+      {t.label}
+    </span>
   );
 }
 
@@ -90,36 +83,14 @@ function Stepper({ step }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 28, padding: '0 4px' }}>
       {STEPS.map((s, i) => {
-        const done   = step > s.n;
-        const active = step === s.n;
+        const done = step > s.n, active = step === s.n;
         return (
           <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: done ? 15 : 14, fontWeight: 800,
-                background: done ? C.success : active
-                  ? `linear-gradient(135deg, ${C.brand}, ${C.brandMid})`
-                  : '#eef2f7',
-                color: (done || active) ? '#fff' : C.muted,
-                boxShadow: active ? `0 4px 14px ${C.brand}50` : 'none',
-                transition: 'all 0.3s',
-              }}>
-                {done ? '✓' : s.icon}
-              </div>
-              <span style={{
-                fontSize: 12, fontWeight: active ? 700 : 500, whiteSpace: 'nowrap',
-                color: active ? C.ink : done ? C.success : C.muted,
-              }}>{s.label}</span>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: done ? 15 : 14, fontWeight: 800, background: done ? C.success : active ? `linear-gradient(135deg, ${C.brand}, ${C.brandMid})` : '#eef2f7', color: (done || active) ? '#fff' : C.muted, boxShadow: active ? `0 4px 14px ${C.brand}50` : 'none', transition: 'all 0.3s' }}>{done ? '✓' : s.icon}</div>
+              <span style={{ fontSize: 12, fontWeight: active ? 700 : 500, whiteSpace: 'nowrap', color: active ? C.ink : done ? C.success : C.muted }}>{s.label}</span>
             </div>
-            {i < 2 && (
-              <div style={{
-                flex: 1, height: 2, marginInline: 10,
-                background: done ? C.success : '#eef2f7',
-                borderRadius: 2, transition: 'background 0.4s',
-              }} />
-            )}
+            {i < 2 && <div style={{ flex: 1, height: 2, marginInline: 10, background: done ? C.success : '#eef2f7', borderRadius: 2, transition: 'background 0.4s' }} />}
           </div>
         );
       })}
@@ -129,12 +100,8 @@ function Stepper({ step }) {
 
 function Label({ children, required }) {
   return (
-    <label style={{
-      display: 'block', marginBottom: 7, fontSize: 12, fontWeight: 700,
-      color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: font,
-    }}>
-      {children}
-      {required && <span style={{ color: C.error, marginLeft: 3 }}>*</span>}
+    <label style={{ display: 'block', marginBottom: 7, fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: font }}>
+      {children}{required && <span style={{ color: C.error, marginLeft: 3 }}>*</span>}
     </label>
   );
 }
@@ -144,11 +111,7 @@ function Field({ label, required, error, children }) {
     <div style={{ marginBottom: 20 }}>
       {label && <Label required={required}>{label}</Label>}
       {children}
-      {error && (
-        <p style={{ margin: '5px 0 0', fontSize: 12, color: C.error, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span>⚠</span> {error}
-        </p>
-      )}
+      {error && <p style={{ margin: '5px 0 0', fontSize: 12, color: C.error }}>⚠ {error}</p>}
     </div>
   );
 }
@@ -156,15 +119,10 @@ function Field({ label, required, error, children }) {
 function FInput({ style: sx, ...props }) {
   const [focused, setFocused] = useState(false);
   return (
-    <input
-      {...props}
+    <input {...props}
       onFocus={e => { setFocused(true); props.onFocus?.(e); }}
       onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-      style={{
-        ...inputBase, ...sx,
-        borderColor: focused ? C.brand : C.inputBorder,
-        boxShadow: focused ? `0 0 0 3px ${C.brand}22` : 'none',
-      }}
+      style={{ ...inputBase, ...sx, borderColor: focused ? C.brand : C.inputBorder, boxShadow: focused ? `0 0 0 3px ${C.brand}22` : 'none' }}
     />
   );
 }
@@ -173,113 +131,96 @@ function FSelect({ style: sx, ...props }) {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ position: 'relative' }}>
-      <select
-        {...props}
+      <select {...props}
         onFocus={e => { setFocused(true); props.onFocus?.(e); }}
         onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-        style={{
-          ...inputBase, ...sx,
-          paddingRight: 36,
-          borderColor: focused ? C.brand : C.inputBorder,
-          boxShadow: focused ? `0 0 0 3px ${C.brand}22` : 'none',
-          cursor: props.disabled ? 'not-allowed' : 'pointer',
-          opacity: props.disabled ? 0.5 : 1,
-        }}
+        style={{ ...inputBase, ...sx, paddingRight: 36, borderColor: focused ? C.brand : C.inputBorder, boxShadow: focused ? `0 0 0 3px ${C.brand}22` : 'none', cursor: props.disabled ? 'not-allowed' : 'pointer', opacity: props.disabled ? 0.5 : 1 }}
       />
-      <span style={{
-        position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-        color: C.muted, fontSize: 12, pointerEvents: 'none',
-      }}>▾</span>
+      <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted, fontSize: 12, pointerEvents: 'none' }}>▾</span>
     </div>
   );
 }
 
 function Spinner({ size = 20, color = C.brand }) {
-  return (
-    <span style={{
-      display: 'inline-block', width: size, height: size, borderRadius: '50%',
-      border: `2.5px solid ${color}30`, borderTopColor: color,
-      animation: 'spin 0.7s linear infinite', flexShrink: 0,
-    }} />
-  );
+  return <span style={{ display: 'inline-block', width: size, height: size, borderRadius: '50%', border: `2.5px solid ${color}30`, borderTopColor: color, animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />;
 }
 
 function Btn({ children, onClick, variant = 'primary', disabled, loading, full, style: sx }) {
-  const base = {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-    fontFamily: font, fontWeight: 700, borderRadius: 12,
-    padding: '13px 20px',
-    width: full ? '100%' : 'auto', cursor: (disabled || loading) ? 'not-allowed' : 'pointer',
-    border: 'none', fontSize: 14, transition: 'all 0.18s', letterSpacing: '0.01em',
-    ...sx,
-  };
-  if (variant === 'primary') Object.assign(base, {
-    background: (disabled || loading)
-      ? '#9fc8de'
-      : `linear-gradient(135deg, ${C.brand} 0%, ${C.brandMid} 100%)`,
-    color: '#fff',
-    boxShadow: (disabled || loading) ? 'none' : `0 4px 14px ${C.brand}40`,
-  });
-  if (variant === 'ghost') Object.assign(base, {
-    background: 'transparent', color: C.brand,
-    border: `1.5px solid ${C.inputBorder}`,
-  });
-  if (variant === 'success') Object.assign(base, {
-    background: `linear-gradient(135deg, #059669, #10b981)`,
-    color: '#fff', boxShadow: '0 4px 14px rgba(5,150,105,0.35)',
-  });
-  return (
-    <button onClick={!disabled && !loading ? onClick : undefined} style={base}>
-      {loading && <Spinner size={17} color="#fff" />}
-      {children}
-    </button>
-  );
+  const base = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: font, fontWeight: 700, borderRadius: 12, padding: '13px 20px', width: full ? '100%' : 'auto', cursor: (disabled || loading) ? 'not-allowed' : 'pointer', border: 'none', fontSize: 14, transition: 'all 0.18s', letterSpacing: '0.01em', ...sx };
+  if (variant === 'primary') Object.assign(base, { background: (disabled || loading) ? '#9fc8de' : `linear-gradient(135deg, ${C.brand} 0%, ${C.brandMid} 100%)`, color: '#fff', boxShadow: (disabled || loading) ? 'none' : `0 4px 14px ${C.brand}40` });
+  if (variant === 'ghost')   Object.assign(base, { background: 'transparent', color: C.brand, border: `1.5px solid ${C.inputBorder}` });
+  if (variant === 'success') Object.assign(base, { background: `linear-gradient(135deg, #059669, #10b981)`, color: '#fff', boxShadow: '0 4px 14px rgba(5,150,105,0.35)' });
+  return <button onClick={!disabled && !loading ? onClick : undefined} style={base}>{loading && <Spinner size={17} color="#fff" />}{children}</button>;
 }
 
-// ══════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  MAIN COMPONENT
-// ══════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 export default function PortailNotesPublic() {
-  const [step, setStep]         = useState(1);
+  const [step, setStep]         = useState(0); // 0 = code, 1-3 = wizard, 4 = success
   const [ready, setReady]       = useState(false);
   const [authErr, setAuthErr]   = useState(null);
   const topRef                  = useRef(null);
 
-  const [groupes, setGroupes]           = useState([]);
-  const [modules, setModules]           = useState([]);
-  const [students, setStudents]         = useState([]);
-  const [loadingData, setLoadingData]   = useState(false);
+  // Step 0 — Code d'accès
+  const [codeInput, setCodeInput]     = useState('');
+  const [codeError, setCodeError]     = useState('');
+  const [codeChecking, setCodeChecking] = useState(false);
+  const [storedCode, setStoredCode]   = useState(null);
+  const [showCode, setShowCode]       = useState(false);
+
+  // Data
+  const [groupes, setGroupes]             = useState([]);
+  const [intervenants, setIntervenants]   = useState([]);
+  const [modules, setModules]             = useState([]);
+  const [students, setStudents]           = useState([]);
+  const [loadingData, setLoadingData]     = useState(false);
 
   // Step 1 — Identification
-  const [intervenant, setIntervenant]   = useState('');
-  const [date, setDate]                 = useState(() => new Date().toISOString().slice(0, 10));
-  const [e1, setE1]                     = useState({});
+  const [intervenantId, setIntervenantId]       = useState('');
+  const [intervenantNom, setIntervenantNom]     = useState('');
+  const [intervenantAutre, setIntervenantAutre] = useState('');
+  const [date, setDate]                         = useState(() => new Date().toISOString().slice(0, 10));
+  const [e1, setE1]                             = useState({});
 
   // Step 2 — Sélection
-  const [groupeId, setGroupeId]         = useState('');
-  const [groupeNom, setGroupeNom]       = useState('');
-  const [moduleId, setModuleId]         = useState('');
-  const [moduleNom, setModuleNom]       = useState('');
-  const [evalType, setEvalType]         = useState('CC');
-  const [semestre, setSemestre]         = useState('S1');
-  const [e2, setE2]                     = useState({});
+  const [groupeId, setGroupeId]       = useState('');
+  const [groupeNom, setGroupeNom]     = useState('');
+  const [moduleId, setModuleId]       = useState('');
+  const [moduleNom, setModuleNom]     = useState('');
+  const [moduleAutre, setModuleAutre] = useState('');
+  const [evalType, setEvalType]       = useState('CC');
+  const [semestre, setSemestre]       = useState('S1');
+  const [e2, setE2]                   = useState({});
 
   // Step 3 — Saisie
-  const [notes, setNotes]               = useState({});
-  const [saving, setSaving]             = useState(false);
-  const [saveErr, setSaveErr]           = useState(null);
-  const [search, setSearch]             = useState('');
+  const [notes, setNotes]             = useState({});
+  const [saving, setSaving]           = useState(false);
+  const [saveErr, setSaveErr]         = useState(null);
+  const [search, setSearch]           = useState('');
   const [filterAbsent, setFilterAbsent] = useState(false);
 
   const scrollTop = () => topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  // Anonymous auth + load initial data
   useEffect(() => {
     signInAnonymously(auth)
-      .then(() => getDocs(collection(db, 'groupes')))
-      .then(snap => {
-        const g = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
-        setGroupes(g);
+      .then(async () => {
+        const [gSnap, iSnap, codeSnap] = await Promise.all([
+          getDocs(collection(db, 'groupes')),
+          getDocs(collection(db, 'intervenants')),
+          getDoc(doc(db, 'settings', 'portail_notes')),
+        ]);
+        setGroupes(gSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.nom || '').localeCompare(b.nom || '')));
+        setIntervenants(
+          iSnap.docs.map(d => {
+            const d2 = d.data();
+            const nom = [d2.prenom, d2.nom].filter(Boolean).join(' ') || d2.nomComplet || d.id;
+            return { id: d.id, nom };
+          }).sort((a, b) => a.nom.localeCompare(b.nom))
+        );
+        const code = codeSnap.exists() ? codeSnap.data().codeAcces : null;
+        setStoredCode(code);
         setReady(true);
       })
       .catch(err => {
@@ -288,12 +229,30 @@ export default function PortailNotesPublic() {
       });
   }, []);
 
+  // Verify code
+  const handleCodeSubmit = () => {
+    if (!codeInput.trim()) { setCodeError('Veuillez saisir le code d\'accès.'); return; }
+    setCodeChecking(true);
+    setTimeout(() => {
+      if (!storedCode) {
+        // No code configured → open access
+        setStep(1); scrollTop();
+      } else if (codeInput.trim().toLowerCase() === storedCode.trim().toLowerCase()) {
+        setCodeError('');
+        setStep(1); scrollTop();
+      } else {
+        setCodeError('Code incorrect. Contactez la scolarité.');
+      }
+      setCodeChecking(false);
+    }, 400);
+  };
+
+  // Load modules + students on groupe change
   const onGroupeChange = async id => {
     const g = groupes.find(x => x.id === id);
     setGroupeId(id); setGroupeNom(g?.nom || '');
-    setModuleId(''); setModuleNom('');
-    setStudents([]); setModules([]);
-    setE2({});
+    setModuleId(''); setModuleNom(''); setModuleAutre('');
+    setStudents([]); setModules([]); setE2({});
     if (!id) return;
     setLoadingData(true);
     try {
@@ -301,16 +260,11 @@ export default function PortailNotesPublic() {
         getDocs(query(collection(db, 'students'), where('groupeId', '==', id))),
         getDocs(query(collection(db, 'sessions'), where('groupeId', '==', id))),
       ]);
-      const studs = sSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
-      setStudents(studs);
-
+      setStudents(sSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.nom || '').localeCompare(b.nom || '')));
       const modMap = new Map();
       sessSnap.docs.forEach(d => {
         const s = d.data();
-        if (s.moduleId && !modMap.has(s.moduleId)) {
-          modMap.set(s.moduleId, { id: s.moduleId, nom: s.module || s.moduleNom || s.moduleId });
-        }
+        if (s.moduleId && !modMap.has(s.moduleId)) modMap.set(s.moduleId, { id: s.moduleId, nom: s.module || s.moduleNom || s.moduleId });
       });
       if (modMap.size === 0) {
         const mSnap = await getDocs(collection(db, 'modules'));
@@ -324,46 +278,32 @@ export default function PortailNotesPublic() {
     finally { setLoadingData(false); }
   };
 
-  const onModuleChange = id => {
-    setModuleId(id);
-    setModuleNom(modules.find(m => m.id === id)?.nom || '');
-  };
+  const effectiveIntervenantNom = intervenantId === '__autre__' ? intervenantAutre : intervenantNom;
+  const effectiveModuleNom      = moduleId === '__autre__' ? moduleAutre : moduleNom;
 
+  // Init notes
   useEffect(() => {
     const init = {};
     students.forEach(s => { init[s.id] = { note: '', absent: false }; });
-    setNotes(init);
-    setSearch('');
+    setNotes(init); setSearch('');
   }, [students]);
 
-  const setNote = (sid, field, val) =>
-    setNotes(prev => ({ ...prev, [sid]: { ...prev[sid], [field]: val } }));
-
-  const markAllAbsent = () => setNotes(prev => {
-    const n = { ...prev };
-    students.forEach(s => { n[s.id] = { note: '', absent: true }; });
-    return n;
-  });
-
-  const clearAll = () => setNotes(prev => {
-    const n = { ...prev };
-    students.forEach(s => { n[s.id] = { note: '', absent: false }; });
-    return n;
-  });
+  const setNote = (sid, field, val) => setNotes(prev => ({ ...prev, [sid]: { ...prev[sid], [field]: val } }));
+  const markAllAbsent = () => setNotes(prev => { const n = { ...prev }; students.forEach(s => { n[s.id] = { note: '', absent: true }; }); return n; });
+  const clearAll      = () => setNotes(prev => { const n = { ...prev }; students.forEach(s => { n[s.id] = { note: '', absent: false }; }); return n; });
 
   const filledCount = Object.values(notes).filter(v => v.absent || (v.note !== '' && v.note !== null)).length;
   const absentCount = Object.values(notes).filter(v => v.absent).length;
   const noteCount   = filledCount - absentCount;
   const avgNote = (() => {
-    const vals = Object.values(notes)
-      .filter(v => !v.absent && v.note !== '' && v.note !== null && !isNaN(parseFloat(v.note)))
-      .map(v => parseFloat(v.note));
-    return vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
+    const vals = Object.values(notes).filter(v => !v.absent && v.note !== '' && v.note !== null && !isNaN(parseFloat(v.note))).map(v => parseFloat(v.note));
+    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
   })();
 
   const validate1 = () => {
     const e = {};
-    if (!intervenant.trim()) e.intervenant = 'Veuillez saisir votre nom complet';
+    if (!intervenantId) e.intervenant = 'Sélectionnez un(e) intervenant(e)';
+    else if (intervenantId === '__autre__' && !intervenantAutre.trim()) e.intervenant = 'Saisissez votre nom complet';
     if (!date) e.date = 'Obligatoire';
     return e;
   };
@@ -371,6 +311,7 @@ export default function PortailNotesPublic() {
     const e = {};
     if (!groupeId) e.groupe = 'Sélectionnez un groupe';
     if (!moduleId) e.module = 'Sélectionnez un module';
+    else if (moduleId === '__autre__' && !moduleAutre.trim()) e.module = 'Saisissez le nom du module';
     return e;
   };
 
@@ -380,29 +321,20 @@ export default function PortailNotesPublic() {
     setSaving(true);
     try {
       await addDoc(collection(db, 'saisie_notes_portail'), {
-        intervenantNom:  intervenant.trim(),
-        date,
-        groupeId, groupeNom,
-        moduleId, moduleNom,
-        type:            evalType,
-        semestre,
+        intervenantNom: effectiveIntervenantNom.trim(),
+        date, groupeId, groupeNom,
+        moduleId:   moduleId === '__autre__' ? '__autre__' : moduleId,
+        moduleNom:  effectiveModuleNom.trim(),
+        type: evalType, semestre,
         anneeAcademique: ANNEE,
-        statut:          'en_attente',
+        statut: 'en_attente',
         notes: students.map(s => {
           const v = notes[s.id] || { note: '', absent: false };
-          return {
-            studentId: s.id,
-            nom:    s.nom    || '',
-            prenom: s.prenom || '',
-            code:   s.code   || '',
-            note:   v.absent ? null : (v.note === '' ? null : parseFloat(v.note)),
-            absent: Boolean(v.absent),
-          };
+          return { studentId: s.id, nom: s.nom || '', prenom: s.prenom || '', code: s.code || '', note: v.absent ? null : (v.note === '' ? null : parseFloat(v.note)), absent: Boolean(v.absent) };
         }),
         createdAt: serverTimestamp(),
       });
-      setStep(4);
-      scrollTop();
+      setStep(4); scrollTop();
     } catch (err) {
       console.error(err);
       setSaveErr('Erreur lors de l\'envoi : ' + (err.message || 'Réessayez'));
@@ -410,8 +342,9 @@ export default function PortailNotesPublic() {
   };
 
   const resetAll = () => {
-    setStep(1); setIntervenant(''); setDate(new Date().toISOString().slice(0, 10));
-    setGroupeId(''); setGroupeNom(''); setModuleId(''); setModuleNom('');
+    setStep(1); setIntervenantId(''); setIntervenantNom(''); setIntervenantAutre('');
+    setDate(new Date().toISOString().slice(0, 10));
+    setGroupeId(''); setGroupeNom(''); setModuleId(''); setModuleNom(''); setModuleAutre('');
     setEvalType('CC'); setSemestre('S1'); setStudents([]); setNotes({});
     setE1({}); setE2({}); setSaveErr(null); setSearch('');
   };
@@ -421,9 +354,7 @@ export default function PortailNotesPublic() {
   const visibleStudents = students.filter(s => {
     const q = search.toLowerCase();
     const match = !q || [s.nom, s.prenom, s.code].some(x => (x || '').toLowerCase().includes(q));
-    if (!match) return false;
-    if (filterAbsent) return notes[s.id]?.absent;
-    return true;
+    return match && (!filterAbsent || notes[s.id]?.absent);
   });
 
   const typeInfo = EVAL_TYPES.find(t => t.value === evalType) || EVAL_TYPES[0];
@@ -438,60 +369,39 @@ export default function PortailNotesPublic() {
         .pn-animate { animation: fadeUp 0.35s cubic-bezier(.4,0,.2,1) both; }
         .pn-note-input:focus { border-color: ${C.brand} !important; box-shadow: 0 0 0 3px ${C.brand}22 !important; outline: none; }
         .pn-row:hover { background: ${C.brandTint} !important; }
-        .pn-quickbtn:hover { opacity: 0.85; }
+        .pn-qbtn:hover { opacity: 0.82; }
       `}</style>
 
-      {/* ── HEADER ────────────────────────────────────────────────── */}
+      {/* HEADER */}
       <header style={{ background: `linear-gradient(135deg, ${C.brandDeep} 0%, ${C.brand} 100%)`, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         <div style={{ position: 'absolute', bottom: -50, left: -20, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
         <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
           {INST_LOGO
             ? <img src={INST_LOGO} alt={INST_NAME} style={{ height: 48, objectFit: 'contain', filter: 'brightness(0) invert(1)', flexShrink: 0 }} />
-            : (
-              <div style={{
-                width: 48, height: 48, borderRadius: 12,
-                background: 'rgba(255,255,255,0.18)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, fontWeight: 900, color: '#fff', flexShrink: 0,
-              }}>{INST_NAME.slice(0, 2)}</div>
-            )
+            : <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 900, color: '#fff', flexShrink: 0 }}>{INST_NAME.slice(0, 2)}</div>
           }
           <div>
-            <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#fff', letterSpacing: '-0.01em' }}>
-              Portail de Saisie des Notes
-            </p>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.60)' }}>
-              {INST_NAME} · Année académique {ANNEE}
-            </p>
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#fff', letterSpacing: '-0.01em' }}>Portail de Saisie des Notes</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.60)' }}>{INST_NAME} · Année académique {ANNEE}</p>
           </div>
-          {step < 4 && (
+          {step >= 1 && step < 4 && (
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
               <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Étape</p>
-              <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#fff' }}>
-                {step}<span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>/3</span>
-              </p>
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#fff' }}>{step}<span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>/3</span></p>
             </div>
           )}
         </div>
-        {step < 4 && (
+        {step >= 1 && step < 4 && (
           <div style={{ height: 3, background: 'rgba(255,255,255,0.15)' }}>
-            <div style={{
-              height: '100%', background: 'rgba(255,255,255,0.85)',
-              width: `${(step / 3) * 100}%`, transition: 'width 0.4s cubic-bezier(.4,0,.2,1)',
-            }} />
+            <div style={{ height: '100%', background: 'rgba(255,255,255,0.85)', width: `${(step / 3) * 100}%`, transition: 'width 0.4s cubic-bezier(.4,0,.2,1)' }} />
           </div>
         )}
       </header>
 
-      {/* ── BODY ──────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '32px 16px 64px' }}>
 
-        {authErr && (
-          <div style={{ background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 14, padding: '16px 20px', marginBottom: 24, color: C.error, fontSize: 14, fontWeight: 500 }}>
-            ⚠ {authErr}
-          </div>
-        )}
+        {authErr && <div style={{ background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 14, padding: '16px 20px', marginBottom: 24, color: C.error, fontSize: 14, fontWeight: 500 }}>⚠ {authErr}</div>}
 
         {!ready && !authErr && (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
@@ -500,77 +410,124 @@ export default function PortailNotesPublic() {
           </div>
         )}
 
-        {/* ═══ STEP 1 — IDENTIFICATION ════════════════════════════ */}
-        {ready && step === 1 && (
+        {/* ═══ STEP 0 — CODE D'ACCÈS ═══════════════════════════ */}
+        {ready && step === 0 && (
           <div className="pn-animate">
-            <Stepper step={1} />
-            <div style={{ background: C.card, borderRadius: 20, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '32px 28px' }}>
-              <h1 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 900, color: C.ink }}>
-                Identification de l'intervenant(e)
-              </h1>
-              <p style={{ margin: '0 0 28px', fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
-                Ces informations seront associées à votre saisie de notes dans le système.
+            <div style={{ background: C.card, borderRadius: 24, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '44px 32px', textAlign: 'center' }}>
+              {/* Lock icon */}
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: C.brandLight, border: `2px solid ${C.brand}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, margin: '0 auto 22px' }}>🔐</div>
+
+              <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 900, color: C.ink }}>Accès réservé</h1>
+              <p style={{ margin: '0 0 28px', fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
+                Ce portail est réservé aux intervenant(e)s de {INST_NAME}.<br />
+                Saisissez le code d'accès communiqué par la scolarité.
               </p>
 
-              <Field label="Votre nom complet" required error={e1.intervenant}>
-                <FInput
-                  type="text"
-                  value={intervenant}
-                  onChange={e => setIntervenant(e.target.value)}
-                  placeholder="Prénom NOM"
-                  autoFocus
-                  onKeyDown={e => e.key === 'Enter' && document.querySelector('#dateField')?.focus()}
-                />
-              </Field>
+              <div style={{ maxWidth: 320, margin: '0 auto' }}>
+                <div style={{ position: 'relative', marginBottom: 16 }}>
+                  <FInput
+                    type={showCode ? 'text' : 'password'}
+                    value={codeInput}
+                    onChange={e => { setCodeInput(e.target.value); setCodeError(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
+                    placeholder="Code d'accès"
+                    autoFocus
+                    style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, letterSpacing: '0.12em', paddingRight: 44 }}
+                  />
+                  <button
+                    onClick={() => setShowCode(v => !v)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.muted }}
+                    tabIndex={-1}
+                  >{showCode ? '🙈' : '👁'}</button>
+                </div>
 
-              <Field label="Date de la séance" required error={e1.date}>
-                <FInput
-                  id="dateField"
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                />
-              </Field>
+                {codeError && (
+                  <div style={{ background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 10, padding: '10px 14px', marginBottom: 14, color: C.error, fontSize: 13, fontWeight: 600 }}>
+                    ⚠ {codeError}
+                  </div>
+                )}
 
-              <div style={{ marginTop: 8 }}>
-                <Btn full onClick={() => {
-                  const e = validate1();
-                  if (Object.keys(e).length) { setE1(e); return; }
-                  setE1({}); goStep(2);
-                }}>
-                  Continuer — Choisir le groupe →
+                {!storedCode && ready && (
+                  <p style={{ fontSize: 12, color: C.warning, marginBottom: 14 }}>
+                    ⚠ Aucun code configuré — accès libre pour l'instant.
+                  </p>
+                )}
+
+                <Btn full onClick={handleCodeSubmit} loading={codeChecking}>
+                  {codeChecking ? 'Vérification…' : 'Accéder au portail →'}
                 </Btn>
               </div>
             </div>
           </div>
         )}
 
-        {/* ═══ STEP 2 — SÉLECTION ═════════════════════════════════ */}
+        {/* ═══ STEP 1 — IDENTIFICATION ═════════════════════════ */}
+        {ready && step === 1 && (
+          <div className="pn-animate">
+            <Stepper step={1} />
+            <div style={{ background: C.card, borderRadius: 20, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '32px 28px' }}>
+              <h1 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 900, color: C.ink }}>Identification</h1>
+              <p style={{ margin: '0 0 28px', fontSize: 13, color: C.muted }}>Sélectionnez votre nom dans la liste ou choisissez "Autre".</p>
+
+              <Field label="Intervenant(e)" required error={e1.intervenant}>
+                <FSelect
+                  value={intervenantId}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setIntervenantId(id);
+                    if (id !== '__autre__') {
+                      const iv = intervenants.find(x => x.id === id);
+                      setIntervenantNom(iv?.nom || '');
+                    } else { setIntervenantNom(''); }
+                  }}
+                  autoFocus
+                >
+                  <option value="">— Sélectionner —</option>
+                  {intervenants.map(iv => <option key={iv.id} value={iv.id}>{iv.nom}</option>)}
+                  <option value="__autre__">✏️ Autre (non listé)</option>
+                </FSelect>
+              </Field>
+
+              {intervenantId === '__autre__' && (
+                <Field label="Votre nom complet" required>
+                  <FInput
+                    type="text"
+                    value={intervenantAutre}
+                    onChange={e => setIntervenantAutre(e.target.value)}
+                    placeholder="Prénom NOM"
+                    autoFocus
+                  />
+                </Field>
+              )}
+
+              <Field label="Date de la séance" required error={e1.date}>
+                <FInput type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </Field>
+
+              <Btn full onClick={() => { const e = validate1(); if (Object.keys(e).length) { setE1(e); return; } setE1({}); goStep(2); }}>
+                Continuer → Choisir le groupe
+              </Btn>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ STEP 2 — SÉLECTION ══════════════════════════════ */}
         {ready && step === 2 && (
           <div className="pn-animate">
             <Stepper step={2} />
 
             {/* Recap mini-card */}
-            <div style={{
-              background: `linear-gradient(135deg, ${C.brandLight}, ${C.brandTint})`,
-              border: `1px solid ${C.brand}22`, borderRadius: 14,
-              padding: '14px 18px', marginBottom: 20,
-              display: 'flex', alignItems: 'center', gap: 12,
-            }}>
+            <div style={{ background: `linear-gradient(135deg, ${C.brandLight}, ${C.brandTint})`, border: `1px solid ${C.brand}22`, borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: C.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>👤</div>
               <div>
-                <p style={{ margin: 0, fontWeight: 700, color: C.ink, fontSize: 14 }}>{intervenant}</p>
+                <p style={{ margin: 0, fontWeight: 700, color: C.ink, fontSize: 14 }}>{effectiveIntervenantNom || '—'}</p>
                 <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{date}</p>
               </div>
-              <button onClick={() => goStep(1)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: C.brand, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: font, padding: '6px 10px', borderRadius: 8 }}>
-                Modifier
-              </button>
+              <button onClick={() => goStep(1)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: C.brand, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: font, padding: '6px 10px', borderRadius: 8 }}>Modifier</button>
             </div>
 
             <div style={{ background: C.card, borderRadius: 20, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '32px 28px' }}>
-              <h2 style={{ margin: '0 0 24px', fontSize: 18, fontWeight: 900, color: C.ink }}>
-                Groupe, module &amp; évaluation
-              </h2>
+              <h2 style={{ margin: '0 0 24px', fontSize: 18, fontWeight: 900, color: C.ink }}>Groupe, module &amp; évaluation</h2>
 
               <Field label="Groupe" required error={e2.groupe}>
                 <FSelect value={groupeId} onChange={e => onGroupeChange(e.target.value)}>
@@ -579,28 +536,41 @@ export default function PortailNotesPublic() {
                 </FSelect>
               </Field>
 
-              {loadingData && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, marginTop: -12, color: C.muted, fontSize: 13 }}>
-                  <Spinner size={16} /> Chargement des apprenants…
-                </div>
-              )}
+              {loadingData && <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: -12, color: C.muted, fontSize: 13 }}><Spinner size={16} /> Chargement…</div>}
               {!loadingData && students.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, marginTop: -12 }}>
-                  <span style={{ background: C.successBg, border: `1px solid ${C.successBorder}`, color: C.success, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>
-                    ✓ {students.length} apprenant(s) chargé(s)
-                  </span>
+                <div style={{ marginBottom: 16, marginTop: -12 }}>
+                  <span style={{ background: C.successBg, border: `1px solid ${C.successBorder}`, color: C.success, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>✓ {students.length} apprenant(s)</span>
                 </div>
               )}
 
               <Field label="Module concerné" required error={e2.module}>
-                <FSelect value={moduleId} onChange={e => onModuleChange(e.target.value)} disabled={!groupeId || loadingData}>
+                <FSelect
+                  value={moduleId}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setModuleId(id);
+                    if (id !== '__autre__') setModuleNom(modules.find(m => m.id === id)?.nom || '');
+                    else setModuleNom('');
+                  }}
+                  disabled={!groupeId || loadingData}
+                >
                   <option value="">— Sélectionner un module —</option>
                   {modules.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                  <option value="__autre__">✏️ Autre (non listé)</option>
                 </FSelect>
-                {groupeId && !loadingData && modules.length === 0 && (
-                  <p style={{ marginTop: 6, fontSize: 12, color: C.warning }}>⚠ Aucun module associé à ce groupe.</p>
-                )}
               </Field>
+
+              {moduleId === '__autre__' && (
+                <Field label="Nom du module (tel qu'affiché sur votre planning)" required>
+                  <FInput
+                    type="text"
+                    value={moduleAutre}
+                    onChange={e => setModuleAutre(e.target.value)}
+                    placeholder="Ex: Réglementation Douanière"
+                    autoFocus
+                  />
+                </Field>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <Field label="Type d'évaluation">
@@ -617,7 +587,6 @@ export default function PortailNotesPublic() {
                 </Field>
               </div>
 
-              {/* Preview badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
                 <span style={{ fontSize: 12, color: C.muted }}>Type sélectionné :</span>
                 <Badge type={evalType} />
@@ -638,24 +607,22 @@ export default function PortailNotesPublic() {
           </div>
         )}
 
-        {/* ═══ STEP 3 — SAISIE ════════════════════════════════════ */}
+        {/* ═══ STEP 3 — SAISIE ════════════════════════════════ */}
         {ready && step === 3 && (
           <div className="pn-animate">
             <Stepper step={3} />
 
-            {/* Stats summary bar */}
+            {/* Stats bar */}
             <div style={{ background: C.card, borderRadius: 16, border: `1px solid ${C.cardBorder}`, boxShadow: '0 2px 16px rgba(0,89,137,0.08)', padding: '16px 20px', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontWeight: 800, color: C.ink, fontSize: 14 }}>{groupeNom}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>{moduleNom}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>{effectiveModuleNom}</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <Badge type={evalType} />
                   <span style={{ fontSize: 12, color: C.muted, fontWeight: 600, padding: '3px 10px', background: '#f1f5f9', borderRadius: 20 }}>{semestre}</span>
-                  <button onClick={() => goStep(2)} style={{ background: 'transparent', border: 'none', color: C.brand, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: font, padding: '4px 8px', borderRadius: 8 }}>
-                    Modifier
-                  </button>
+                  <button onClick={() => goStep(2)} style={{ background: 'transparent', border: 'none', color: C.brand, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: font, padding: '4px 8px', borderRadius: 8 }}>Modifier</button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 20, marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.inputBorder}`, flexWrap: 'wrap' }}>
@@ -679,18 +646,12 @@ export default function PortailNotesPublic() {
               <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.inputBorder}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 160, position: 'relative' }}>
                   <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: C.muted, fontSize: 13, pointerEvents: 'none' }}>🔍</span>
-                  <input type="text" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)}
-                    style={{ ...inputBase, paddingLeft: 32, fontSize: 13 }} />
+                  <input type="text" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...inputBase, paddingLeft: 32, fontSize: 13 }} />
                 </div>
-                <button className="pn-quickbtn" onClick={markAllAbsent} style={{ fontFamily: font, fontSize: 12, fontWeight: 700, color: C.warning, background: '#fffbeb', border: `1px solid #fde68a`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Tout absent
-                </button>
-                <button className="pn-quickbtn" onClick={clearAll} style={{ fontFamily: font, fontSize: 12, fontWeight: 700, color: C.muted, background: '#f8fafc', border: `1px solid ${C.inputBorder}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>
-                  Réinitialiser
-                </button>
+                <button className="pn-qbtn" onClick={markAllAbsent} style={{ fontFamily: font, fontSize: 12, fontWeight: 700, color: C.warning, background: '#fffbeb', border: `1px solid #fde68a`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tout absent</button>
+                <button className="pn-qbtn" onClick={clearAll} style={{ fontFamily: font, fontSize: 12, fontWeight: 700, color: C.muted, background: '#f8fafc', border: `1px solid ${C.inputBorder}`, borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Réinitialiser</button>
               </div>
 
-              {/* Table */}
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
@@ -702,60 +663,29 @@ export default function PortailNotesPublic() {
                   </thead>
                   <tbody>
                     {visibleStudents.length === 0 && (
-                      <tr>
-                        <td colSpan={3} style={{ padding: '32px', textAlign: 'center', color: C.muted, fontSize: 14 }}>
-                          {search ? 'Aucun résultat pour cette recherche.' : 'Aucun apprenant.'}
-                        </td>
-                      </tr>
+                      <tr><td colSpan={3} style={{ padding: '32px', textAlign: 'center', color: C.muted, fontSize: 14 }}>{search ? 'Aucun résultat.' : 'Aucun apprenant.'}</td></tr>
                     )}
                     {visibleStudents.map((s, i) => {
                       const entry = notes[s.id] || { note: '', absent: false };
                       const nf = parseFloat(entry.note);
                       const isInvalid = entry.note !== '' && !entry.absent && !isNaN(nf) && (nf < 0 || nf > 20);
                       return (
-                        <tr key={s.id} className="pn-row" style={{
-                          borderTop: `1px solid ${C.inputBorder}`,
-                          background: entry.absent ? '#fffbeb' : i % 2 ? '#fafbfc' : C.card,
-                          transition: 'background 0.15s',
-                        }}>
+                        <tr key={s.id} className="pn-row" style={{ borderTop: `1px solid ${C.inputBorder}`, background: entry.absent ? '#fffbeb' : i % 2 ? '#fafbfc' : C.card, transition: 'background 0.15s' }}>
                           <td style={{ padding: '10px 20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{
-                                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                                background: entry.absent ? '#fed7aa' : C.brandLight,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 13, fontWeight: 800,
-                                color: entry.absent ? C.warning : C.brand,
-                              }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: entry.absent ? '#fed7aa' : C.brandLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: entry.absent ? C.warning : C.brand }}>
                                 {(s.nom || '?').slice(0, 1)}{(s.prenom || '').slice(0, 1)}
                               </div>
                               <div>
-                                <p style={{ margin: 0, fontWeight: 700, color: C.ink, fontSize: 14 }}>
-                                  {s.nom} {s.prenom}
-                                </p>
+                                <p style={{ margin: 0, fontWeight: 700, color: C.ink, fontSize: 14 }}>{s.nom} {s.prenom}</p>
                                 {s.code && <p style={{ margin: 0, fontSize: 11, color: C.muted }}>{s.code}</p>}
                               </div>
                             </div>
                           </td>
                           <td style={{ padding: '8px 16px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                              <input
-                                type="number" min="0" max="20" step="0.25"
-                                value={entry.note}
-                                onChange={e => setNote(s.id, 'note', e.target.value)}
-                                disabled={entry.absent}
-                                className="pn-note-input"
-                                style={{
-                                  width: 80, textAlign: 'center', fontFamily: font,
-                                  fontSize: 15, fontWeight: 700,
-                                  border: `1.5px solid ${isInvalid ? C.error : C.inputBorder}`,
-                                  borderRadius: 10, padding: '8px 6px',
-                                  background: entry.absent ? '#fef3c7' : C.card,
-                                  color: entry.absent ? C.warning : C.ink,
-                                  opacity: entry.absent ? 0.5 : 1,
-                                  transition: 'border-color 0.15s',
-                                  boxSizing: 'border-box',
-                                }}
+                              <input type="number" min="0" max="20" step="0.25" value={entry.note} onChange={e => setNote(s.id, 'note', e.target.value)} disabled={entry.absent} className="pn-note-input"
+                                style={{ width: 80, textAlign: 'center', fontFamily: font, fontSize: 15, fontWeight: 700, border: `1.5px solid ${isInvalid ? C.error : C.inputBorder}`, borderRadius: 10, padding: '8px 6px', background: entry.absent ? '#fef3c7' : C.card, color: entry.absent ? C.warning : C.ink, opacity: entry.absent ? 0.5 : 1, transition: 'border-color 0.15s', boxSizing: 'border-box' }}
                                 placeholder="—"
                               />
                               <NoteStatus note={entry.note} />
@@ -764,13 +694,7 @@ export default function PortailNotesPublic() {
                           <td style={{ padding: '8px 20px', textAlign: 'center' }}>
                             <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                               <input type="checkbox" checked={entry.absent} onChange={e => setNote(s.id, 'absent', e.target.checked)} style={{ display: 'none' }} />
-                              <span style={{
-                                width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                                border: `2px solid ${entry.absent ? C.warning : C.inputBorder}`,
-                                background: entry.absent ? '#fef3c7' : C.card,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 13, transition: 'all 0.15s',
-                              }}>
+                              <span style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${entry.absent ? C.warning : C.inputBorder}`, background: entry.absent ? '#fef3c7' : C.card, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, transition: 'all 0.15s' }}>
                                 {entry.absent ? '⚠' : ''}
                               </span>
                             </label>
@@ -782,7 +706,6 @@ export default function PortailNotesPublic() {
                 </table>
               </div>
 
-              {/* Footer */}
               {students.length > 0 && (
                 <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.inputBorder}`, background: C.brandTint, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <p style={{ margin: 0, fontSize: 12, color: C.muted, flex: 1 }}>
@@ -797,75 +720,49 @@ export default function PortailNotesPublic() {
               )}
             </div>
 
-            {saveErr && (
-              <div style={{ marginTop: 16, background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 12, padding: '12px 16px', color: C.error, fontSize: 13, fontWeight: 500 }}>
-                ⚠ {saveErr}
-              </div>
-            )}
+            {saveErr && <div style={{ marginTop: 16, background: C.errorBg, border: '1px solid #fca5a5', borderRadius: 12, padding: '12px 16px', color: C.error, fontSize: 13, fontWeight: 500 }}>⚠ {saveErr}</div>}
 
             <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
               <Btn variant="ghost" onClick={() => goStep(2)} style={{ flex: 1 }}>← Retour</Btn>
-              <Btn
-                variant={filledCount > 0 ? 'success' : 'primary'}
-                onClick={handleSubmit}
-                loading={saving}
-                style={{ flex: 2 }}
-              >
-                {saving ? 'Envoi en cours…' : `Transmettre ${filledCount > 0 ? `${filledCount} note(s)` : 'les notes'} ✓`}
+              <Btn variant={filledCount > 0 ? 'success' : 'primary'} onClick={handleSubmit} loading={saving} style={{ flex: 2 }}>
+                {saving ? 'Envoi…' : `Transmettre ${filledCount > 0 ? `${filledCount} note(s)` : 'les notes'} ✓`}
               </Btn>
             </div>
-            <p style={{ textAlign: 'center', fontSize: 12, color: C.muted, marginTop: 14, lineHeight: 1.6 }}>
-              Les notes seront vérifiées et validées par la scolarité avant intégration.
+            <p style={{ textAlign: 'center', fontSize: 12, color: C.muted, marginTop: 14 }}>
+              Notes vérifiées et validées par la scolarité avant intégration.
             </p>
           </div>
         )}
 
-        {/* ═══ STEP 4 — SUCCÈS ════════════════════════════════════ */}
+        {/* ═══ STEP 4 — SUCCÈS ══════════════════════════════════ */}
         {ready && step === 4 && (
           <div className="pn-animate">
             <div style={{ background: C.card, borderRadius: 24, boxShadow: '0 16px 64px rgba(0,89,137,0.14)', border: `1px solid ${C.cardBorder}`, padding: '48px 32px', textAlign: 'center' }}>
-              <div style={{
-                width: 88, height: 88, borderRadius: '50%',
-                background: `linear-gradient(135deg, ${C.successBg}, #ecfdf5)`,
-                border: `2px solid ${C.successBorder}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 40, margin: '0 auto 24px',
-                boxShadow: '0 8px 32px rgba(5,150,105,0.20)',
-              }}>✓</div>
-
-              <h2 style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 900, color: C.ink }}>
-                Notes transmises !
-              </h2>
+              <div style={{ width: 88, height: 88, borderRadius: '50%', background: `linear-gradient(135deg, ${C.successBg}, #ecfdf5)`, border: `2px solid ${C.successBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, margin: '0 auto 24px', boxShadow: '0 8px 32px rgba(5,150,105,0.20)' }}>✓</div>
+              <h2 style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 900, color: C.ink }}>Notes transmises !</h2>
               <p style={{ margin: '0 0 24px', fontSize: 14, color: C.muted, lineHeight: 1.8 }}>
-                La saisie de <strong style={{ color: C.ink }}>{moduleNom}</strong><br />
-                pour le groupe <strong style={{ color: C.ink }}>{groupeNom}</strong><br />
-                a bien été envoyée à l'équipe pédagogique.
+                <strong style={{ color: C.ink }}>{effectiveModuleNom}</strong><br />
+                Groupe : <strong style={{ color: C.ink }}>{groupeNom}</strong>
               </p>
-
               <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
                 {[
                   { label: semestre, icon: '📅' },
                   { label: typeInfo.label, icon: '📝' },
-                  { label: intervenant, icon: '👤' },
+                  { label: effectiveIntervenantNom, icon: '👤' },
                   { label: date, icon: '🗓' },
                 ].map(p => (
-                  <span key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: C.brandLight, borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.inkMid }}>
-                    {p.icon} {p.label}
-                  </span>
+                  <span key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: C.brandLight, borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.inkMid }}>{p.icon} {p.label}</span>
                 ))}
               </div>
-
-              <div style={{ background: C.brandTint, borderRadius: 14, padding: '16px 20px', marginBottom: 28, fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
-                🔒 Vos notes sont en attente de validation. Une fois approuvées par la scolarité,
-                elles seront intégrées définitivement dans le système.
+              <div style={{ background: C.brandTint, borderRadius: 14, padding: '14px 18px', marginBottom: 28, fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
+                🔒 En attente de validation par la scolarité avant intégration.
               </div>
-
               <Btn full onClick={resetAll}>Effectuer une nouvelle saisie</Btn>
             </div>
           </div>
         )}
 
-        <p style={{ textAlign: 'center', fontSize: 11, color: '#b0c4d3', marginTop: 36, letterSpacing: '0.03em' }}>
+        <p style={{ textAlign: 'center', fontSize: 11, color: '#b0c4d3', marginTop: 36 }}>
           {INST_NAME} · Institut de Formation en Transport et Logistique · {ANNEE}
         </p>
       </div>

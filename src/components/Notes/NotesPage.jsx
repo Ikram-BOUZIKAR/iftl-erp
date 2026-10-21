@@ -3,6 +3,8 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -1593,6 +1595,13 @@ function PortailEntrantTab() {
   const [rejecting, setRejecting]     = useState(null);
   const [filterStatut, setFilterStatut] = useState('en_attente');
 
+  // Code d'accès management
+  const [currentCode, setCurrentCode] = useState('');
+  const [newCode, setNewCode]         = useState('');
+  const [savingCode, setSavingCode]   = useState(false);
+  const [codeLoaded, setCodeLoaded]   = useState(false);
+  const [showCurrentCode, setShowCurrentCode] = useState(false);
+
   const loadSubmissions = async () => {
     setLoading(true);
     try {
@@ -1603,7 +1612,31 @@ function PortailEntrantTab() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { loadSubmissions(); }, []);
+  const loadCode = async () => {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'portail_notes'));
+      if (snap.exists()) setCurrentCode(snap.data().codeAcces || '');
+      else setCurrentCode('');
+    } catch (err) { console.error(err); }
+    finally { setCodeLoaded(true); }
+  };
+
+  const handleSaveCode = async () => {
+    const trimmed = newCode.trim();
+    if (!trimmed) { toast.error('Saisissez un code non vide.'); return; }
+    setSavingCode(true);
+    try {
+      await setDoc(doc(db, 'settings', 'portail_notes'), { codeAcces: trimmed }, { merge: true });
+      setCurrentCode(trimmed);
+      setNewCode('');
+      toast.success('Code d\'accès mis à jour.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erreur lors de la mise à jour : ' + (err.message || ''));
+    } finally { setSavingCode(false); }
+  };
+
+  useEffect(() => { loadSubmissions(); loadCode(); }, []);
 
   const filtered = submissions.filter(s =>
     filterStatut === 'all' ? true : s.statut === filterStatut
@@ -1720,19 +1753,60 @@ function PortailEntrantTab() {
         </div>
       </div>
 
-      {/* Lien portail */}
-      <div className="bg-[#f0f7fc] border border-[#005989]/20 rounded-xl p-4 flex items-center gap-3">
-        <span className="text-2xl">🔗</span>
-        <div>
-          <p className="font-semibold text-slate-800 text-sm">Lien du portail public</p>
-          <p className="text-xs text-slate-500 font-mono">{window.location.origin}/portail-notes</p>
+      {/* Lien portail + Code d'accès */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Lien */}
+        <div className="bg-[#f0f7fc] border border-[#005989]/20 rounded-xl p-4 flex items-center gap-3">
+          <span className="text-2xl">🔗</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-slate-800 text-sm">Lien du portail public</p>
+            <p className="text-xs text-slate-500 font-mono truncate">{window.location.origin}/portail-notes</p>
+          </div>
+          <button
+            onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/portail-notes`); toast.success('Lien copié !'); }}
+            className="shrink-0 px-3 py-1.5 bg-[#005989] text-white rounded-lg text-xs font-bold hover:bg-[#003c5a] transition-colors"
+          >
+            Copier
+          </button>
         </div>
-        <button
-          onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/portail-notes`); toast.success('Lien copié !'); }}
-          className="ml-auto px-3 py-1.5 bg-[#005989] text-white rounded-lg text-xs font-bold hover:bg-[#003c5a] transition-colors"
-        >
-          Copier le lien
-        </button>
+
+        {/* Code d'accès */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">🔐</span>
+            <p className="font-semibold text-slate-800 text-sm">Code d'accès intervenants</p>
+          </div>
+          {codeLoaded && (
+            <p className="text-xs text-slate-500 mb-2">
+              Code actuel :{' '}
+              {currentCode
+                ? <span
+                    className="font-mono font-bold text-[#005989] cursor-pointer select-all"
+                    title="Cliquer pour afficher/masquer"
+                    onClick={() => setShowCurrentCode(v => !v)}
+                  >{showCurrentCode ? currentCode : '●'.repeat(Math.min(currentCode.length, 8))}</span>
+                : <span className="italic text-amber-600">Aucun code — accès libre</span>
+              }
+            </p>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCode}
+              onChange={e => setNewCode(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSaveCode()}
+              placeholder={currentCode ? 'Nouveau code…' : 'Définir un code…'}
+              className="flex-1 text-sm border border-amber-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-mono"
+            />
+            <button
+              onClick={handleSaveCode}
+              disabled={savingCode || !newCode.trim()}
+              className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors whitespace-nowrap"
+            >
+              {savingCode ? '…' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Loading */}

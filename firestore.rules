@@ -151,6 +151,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if hasRole(['admin', 'direction', 'scolarite']);
     }
+    // Code d'accès portail notes — lisible par tout utilisateur authentifié (dont anonyme)
+    match /settings/portail_notes {
+      allow read: if isAuth();
+      allow write: if hasRole(['admin', 'direction', 'scolarite']);
+    }
 
     // ── Rapports & journaux ────────────────────────────────────────────────────
     match /rapports/{docId} {
