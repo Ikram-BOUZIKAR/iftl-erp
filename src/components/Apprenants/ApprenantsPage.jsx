@@ -385,6 +385,107 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
   );
 }
 
+// ─── Selector de groupe (écran intermédiaire) ─────────────────────────────────
+function GroupeSelector({ niveau, students, groupes, onSelectGroupe, onBack, onAdd, onImport }) {
+  const niveauInfo = NIVEAUX.find(n => n.key === niveau);
+  const title = niveauInfo?.label || niveau;
+
+  const niveauStudents = useMemo(
+    () => students.filter(s => normalizeNiveau(s.niveau) === niveau),
+    [students, niveau]
+  );
+
+  const groupesWithCounts = useMemo(() => {
+    const ids = new Set(niveauStudents.filter(s => s.groupeId).map(s => s.groupeId));
+    return groupes
+      .filter(g => ids.has(g.id))
+      .map(g => ({
+        ...g,
+        count: niveauStudents.filter(s => s.groupeId === g.id).length,
+        actifs: niveauStudents.filter(s => s.groupeId === g.id && s.statut === 'actif').length,
+      }))
+      .sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+  }, [niveauStudents, groupes]);
+
+  const sansGroupe = niveauStudents.filter(s => !s.groupeId).length;
+
+  return (
+    <div className="space-y-6 max-w-5xl">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-sm">
+            <button onClick={onBack} className="text-slate-500 hover:text-[#005989] font-medium transition-colors">Niveaux</button>
+            <span className="text-slate-300">/</span>
+            <span className="font-semibold" style={{ color: niveauInfo?.color }}>{title}</span>
+          </div>
+          <p className="text-slate-500 text-sm">
+            {niveauStudents.length} apprenant{niveauStudents.length !== 1 ? 's' : ''} · {groupesWithCounts.length} groupe{groupesWithCounts.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => onImport(niveau)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-sm font-medium rounded-lg transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            Importer CSV
+          </button>
+          <button onClick={onAdd}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-[#005989] hover:bg-[#004a73] text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+            Ajouter
+          </button>
+        </div>
+      </div>
+
+      {groupesWithCounts.length === 0 ? (
+        <div className="py-12 text-center text-slate-400">
+          <p className="font-medium">Aucun groupe pour ce niveau</p>
+          <p className="text-sm mt-1">Importez des apprenants avec un groupe assigné pour les voir ici.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {groupesWithCounts.map(g => (
+            <button key={g.id} onClick={() => onSelectGroupe(g.id)}
+              className="group text-left bg-white rounded-xl border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md transition-all p-4 space-y-2">
+              <div className="flex items-start justify-between">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-black shrink-0"
+                  style={{ background: niveauInfo?.bg || '#f1f5f9', color: niveauInfo?.color || '#64748b' }}>
+                  {g.nom?.match(/\.([A-Z])$/)?.[1] || g.nom?.[0] || '?'}
+                </div>
+                <span className="text-xl font-black" style={{ color: niveauInfo?.color }}>{g.count}</span>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800 text-sm group-hover:text-[#005989] transition-colors leading-tight">{g.nom}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{g.actifs} actif{g.actifs !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="flex items-center gap-1 text-xs font-semibold" style={{ color: niveauInfo?.color }}>
+                Voir la liste
+                <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-4 pt-1">
+        {sansGroupe > 0 && (
+          <button onClick={() => onSelectGroupe('_sans_groupe')}
+            className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            {sansGroupe} apprenant{sansGroupe !== 1 ? 's' : ''} sans groupe
+          </button>
+        )}
+        <button onClick={() => onSelectGroupe('_tous')}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#005989] font-medium transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+          Voir tous les {niveauStudents.length} apprenants de ce niveau
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Liste des apprenants d'un niveau ─────────────────────────────────────────
 function exportGroupeCSV(students, groupes, niveauLabel) {
   const rows = [CSV_HEADERS];
@@ -405,27 +506,34 @@ function exportGroupeCSV(students, groupes, niveauLabel) {
   URL.revokeObjectURL(url);
 }
 
-function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, onAdd, onImport }) {
+function NiveauListView({ niveau, groupeId, students, groupes, onBack, onBackToGroupes, onEdit, onDelete, onAdd, onImport }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const [filterGroupe, setFilterGroupe] = useState('');
+  const [filterGroupe, setFilterGroupe] = useState(groupeId && groupeId !== '_tous' && groupeId !== '_sans_groupe' ? groupeId : '');
   const [filterStatut, setFilterStatut] = useState('actif');
 
   const niveauInfo = NIVEAUX.find(n => n.key === niveau);
+  const groupeInfo = groupes.find(g => g.id === groupeId);
   const title = niveau === '_tous' ? 'Tous les apprenants'
     : niveau === '_autre' ? 'Niveau non défini'
     : niveauInfo?.label || niveau;
 
   const niveauStudents = useMemo(() => {
-    if (niveau === '_tous') return students;
-    if (niveau === '_autre') return students.filter(s => !s.niveau || !NIVEAUX.find(n => n.key === normalizeNiveau(s.niveau)));
-    return students.filter(s => normalizeNiveau(s.niveau) === niveau);
-  }, [students, niveau]);
+    let base;
+    if (niveau === '_tous') base = students;
+    else if (niveau === '_autre') base = students.filter(s => !s.niveau || !NIVEAUX.find(n => n.key === normalizeNiveau(s.niveau)));
+    else base = students.filter(s => normalizeNiveau(s.niveau) === niveau);
+
+    if (groupeId === '_sans_groupe') return base.filter(s => !s.groupeId);
+    if (groupeId && groupeId !== '_tous') return base.filter(s => s.groupeId === groupeId);
+    return base;
+  }, [students, niveau, groupeId]);
 
   const groupesNiveau = useMemo(() => {
-    const ids = new Set(niveauStudents.filter(s => s.groupeId).map(s => s.groupeId));
+    const base = niveau === '_tous' ? students : students.filter(s => normalizeNiveau(s.niveau) === niveau);
+    const ids = new Set(base.filter(s => s.groupeId).map(s => s.groupeId));
     return groupes.filter(g => ids.has(g.id));
-  }, [niveauStudents, groupes]);
+  }, [students, niveau, groupes]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -449,15 +557,34 @@ function NiveauListView({ niveau, students, groupes, onBack, onEdit, onDelete, o
     <div className="space-y-4 max-w-7xl">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#005989] font-medium transition-colors">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={onBack} className="flex items-center gap-1 text-sm text-slate-500 hover:text-[#005989] font-medium transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Niveaux
           </button>
-          <span className="text-slate-300">/</span>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">{title}</h1>
-            <p className="text-slate-500 text-xs mt-0.5">{filtered.length} apprenant{filtered.length !== 1 ? 's' : ''} affiché{filtered.length !== 1 ? 's' : ''} · {niveauStudents.length} au total</p>
+          {onBackToGroupes && (
+            <>
+              <span className="text-slate-300">/</span>
+              <button onClick={onBackToGroupes} className="text-sm font-medium transition-colors hover:text-[#005989]" style={{ color: niveauInfo?.color }}>
+                {title}
+              </button>
+            </>
+          )}
+          {!onBackToGroupes && <><span className="text-slate-300">/</span><span className="text-sm font-semibold text-slate-800">{title}</span></>}
+          {groupeInfo && (
+            <>
+              <span className="text-slate-300">/</span>
+              <span className="text-sm font-semibold text-slate-800">{groupeInfo.nom}</span>
+            </>
+          )}
+          {groupeId === '_sans_groupe' && (
+            <>
+              <span className="text-slate-300">/</span>
+              <span className="text-sm font-semibold text-amber-600">Sans groupe</span>
+            </>
+          )}
+          <div className="ml-1">
+            <p className="text-slate-500 text-xs">{filtered.length} apprenant{filtered.length !== 1 ? 's' : ''} affiché{filtered.length !== 1 ? 's' : ''} · {niveauStudents.length} au total</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -590,12 +717,23 @@ export default function ApprenantsPage() {
   const { data: students, loading, refetch } = useStudents();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
   const [selectedNiveau, setSelectedNiveau] = useState(null);
+  const [selectedGroupe, setSelectedGroupe] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [importNiveau, setImportNiveau] = useState(null);
 
   const openImport = (niv = null) => { setImportNiveau(niv || null); setShowImport(true); };
+
+  const handleSelectNiveau = (niv) => {
+    setSelectedNiveau(niv);
+    setSelectedGroupe(null);
+    // _tous et _autre n'ont pas de selector de groupes intermédiaire
+    if (niv === '_tous' || niv === '_autre') setSelectedGroupe('_tous');
+  };
+
+  const handleBackToNiveaux = () => { setSelectedNiveau(null); setSelectedGroupe(null); };
+  const handleBackToGroupes = () => setSelectedGroupe(null);
 
   const handleDelete = async (id, nom) => {
     const ok = await confirm({
@@ -645,14 +783,26 @@ export default function ApprenantsPage() {
 
   return (
     <>
-      {selectedNiveau ? (
+      {selectedNiveau && selectedGroupe ? (
         <NiveauListView
+          niveau={selectedNiveau}
+          groupeId={selectedGroupe === '_tous' ? null : selectedGroupe}
+          students={students}
+          groupes={groupes}
+          onBack={handleBackToNiveaux}
+          onBackToGroupes={selectedNiveau !== '_tous' && selectedNiveau !== '_autre' ? handleBackToGroupes : null}
+          onEdit={openEdit}
+          onDelete={handleDelete}
+          onAdd={openAdd}
+          onImport={openImport}
+        />
+      ) : selectedNiveau && !selectedGroupe ? (
+        <GroupeSelector
           niveau={selectedNiveau}
           students={students}
           groupes={groupes}
-          onBack={() => setSelectedNiveau(null)}
-          onEdit={openEdit}
-          onDelete={handleDelete}
+          onSelectGroupe={setSelectedGroupe}
+          onBack={handleBackToNiveaux}
           onAdd={openAdd}
           onImport={openImport}
         />
@@ -660,7 +810,7 @@ export default function ApprenantsPage() {
         <NiveauSelector
           students={students}
           groupes={groupes}
-          onSelect={setSelectedNiveau}
+          onSelect={handleSelectNiveau}
           onAdd={openAdd}
           onImport={openImport}
         />
