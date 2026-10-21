@@ -256,7 +256,7 @@ export default function PortailNotesPublic() {
         setCodeError('');
         setStep(1); scrollTop();
       } else {
-        setCodeError('Code incorrect. Contactez la scolarité.');
+        setCodeError('Code incorrect. Contactez l'équipe pédagogique.');
       }
       setCodeChecking(false);
     }, 400);
@@ -269,14 +269,14 @@ export default function PortailNotesPublic() {
     setModifLoading(true); setModifError('');
     try {
       const snap = await getDocs(query(collection(db, 'saisie_notes_portail'), where('codeModification', '==', code)));
-      if (snap.empty) { setModifError('Code introuvable. Vérifiez votre code ou contactez la scolarité.'); setModifLoading(false); return; }
+      if (snap.empty) { setModifError('Code introuvable. Vérifiez votre code ou contactez l'équipe pédagogique.'); setModifLoading(false); return; }
       const sub = { id: snap.docs[0].id, ...snap.docs[0].data() };
       if (sub.statut === 'importé') {
-        setModifError('Cette saisie a déjà été intégrée dans le système. Contactez la scolarité pour toute modification.');
+        setModifError('Cette saisie a déjà été intégrée dans le système. Contactez l'équipe pédagogique pour toute modification.');
         setModifLoading(false); return;
       }
       if (sub.statut === 'rejeté') {
-        setModifError('Cette saisie a été rejetée. Effectuez une nouvelle saisie ou contactez la scolarité.');
+        setModifError('Cette saisie a été rejetée. Effectuez une nouvelle saisie ou contactez l'équipe pédagogique.');
         setModifLoading(false); return;
       }
       // Pre-fill form
@@ -513,7 +513,7 @@ export default function PortailNotesPublic() {
                   <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 900, color: C.ink }}>Accès réservé</h1>
                   <p style={{ margin: '0 0 28px', fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
                     Ce portail est réservé aux intervenant(e)s de {INST_NAME}.<br />
-                    Saisissez le code d'accès communiqué par la scolarité.
+                    Saisissez le code d'accès communiqué par l'équipe pédagogique.
                   </p>
                   <div style={{ maxWidth: 320, margin: '0 auto' }}>
                     <div style={{ position: 'relative', marginBottom: 16 }}>
@@ -543,7 +543,7 @@ export default function PortailNotesPublic() {
                   <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 900, color: C.ink }}>Modifier une saisie</h1>
                   <p style={{ margin: '0 0 28px', fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
                     Saisissez le code de suivi reçu après votre dépôt.<br />
-                    La modification n'est possible que tant que la saisie<br />n'a pas été validée par la scolarité.
+                    La modification n'est possible que tant que la saisie<br />n'a pas été validée par l'équipe pédagogique.
                   </p>
                   <div style={{ maxWidth: 320, margin: '0 auto' }}>
                     <FInput
@@ -838,7 +838,7 @@ export default function PortailNotesPublic() {
               </Btn>
             </div>
             <p style={{ textAlign: 'center', fontSize: 12, color: C.muted, marginTop: 14 }}>
-              Notes vérifiées et validées par la scolarité avant intégration.
+              Notes vérifiées et validées par l'équipe pédagogique avant intégration.
             </p>
           </div>
         )}
@@ -870,7 +870,7 @@ export default function PortailNotesPublic() {
                   <p style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 900, color: C.brand, letterSpacing: '0.12em', fontFamily: 'monospace' }}>{submissionCode}</p>
                   <p style={{ margin: '0 0 12px', fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
                     Conservez ce code pour modifier votre saisie si nécessaire<br />
-                    (tant qu'elle n'a pas été validée par la scolarité).
+                    (tant qu'elle n'a pas été validée par l'équipe pédagogique).
                   </p>
                   <button onClick={() => navigator.clipboard?.writeText(submissionCode)}
                     style={{ fontFamily: font, fontSize: 12, fontWeight: 700, padding: '7px 16px', borderRadius: 8, border: `1.5px solid ${C.brand}40`, background: C.card, color: C.brand, cursor: 'pointer' }}>
@@ -880,7 +880,7 @@ export default function PortailNotesPublic() {
               )}
 
               <div style={{ background: C.brandTint, borderRadius: 14, padding: '14px 18px', marginBottom: 28, fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
-                🔒 En attente de validation par la scolarité avant intégration.
+                🔒 En attente de validation par l'équipe pédagogique avant intégration.
               </div>
               <Btn full onClick={resetAll}>Effectuer une nouvelle saisie</Btn>
             </div>
