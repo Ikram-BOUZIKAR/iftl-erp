@@ -18,8 +18,10 @@ const FILIERE_LABELS = {
   CTM:  'Conducteur(rice) en transport routier – Option Marchandises',
   CTP:  'Conducteur(rice) en transport routier – Option Personnes',
 };
-const FILIERE_NIVEAU = { TMLI:'Technicien Spécialisé', LIPF:'Technicien Spécialisé', GOL:'Technicien Spécialisé', ECMD:'Technicien Spécialisé', DMVT:'Technicien Spécialisé', LE:'Technicien', CTM:'Qualification', CTP:'Qualification' };
-const NIVEAUX = ['Technicien Spécialisé', 'Technicien', 'Qualification'];
+const FILIERE_TYPE = { TMLI:'Technicien Spécialisé', LIPF:'Technicien Spécialisé', GOL:'Technicien Spécialisé', ECMD:'Technicien Spécialisé', DMVT:'Technicien Spécialisé', LE:'Technicien Spécialisé', CTM:'Qualification', CTP:'Qualification' };
+const TYPES_FORMATION = ['Technicien Spécialisé', 'Qualification', 'Licence CNAM', 'Licence Transitaire', 'Mastère ESLI MLAI'];
+const ANNEES_PROMOTION = ['1ère année', '2ème année'];
+const TYPES_AVEC_ANNEE = new Set(['Technicien Spécialisé', 'Qualification', 'Mastère ESLI MLAI']);
 
 function PlusIcon() {
   return (
@@ -198,7 +200,7 @@ function GroupeDetailPanel({ groupe, onClose, toast }) {
           <div>
             <p className="text-white font-bold text-base">{groupe.nom}</p>
             <p className="text-indigo-200 text-xs mt-0.5">
-              {groupe.filiereCode || ''} {groupe.niveau ? `· ${groupe.niveau}` : ''} {groupe.annee ? `· ${groupe.annee}` : ''}
+              {groupe.filiereCode || ''} {(groupe.typeFormation || groupe.niveau) ? `· ${groupe.typeFormation || groupe.niveau}` : ''} {groupe.anneePromotion ? `· ${groupe.anneePromotion}` : ''} {groupe.annee ? `· ${groupe.annee}` : ''}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 text-indigo-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
@@ -287,7 +289,7 @@ export default function GroupesPage() {
   const [activeTab,      setActiveTab]      = useState('groupes');
   const [showForm,       setShowForm]       = useState(false);
   const [editing,        setEditing]        = useState(null);
-  const [form,           setForm]           = useState({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
+  const [form,           setForm]           = useState({ nom: '', filiereCode: '', typeFormation: '', anneePromotion: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
   const [saving,         setSaving]         = useState(false);
   const [selectedGroupe, setSelectedGroupe] = useState(null);
   const [archives,       setArchives]       = useState([]);
@@ -316,13 +318,13 @@ export default function GroupesPage() {
   }, [activeTab]);
 
   const openAdd = () => {
-    setForm({ nom: '', filiereCode: '', niveau: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
+    setForm({ nom: '', filiereCode: '', typeFormation: '', anneePromotion: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
     setEditing(null);
     setShowForm(true);
   };
 
   const openEdit = (g) => {
-    setForm({ nom: g.nom, filiereCode: g.filiereCode || '', niveau: g.niveau || '', intervenantId: g.intervenantId || '', annee: g.annee || '2026-2027', statut: g.statut || (g.actif === false ? 'inactif' : 'actif') });
+    setForm({ nom: g.nom, filiereCode: g.filiereCode || '', typeFormation: g.typeFormation || g.niveau || '', anneePromotion: g.anneePromotion || '', intervenantId: g.intervenantId || '', annee: g.annee || '2026-2027', statut: g.statut || (g.actif === false ? 'inactif' : 'actif') });
     setEditing(g);
     setShowForm(true);
   };
@@ -332,7 +334,7 @@ export default function GroupesPage() {
     if (!form.nom.trim()) return;
     setSaving(true);
     try {
-      const data = { ...form, actif: form.statut === 'actif', filiere: FILIERE_LABELS[form.filiereCode] || form.filiereCode };
+      const data = { ...form, actif: form.statut === 'actif', filiere: FILIERE_LABELS[form.filiereCode] || form.filiereCode, niveau: form.typeFormation };
       if (editing) {
         await groupesService.update(editing.id, data);
         toast.success('Groupe modifié');
@@ -411,7 +413,7 @@ export default function GroupesPage() {
           </div>
         </div>
         <div className="space-y-1 mb-4">
-          {g.niveau && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>{g.niveau}</p>}
+          {(g.typeFormation || g.niveau) && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>{g.typeFormation || g.niveau}{g.anneePromotion ? ` · ${g.anneePromotion}` : ''}</p>}
           {g.annee  && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>Année {g.annee}</p>}
           {intervenantName && <p className="text-xs text-slate-400 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-slate-300"/>{intervenantName}</p>}
         </div>
@@ -567,21 +569,34 @@ export default function GroupesPage() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Filière</label>
                   <select value={form.filiereCode} onChange={e => {
                       const code = e.target.value;
-                      setForm(f => ({ ...f, filiereCode: code, niveau: FILIERE_NIVEAU[code] || f.niveau }));
+                      setForm(f => ({ ...f, filiereCode: code, typeFormation: FILIERE_TYPE[code] || f.typeFormation }));
                     }} className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">— Sélectionner —</option>
                     {FILIERE_CODES.map(code => <option key={code} value={code}>{code} — {FILIERE_LABELS[code]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Niveau</label>
-                  <select value={form.niveau} onChange={e => setForm(f => ({ ...f, niveau: e.target.value }))}
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Type de formation</label>
+                  <select value={form.typeFormation} onChange={e => setForm(f => ({ ...f, typeFormation: e.target.value, anneePromotion: '' }))}
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                     <option value="">— Sélectionner —</option>
-                    {NIVEAUX.map(n => <option key={n} value={n}>{n}</option>)}
+                    {TYPES_FORMATION.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
+              {TYPES_AVEC_ANNEE.has(form.typeFormation) && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Niveau</label>
+                  <div className="flex gap-2">
+                    {ANNEES_PROMOTION.map(a => (
+                      <button type="button" key={a} onClick={() => setForm(f => ({ ...f, anneePromotion: a }))}
+                        className={`flex-1 text-sm font-medium py-2 rounded-lg border transition-colors ${form.anneePromotion === a ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Intervenant</label>
