@@ -16,6 +16,7 @@ const NIVEAUX = [
   { key: 'Licence CNAM',    label: 'Licence CNAM',       subtitle: 'Licence Professionnelle (CNAM)',         color: '#7c3aed', bg: '#f5f3ff', icon: 'L' },
   { key: 'Licence ISTL',    label: 'Licence ISTL',       subtitle: 'Licence Professionnelle (ISTL)',         color: '#b45309', bg: '#fffbeb', icon: 'L' },
   { key: 'Mastère ESLI MLAI', label: 'Mastère ESLI MLAI', subtitle: 'Mastère Spécialisé Logistique & IA',  color: '#9f1239', bg: '#fff1f2', icon: 'M' },
+  { key: 'QUALIF',          label: 'Qualification',      subtitle: 'Conducteur Routier de Marchandises',     color: '#6b21a8', bg: '#faf5ff', icon: 'Q' },
 ];
 
 // Toutes les valeurs de niveau acceptées (y compris anciennes)
