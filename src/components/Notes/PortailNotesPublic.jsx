@@ -256,7 +256,7 @@ export default function PortailNotesPublic() {
         setCodeError('');
         setStep(1); scrollTop();
       } else {
-        setCodeError('Code incorrect. Contactez l'équipe pédagogique.');
+        setCodeError("Code incorrect. Contactez l'équipe pédagogique.");
       }
       setCodeChecking(false);
     }, 400);
@@ -269,14 +269,14 @@ export default function PortailNotesPublic() {
     setModifLoading(true); setModifError('');
     try {
       const snap = await getDocs(query(collection(db, 'saisie_notes_portail'), where('codeModification', '==', code)));
-      if (snap.empty) { setModifError('Code introuvable. Vérifiez votre code ou contactez l'équipe pédagogique.'); setModifLoading(false); return; }
+      if (snap.empty) { setModifError("Code introuvable. Vérifiez votre code ou contactez l'équipe pédagogique."); setModifLoading(false); return; }
       const sub = { id: snap.docs[0].id, ...snap.docs[0].data() };
       if (sub.statut === 'importé') {
-        setModifError('Cette saisie a déjà été intégrée dans le système. Contactez l'équipe pédagogique pour toute modification.');
+        setModifError("Cette saisie a déjà été intégrée dans le système. Contactez l'équipe pédagogique pour toute modification.");
         setModifLoading(false); return;
       }
       if (sub.statut === 'rejeté') {
-        setModifError('Cette saisie a été rejetée. Effectuez une nouvelle saisie ou contactez l'équipe pédagogique.');
+        setModifError("Cette saisie a été rejetée. Effectuez une nouvelle saisie ou contactez l'équipe pédagogique.");
         setModifLoading(false); return;
       }
       // Pre-fill form
