@@ -294,6 +294,30 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
     return c;
   }, [students]);
 
+  const [filterType, setFilterType] = useState('');
+  const [filterFiliere, setFilterFiliere] = useState('');
+
+  const distinctTypes = useMemo(() => [...new Set(groupes.map(g => g.typeFormation).filter(Boolean))].sort(), [groupes]);
+  const distinctFilieres = useMemo(() => {
+    const src = filterType ? groupes.filter(g => g.typeFormation === filterType) : groupes;
+    return [...new Set(src.map(g => g.filiereCode).filter(Boolean))].sort();
+  }, [groupes, filterType]);
+
+  const niveauVisible = useMemo(() => {
+    if (!filterType && !filterFiliere) return new Set(NIVEAUX.map(n => n.key));
+    const groupeMap = new Map(groupes.map(g => [g.id, g]));
+    const visible = new Set();
+    students.forEach(s => {
+      const g = groupeMap.get(s.groupeId);
+      if (!g) return;
+      if (filterType && g.typeFormation !== filterType) return;
+      if (filterFiliere && g.filiereCode !== filterFiliere) return;
+      const nk = normalizeNiveau(s.niveau);
+      if (nk) visible.add(nk);
+    });
+    return visible;
+  }, [students, groupes, filterType, filterFiliere]);
+
   const totalActifs = students.filter(s => s.statut === 'actif').length;
   const total = students.length;
 
@@ -317,9 +341,31 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
         </div>
       </div>
 
+      {/* Filtres type / filière */}
+      {distinctTypes.length > 0 && (
+        <div className="flex flex-wrap gap-2 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+          <select value={filterType} onChange={e => { setFilterType(e.target.value); setFilterFiliere(''); }}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
+            <option value="">Tous les types de formation</option>
+            {distinctTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={filterFiliere} onChange={e => setFilterFiliere(e.target.value)}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989]/30 bg-white">
+            <option value="">Toutes les filières</option>
+            {distinctFilieres.map(fc => <option key={fc} value={fc}>{fc}</option>)}
+          </select>
+          {(filterType || filterFiliere) && (
+            <button onClick={() => { setFilterType(''); setFilterFiliere(''); }}
+              className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+              ✕ Réinitialiser
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Niveau cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {NIVEAUX.map(niv => {
+        {NIVEAUX.filter(niv => niveauVisible.has(niv.key)).map(niv => {
           const count = counts[niv.key] || 0;
           const actifs = students.filter(s => normalizeNiveau(s.niveau) === niv.key && s.statut === 'actif').length;
           // Groupes distincts pour ce niveau
@@ -547,6 +593,23 @@ function NiveauListView({ niveau, groupeId, students, groupes, onBack, onBackToG
     }).sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
   }, [niveauStudents, search, filterGroupe, filterStatut]);
 
+  const { duplicateCins, duplicateCodes } = useMemo(() => {
+    const cinCount = {};
+    const codeCount = {};
+    students.forEach(s => {
+      if (s.cin) cinCount[s.cin] = (cinCount[s.cin] || 0) + 1;
+      if (s.codeApprenant) {
+        const k = s.codeApprenant.toUpperCase();
+        codeCount[k] = (codeCount[k] || 0) + 1;
+      }
+    });
+    return {
+      duplicateCins: new Set(Object.keys(cinCount).filter(k => cinCount[k] > 1)),
+      duplicateCodes: new Set(Object.keys(codeCount).filter(k => codeCount[k] > 1)),
+    };
+  }, [students]);
+  const totalDuplicates = duplicateCins.size + duplicateCodes.size;
+
   const fmt = (ds) => {
     if (!ds) return '—';
     const d = new Date(ds + 'T12:00:00');
@@ -607,6 +670,16 @@ function NiveauListView({ niveau, groupeId, students, groupes, onBack, onBackToG
         </div>
       </div>
 
+      {/* Duplicate banner */}
+      {totalDuplicates > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+          <span>⚠ {totalDuplicates} doublon{totalDuplicates !== 1 ? 's' : ''} détecté{totalDuplicates !== 1 ? 's' : ''} (même CIN ou code apprenant)</span>
+          <Link to="/admin/deduplication" className="ml-auto text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 whitespace-nowrap">
+            Aller à Déduplication →
+          </Link>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-wrap gap-2">
         <div className="flex-1 min-w-48 relative">
@@ -659,8 +732,13 @@ function NiveauListView({ niveau, groupeId, students, groupes, onBack, onBackToG
                 {filtered.map((s, idx) => {
                   const groupe = groupes.find(g => g.id === s.groupeId);
                   return (
-                    <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-3 py-2.5 text-slate-400 text-xs tabular-nums">{idx + 1}</td>
+                    <tr key={s.id} className={`hover:bg-slate-50 transition-colors ${(duplicateCins.has(s.cin) || duplicateCodes.has((s.codeApprenant || '').toUpperCase())) ? 'bg-amber-50/40' : ''}`}>
+                      <td className="px-3 py-2.5 text-slate-400 text-xs tabular-nums">
+                        {(duplicateCins.has(s.cin) || duplicateCodes.has((s.codeApprenant || '').toUpperCase())) && (
+                          <span className="text-amber-500 mr-1" title="Doublon détecté (même CIN ou code)">⚠</span>
+                        )}
+                        {idx + 1}
+                      </td>
                       <td className="px-3 py-2.5">
                         <span className="font-mono text-xs font-semibold text-[#005989] bg-[#e8f4fb] px-1.5 py-0.5 rounded">{s.codeApprenant || '—'}</span>
                       </td>

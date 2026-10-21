@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -28,6 +28,13 @@ const FILIERE_TYPE = { TMLI:'Technicien Spécialisé', LIPF:'Technicien Spécial
 const TYPES_FORMATION = ['Technicien Spécialisé', 'Qualification', 'Licence CNAM', 'Licence Transitaire', 'Mastère ESLI MLAI'];
 const ANNEES_PROMOTION = ['1ère année', '2ème année'];
 const TYPES_AVEC_ANNEE = new Set(['Technicien Spécialisé', 'Qualification', 'Mastère ESLI MLAI']);
+const TYPE_COLORS = {
+  'Technicien Spécialisé': 'bg-blue-50 text-blue-700 border-blue-200',
+  'Qualification': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Licence CNAM': 'bg-violet-50 text-violet-700 border-violet-200',
+  'Licence Transitaire': 'bg-violet-50 text-violet-700 border-violet-200',
+  'Mastère ESLI MLAI': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
 
 function PlusIcon() {
   return (
@@ -307,6 +314,10 @@ export default function GroupesPage() {
   const [selectedGroupe, setSelectedGroupe] = useState(null);
   const [archives,       setArchives]       = useState([]);
   const [archLoading,    setArchLoading]    = useState(false);
+  const [studentCounts,  setStudentCounts]  = useState({});
+  const [closedTypes,    setClosedTypes]    = useState(new Set());
+  const [closedAnnees,   setClosedAnnees]   = useState(new Set());
+  const [closedFilieres, setClosedFilieres] = useState(new Set());
 
   // Load archived students grouped by promotionLabel
   useEffect(() => {
@@ -329,6 +340,20 @@ export default function GroupesPage() {
       finally { setArchLoading(false); }
     })();
   }, [activeTab]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, 'students'));
+        const counts = {};
+        snap.forEach(d => {
+          const gid = d.data().groupeId;
+          if (gid) counts[gid] = (counts[gid] || 0) + 1;
+        });
+        setStudentCounts(counts);
+      } catch {}
+    })();
+  }, []);
 
   const openAdd = () => {
     setForm({ nom: '', filiereCode: '', typeFormation: '', anneePromotion: '', intervenantId: '', annee: '2026-2027', statut: 'actif' });
@@ -389,6 +414,14 @@ export default function GroupesPage() {
   };
 
   const groupeStatut = (g) => g.statut || (g.actif === false ? 'inactif' : 'actif');
+
+  const toggleSet = (setter, key) => setter(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  const typeColor = (type) => TYPE_COLORS[type] || 'bg-slate-50 text-slate-600 border-slate-200';
+
   const STATUT_STYLE = {
     actif:    'bg-emerald-100 text-emerald-700',
     inactif:  'bg-amber-100 text-amber-700',
@@ -452,6 +485,65 @@ export default function GroupesPage() {
     );
   };
 
+  const renderGroupeRow = (g) => {
+    const count = studentCounts[g.id] || 0;
+    const st = groupeStatut(g);
+    return (
+      <div key={g.id} className="flex items-center gap-2 p-2.5 bg-white border border-slate-100 rounded-lg hover:border-indigo-100 hover:bg-indigo-50/30 transition-all group">
+        <div className="flex-1 min-w-0">
+          <span className="font-semibold text-slate-800 text-sm">{g.nom}</span>
+          {count > 0 && <span className="ml-2 text-xs text-slate-400">{count} apprenant{count !== 1 ? 's' : ''}</span>}
+        </div>
+        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full shrink-0 ${STATUT_STYLE[st] || 'bg-slate-100 text-slate-500'}`}>{STATUT_LABEL[st] || st}</span>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <button onClick={() => setSelectedGroupe(g)} title="Liste apprenants" className="text-xs text-indigo-600 hover:text-indigo-700 px-1.5 py-1 border border-indigo-200 rounded hover:bg-indigo-50 transition-colors">👥</button>
+          <button onClick={() => navigate(`/apprenants?niveau=${getNiveauKey(g)}&groupeId=${g.id}`)} title="Apprenants" className="text-xs text-[#005989] hover:text-[#004a73] px-1.5 py-1 border border-[#005989]/30 rounded hover:bg-[#005989]/5 transition-colors">→ App</button>
+          <button onClick={() => openEdit(g)} title="Modifier" className="text-xs text-slate-500 hover:text-slate-800 px-1.5 py-1 border border-slate-200 rounded hover:bg-slate-50 transition-colors">✏️</button>
+          <button onClick={() => handleDelete(g.id, g.nom)} title="Supprimer" className="text-xs text-red-400 hover:text-red-600 px-1.5 py-1 border border-red-100 rounded hover:bg-red-50 transition-colors">🗑</button>
+        </div>
+      </div>
+    );
+  };
+
+  const accordionData = useMemo(() => {
+    const byType = {};
+    for (const g of activeGroupes) {
+      const type = g.typeFormation || g.niveau || 'Autres';
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(g);
+    }
+    const sortedTypes = [
+      ...TYPES_FORMATION.filter(t => byType[t]),
+      ...Object.keys(byType).filter(t => !TYPES_FORMATION.includes(t)),
+    ];
+    return sortedTypes.map(type => {
+      const typeGroupes = byType[type];
+      const hasAnnee = TYPES_AVEC_ANNEE.has(type);
+      if (hasAnnee) {
+        const byAnnee = {};
+        for (const g of typeGroupes) {
+          const annee = g.anneePromotion || 'Non défini';
+          if (!byAnnee[annee]) byAnnee[annee] = [];
+          byAnnee[annee].push(g);
+        }
+        const sortedAnnees = [...ANNEES_PROMOTION.filter(a => byAnnee[a]), ...(byAnnee['Non défini'] ? ['Non défini'] : [])];
+        return {
+          type, hasAnnee: true,
+          annees: sortedAnnees.map(annee => {
+            const ag = byAnnee[annee];
+            const byFil = {};
+            for (const g of ag) { const fc = g.filiereCode || 'Autres'; if (!byFil[fc]) byFil[fc] = []; byFil[fc].push(g); }
+            return { annee, filieres: Object.entries(byFil).map(([fc, gs]) => ({ fc, groupes: gs })) };
+          }),
+        };
+      } else {
+        const byFil = {};
+        for (const g of typeGroupes) { const fc = g.filiereCode || 'Autres'; if (!byFil[fc]) byFil[fc] = []; byFil[fc].push(g); }
+        return { type, hasAnnee: false, filieres: Object.entries(byFil).map(([fc, gs]) => ({ fc, groupes: gs })) };
+      }
+    });
+  }, [activeGroupes]);
+
   return (
     <div className="space-y-5 max-w-6xl">
       {/* Header */}
@@ -486,15 +578,76 @@ export default function GroupesPage() {
         ))}
       </div>
 
-      {/* Tab: Groupes actifs */}
+      {/* Tab: Groupes actifs — accordion */}
       {activeTab === 'groupes' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
           {loading ? (
-            <div className="col-span-3 p-12 text-center">
+            <div className="p-12 text-center">
               <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"/>
             </div>
-          ) : activeGroupes.length === 0 ? <EmptyState onAdd={openAdd} />
-          : activeGroupes.map(renderGroupeCard)}
+          ) : activeGroupes.length === 0 ? (
+            <EmptyState onAdd={openAdd} />
+          ) : accordionData.map(({ type, hasAnnee, annees, filieres }) => {
+            const typeGroupes = activeGroupes.filter(g => (g.typeFormation || g.niveau || 'Autres') === type);
+            const typeTotal = typeGroupes.reduce((s, g) => s + (studentCounts[g.id] || 0), 0);
+            const isTypeOpen = !closedTypes.has(type);
+            const chevron = (open) => (
+              <svg className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ${open ? '' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+              </svg>
+            );
+            const renderFil = (fKey, fc, fGroupes) => {
+              const isOpen = !closedFilieres.has(fKey);
+              const label = FILIERE_LABELS[fc] ? `${fc} — ${FILIERE_LABELS[fc]}` : fc;
+              return (
+                <div key={fKey} className="border-l-2 border-slate-100 pl-3">
+                  <button onClick={() => toggleSet(setClosedFilieres, fKey)}
+                    className="flex items-center gap-2 w-full text-left py-1.5 hover:text-slate-800 transition-colors">
+                    {chevron(isOpen)}
+                    <span className="text-xs font-semibold text-slate-600 truncate flex-1">{label}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{fGroupes.length} gr</span>
+                  </button>
+                  {isOpen && (
+                    <div className="space-y-1 pl-4 pb-1.5">
+                      {fGroupes.sort((a,b)=>(a.nom||'').localeCompare(b.nom||'')).map(renderGroupeRow)}
+                    </div>
+                  )}
+                </div>
+              );
+            };
+            return (
+              <div key={type} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <button onClick={() => toggleSet(setClosedTypes, type)}
+                  className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-slate-50 transition-colors ${isTypeOpen ? 'border-b border-slate-100' : ''}`}>
+                  {chevron(isTypeOpen)}
+                  <span className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full border ${typeColor(type)}`}>{type}</span>
+                  <span className="text-xs text-slate-500">{typeGroupes.length} groupe{typeGroupes.length !== 1 ? 's' : ''} · {typeTotal} apprenant{typeTotal !== 1 ? 's' : ''}</span>
+                </button>
+                {isTypeOpen && (
+                  <div className="px-4 py-3 space-y-2">
+                    {hasAnnee ? annees.map(({ annee, filieres: fils }) => {
+                      const anneeKey = `${type}::${annee}`;
+                      const isAnneeOpen = !closedAnnees.has(anneeKey);
+                      return (
+                        <div key={anneeKey} className="space-y-1.5">
+                          <button onClick={() => toggleSet(setClosedAnnees, anneeKey)}
+                            className="flex items-center gap-2 w-full text-left py-1 hover:text-slate-900 transition-colors">
+                            {chevron(isAnneeOpen)}
+                            <span className="text-sm font-bold text-slate-700">{annee}</span>
+                          </button>
+                          {isAnneeOpen && (
+                            <div className="space-y-1.5 ml-2">
+                              {fils.map(({ fc, groupes: gs }) => renderFil(`${anneeKey}::${fc}`, fc, gs))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }) : filieres.map(({ fc, groupes: gs }) => renderFil(`${type}::${fc}`, fc, gs))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
