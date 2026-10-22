@@ -101,6 +101,13 @@ const HERO_PHOTO_URL =
 // ^ URL de secours connue (remplacer par l'URL CDN copiée depuis le navigateur si différente)
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
+const DEMO_LEFT = {
+  bg:      'linear-gradient(155deg, #002d47 0%, #004a76 45%, #006090 100%)',
+  blob1:   '#005989',
+  blob2:   '#DCB924',
+  accent:  '#DCB924',
+  subtext: 'rgba(255,255,255,0.65)',
+};
 const C = {
   dark:    '#0f1729',
   violet:  '#1B1464',
@@ -254,8 +261,8 @@ export default function LoginPage({ auth }) {
 
       {/* ══ LEFT PANEL — dark, portals ══════════════════════════════════════ */}
       <div style={{
-        background: C.dark,
-        backgroundImage: photoLoaded ? `url(${HERO_PHOTO_URL})` : 'none',
+        background: IS_DEMO ? DEMO_LEFT.bg : C.dark,
+        backgroundImage: (!IS_DEMO && photoLoaded) ? `url(${HERO_PHOTO_URL})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         position: 'relative',
@@ -269,11 +276,11 @@ export default function LoginPage({ auth }) {
         {/* Photo overlay + gradient blobs */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
           {/* Dark overlay when photo is loaded, for text readability */}
-          {photoLoaded && (
+          {!IS_DEMO && photoLoaded && (
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,12,30,0.68)' }} />
           )}
-          <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '60%', paddingBottom: '60%', borderRadius: '50%', background: `radial-gradient(circle, ${C.violet}${photoLoaded ? '44' : '55'} 0%, transparent 70%)` }} />
-          <div style={{ position: 'absolute', bottom: '-15%', left: '-15%', width: '55%', paddingBottom: '55%', borderRadius: '50%', background: `radial-gradient(circle, ${C.coral}${photoLoaded ? '18' : '20'} 0%, transparent 70%)` }} />
+          <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '60%', paddingBottom: '60%', borderRadius: '50%', background: `radial-gradient(circle, ${IS_DEMO ? DEMO_LEFT.blob1 : C.violet}55 0%, transparent 70%)` }} />
+          <div style={{ position: 'absolute', bottom: '-15%', left: '-15%', width: '55%', paddingBottom: '55%', borderRadius: '50%', background: `radial-gradient(circle, ${IS_DEMO ? DEMO_LEFT.blob2 : C.coral}28 0%, transparent 70%)` }} />
         </div>
 
         {/* Language switcher — top right of left panel */}
@@ -288,30 +295,30 @@ export default function LoginPage({ auth }) {
           ) : (
             <div style={{
               width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-              background: `linear-gradient(135deg, ${C.violet}, ${C.violet2})`,
+              background: IS_DEMO ? `linear-gradient(135deg, #005989, #0077a8)` : `linear-gradient(135deg, ${C.violet}, ${C.violet2})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 900, fontSize: 17, letterSpacing: 1,
-              boxShadow: `0 4px 16px ${C.violet}66`,
+              color: IS_DEMO ? DEMO_LEFT.accent : '#fff', fontWeight: 900, fontSize: 17, letterSpacing: 1,
+              boxShadow: IS_DEMO ? `0 4px 16px rgba(0,89,137,0.5)` : `0 4px 16px ${C.violet}66`,
             }}>
               {(branding.instituteName || 'ERP').slice(0, 2).toUpperCase()}
             </div>
           )}
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', lineHeight: 1.2 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#fff', lineHeight: 1.2 }}>
               {branding.instituteName || 'ERP Étudiant Cloud'}
             </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>Plateforme pédagogique</div>
+            <div style={{ fontSize: 11, color: IS_DEMO ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.35)', fontWeight: 400 }}>Plateforme pédagogique</div>
           </div>
         </div>
 
         {/* Headline — hidden on mobile to save space */}
         {!isMobile && (
           <div style={{ position: 'relative', zIndex: 1, marginBottom: 32 }}>
-            <div style={{ fontSize: 'clamp(22px,2.5vw,32px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 10, textWrap: 'balance' }}>
+            <div style={{ fontSize: 'clamp(24px,2.8vw,34px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 12, textWrap: 'balance' }}>
               La formation digitale,{' '}
-              <span style={{ color: C.coral }}>réinventée.</span>
+              <span style={{ color: IS_DEMO ? DEMO_LEFT.accent : C.coral }}>réinventée.</span>
             </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.65, maxWidth: '36ch' }}>
+            <div style={{ fontSize: 14, color: IS_DEMO ? DEMO_LEFT.subtext : 'rgba(255,255,255,0.45)', lineHeight: 1.7, maxWidth: '36ch' }}>
               Gérez candidatures, scolarité et pédagogie depuis une seule plateforme sécurisée.
             </div>
           </div>
