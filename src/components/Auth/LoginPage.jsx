@@ -350,8 +350,8 @@ export default function LoginPage({ auth }) {
           />
         </div>
 
-        {/* ── Demo booking CTA ────────────────────────────────────────────── */}
-        <div style={{ position: 'relative', zIndex: 1, marginTop: 20 }}>
+        {/* ── Demo booking CTA — visible uniquement en mode démo ─────────── */}
+        {IS_DEMO && <div style={{ position: 'relative', zIndex: 1, marginTop: 20 }}>
           <a
             href="https://calendly.com/erp-eduteck/30min"
             target="_blank"
@@ -376,7 +376,7 @@ export default function LoginPage({ auth }) {
           <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.30)' }}>
             {t('login.contact_label')} : erp.eduteck@gmail.com
           </div>
-        </div>
+        </div>}
 
         {/* Powered by */}
         {!isMobile && (
