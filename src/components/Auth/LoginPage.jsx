@@ -102,11 +102,11 @@ const HERO_PHOTO_URL =
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const DEMO_LEFT = {
-  bg:      'linear-gradient(155deg, #002d47 0%, #004a76 45%, #006090 100%)',
+  bg:      'linear-gradient(155deg, #001829 0%, #002d47 50%, #003a5c 100%)',
   blob1:   '#005989',
   blob2:   '#DCB924',
   accent:  '#DCB924',
-  subtext: 'rgba(255,255,255,0.65)',
+  subtext: 'rgba(255,255,255,0.70)',
 };
 const C = {
   dark:    '#0f1729',
@@ -279,8 +279,8 @@ export default function LoginPage({ auth }) {
           {!IS_DEMO && photoLoaded && (
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,12,30,0.68)' }} />
           )}
-          <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '60%', paddingBottom: '60%', borderRadius: '50%', background: `radial-gradient(circle, ${IS_DEMO ? DEMO_LEFT.blob1 : C.violet}55 0%, transparent 70%)` }} />
-          <div style={{ position: 'absolute', bottom: '-15%', left: '-15%', width: '55%', paddingBottom: '55%', borderRadius: '50%', background: `radial-gradient(circle, ${IS_DEMO ? DEMO_LEFT.blob2 : C.coral}28 0%, transparent 70%)` }} />
+          <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '60%', paddingBottom: '60%', borderRadius: '50%', background: `radial-gradient(circle, ${IS_DEMO ? DEMO_LEFT.blob1 : C.violet}${IS_DEMO ? '30' : '55'} 0%, transparent 70%)` }} />
+          <div style={{ position: 'absolute', bottom: '-15%', left: '-15%', width: '55%', paddingBottom: '55%', borderRadius: '50%', background: `radial-gradient(circle, ${IS_DEMO ? DEMO_LEFT.blob2 : C.coral}${IS_DEMO ? '18' : '28'} 0%, transparent 70%)` }} />
         </div>
 
         {/* Language switcher — top right of left panel */}
