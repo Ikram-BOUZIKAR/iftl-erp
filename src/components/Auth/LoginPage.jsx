@@ -261,8 +261,8 @@ export default function LoginPage({ auth }) {
 
       {/* ══ LEFT PANEL — dark, portals ══════════════════════════════════════ */}
       <div style={{
-        background: IS_DEMO ? DEMO_LEFT.bg : C.dark,
-        backgroundImage: (!IS_DEMO && photoLoaded) ? `url(${HERO_PHOTO_URL})` : 'none',
+        backgroundColor: IS_DEMO ? '#001829' : C.dark,
+        backgroundImage: IS_DEMO ? DEMO_LEFT.bg : (photoLoaded ? `url(${HERO_PHOTO_URL})` : 'none'),
         backgroundSize: 'cover',
         backgroundPosition: 'center top',
         position: 'relative',
