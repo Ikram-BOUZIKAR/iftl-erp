@@ -9,6 +9,7 @@ import { HelpButton } from '../UI/HelpGuide';
 import LanguageSwitcher from '../UI/LanguageSwitcher';
 import { useBranding } from '../../contexts/BrandingContext';
 import { IS_DEMO, INSTITUTE_NAME } from '../../utils/brandingConfig';
+import { useDemoAutoSeed } from '../../hooks/useDemoAutoSeed';
 
 const DATE_LOCALES = { fr: frLocale, en: enUS, ar: arLocale };
 
@@ -32,6 +33,8 @@ export default function MainLayout({ auth, children }) {
 }
 
 function SidebarLayout({ auth, children }) {
+  useDemoAutoSeed();
+
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
   );

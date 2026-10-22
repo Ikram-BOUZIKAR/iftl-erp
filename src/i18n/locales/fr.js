@@ -111,6 +111,8 @@ const fr = {
     err_email_not_found: 'Adresse email introuvable.',
     err_pending:         'Compte en attente de validation par un administrateur.',
     cndp_notice:         'Données personnelles protégées — CNDP n° A-PO-268/2024',
+    book_demo:           'Réserver une démo gratuite — 30 min',
+    contact_label:       'Contact',
   },
 
   common: {

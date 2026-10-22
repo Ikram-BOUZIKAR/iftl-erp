@@ -103,6 +103,8 @@ const en = {
     err_email_not_found: 'Email address not found.',
     err_pending:         'Account pending validation by an administrator.',
     cndp_notice:         'Personal data protected — CNDP no. A-PO-268/2024',
+    book_demo:           'Book a free demo — 30 min',
+    contact_label:       'Contact',
   },
 
   common: {

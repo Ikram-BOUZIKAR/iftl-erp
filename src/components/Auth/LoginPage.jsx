@@ -4,6 +4,7 @@ import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../UI/LanguageSwitcher';
 import { useBranding } from '../../contexts/BrandingContext';
+import { IS_DEMO } from '../../utils/brandingConfig';
 
 function Ico({ path, path2, size = 'w-6 h-6', stroke = 'currentColor', strokeWidth = 1.5 }) {
   return (
@@ -307,7 +308,7 @@ export default function LoginPage({ auth }) {
         {!isMobile && (
           <div style={{ position: 'relative', zIndex: 1, marginBottom: 32 }}>
             <div style={{ fontSize: 'clamp(22px,2.5vw,32px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 10, textWrap: 'balance' }}>
-              L'éducation digitale,{' '}
+              La formation digitale,{' '}
               <span style={{ color: C.coral }}>réinventée.</span>
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.65, maxWidth: '36ch' }}>
@@ -349,10 +350,38 @@ export default function LoginPage({ auth }) {
           />
         </div>
 
+        {/* ── Demo booking CTA ────────────────────────────────────────────── */}
+        <div style={{ position: 'relative', zIndex: 1, marginTop: 20 }}>
+          <a
+            href="https://calendly.com/erp-eduteck/30min"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '10px 16px', borderRadius: 10,
+              background: 'rgba(255,255,255,0.10)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              color: '#fff', textDecoration: 'none',
+              fontSize: 12, fontWeight: 600,
+              transition: 'background .15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.10)'}
+          >
+            <svg style={{ width: 15, height: 15, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {t('login.book_demo')}
+          </a>
+          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.30)' }}>
+            {t('login.contact_label')} : erp.eduteck@gmail.com
+          </div>
+        </div>
+
         {/* Powered by */}
         {!isMobile && (
-          <div style={{ position: 'relative', zIndex: 1, marginTop: 'auto', paddingTop: 32, fontSize: 9.5, color: 'rgba(255,255,255,0.2)', lineHeight: 1.6 }}>
-            EduCloud ERP — Smart. Scalable. Multilingual.
+          <div style={{ position: 'relative', zIndex: 1, marginTop: 'auto', paddingTop: 20, fontSize: 9.5, color: 'rgba(255,255,255,0.2)', lineHeight: 1.6 }}>
+            ERP Pédagogique — Smart. Scalable. Multilingual.
           </div>
         )}
       </div>
@@ -551,7 +580,9 @@ export default function LoginPage({ auth }) {
 
           {/* CNDP */}
           <div style={{ marginTop: 20, fontSize: 9, color: '#cbd5e1', textAlign: 'center', lineHeight: 1.7 }}>
-            {t('login.cndp_notice')}
+            {IS_DEMO
+              ? 'Données de démonstration — aucune donnée réelle · Protection RGPD'
+              : t('login.cndp_notice')}
           </div>
         </div>
       </div>

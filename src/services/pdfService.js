@@ -12,7 +12,7 @@ const IS_DEMO = import.meta.env.MODE === 'demo';
 // ─── Brand helpers ────────────────────────────────────────────────────────────
 
 function hexToRgbArr(hex) {
-  const h = (hex || '#1B1464').replace('#', '');
+  const h = (hex || '#005989').replace('#', '');
   const full = h.length === 3
     ? h.split('').map(c => c + c).join('')
     : h;
@@ -36,8 +36,8 @@ function lightenToTint([r, g, b], mix = 0.92) {
 }
 
 // Constantes Direction B par défaut (fallback si aucun branding fourni)
-const BRAND_DEFAULT_PRIMARY = '#1B1464';
-const BRAND_DEFAULT_ACCENT  = '#FF6B35';
+const BRAND_DEFAULT_PRIMARY = '#005989';
+const BRAND_DEFAULT_ACCENT  = '#DCB924';
 
 function buildBrand(branding) {
   const primary = hexToRgbArr(branding?.primaryColor || BRAND_DEFAULT_PRIMARY);
@@ -93,50 +93,49 @@ function drawPageBorder(doc) {
 function drawIftlHeader(doc, title, subtitle) {
   const w = doc.internal.pageSize.getWidth();
 
-  // Violet header band
+  // ── Logo box (left) ───────────────────────────────────────────────────────
   doc.setFillColor(...BRAND.blue);
-  doc.rect(0, 0, w, 36, 'F');
-
-  // Lighter violet diagonal accent strip (right side decoration)
-  doc.setFillColor(44, 32, 133); // #2C2085
-  doc.triangle(w - 60, 0, w, 0, w, 36, 'F');
-
-  // Coral accent bar
-  doc.setFillColor(...BRAND.coral);
-  doc.rect(0, 36, w, 3.5, 'F');
-
-  // White logo box
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, 3, 44, 30, 2, 2, 'F');
+  doc.roundedRect(10, 5, 22, 18, 1.5, 1.5, 'F');
   if (!IS_DEMO) {
-    doc.addImage(IFTL_LOGO, 'PNG', 11, 4, 42, 27);
+    doc.addImage(IFTL_LOGO, 'PNG', 11, 6, 20, 16);
   } else {
-    doc.setTextColor(...BRAND.blue);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 12 + i * 7, { align: 'center' }));
-    doc.setTextColor(...BRAND.white);
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    INSTITUTE_SHORT.split(/\s+/).slice(0, 2).forEach((p, i) =>
+      doc.text(p, 21, 11 + i * 5.5, { align: 'center' })
+    );
   }
 
-  // Document title — right-aligned, white
-  doc.setTextColor(...BRAND.white);
+  // ── Institute name (next to logo) ─────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.blue);
+  doc.text(INSTITUTE_NAME, 35, 11);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Document officiel — Scolarité', 35, 17);
+
+  // ── Document title (right-aligned) ────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.text(title, w - 14, 15, { align: 'right' });
+  doc.setTextColor(...BRAND.black);
+  doc.text(title, w - 10, 13, { align: 'right' });
 
   if (subtitle) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(220, 210, 255); // violet clair lisible
-    doc.text(subtitle, w - 14, 22, { align: 'right' });
+    doc.setTextColor(...BRAND.grey);
+    doc.text(subtitle, w - 10, 20, { align: 'right' });
   }
 
-  // Teal small dot accent (branding)
-  doc.setFillColor(...BRAND.teal);
-  doc.circle(63, 18, 1.8, 'F');
+  // ── Blue bottom border ────────────────────────────────────────────────────
+  doc.setFillColor(...BRAND.blue);
+  doc.rect(0, 28, w, 2.5, 'F');
 
   doc.setTextColor(...BRAND.black);
-  return 47;
+  return 38;
 }
 
 function drawFooter(doc) {
@@ -147,23 +146,22 @@ function drawFooter(doc) {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    // Coral bottom bar
-    doc.setFillColor(...BRAND.coral);
-    doc.rect(0, h - 10, w, 10, 'F');
+    // Light separator line
+    doc.setDrawColor(209, 213, 219);
+    doc.setLineWidth(0.3);
+    doc.line(10, h - 10, w - 10, h - 10);
 
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
-    doc.setTextColor(...BRAND.white);
+    doc.setTextColor(156, 163, 175);
     doc.text(
       `Document généré automatiquement — ${INSTITUTE_NAME}`,
-      w / 2,
-      h - 3.5,
-      { align: 'center' }
+      14,
+      h - 4
     );
 
-    // Page number
     doc.setFont('helvetica', 'normal');
-    doc.text(`Page ${i} / ${pageCount}`, w - 14, h - 3.5, { align: 'right' });
+    doc.text(`Page ${i} / ${pageCount}`, w - 14, h - 4, { align: 'right' });
   }
 }
 
@@ -172,35 +170,32 @@ function infoBox(doc, fields, startY, leftMargin = 14, rightMargin = 14) {
   const colW = (w - leftMargin - rightMargin) / 2;
   const lineH = 7;
   const pad = 4;
-  const labelW = 26; // fixed width reserved for label text
-  const valueMaxW = colW - labelW - pad - 3; // max width before next column
+  const labelW = 28;
+  const valueMaxW = colW - labelW - pad - 2;
 
   const leftFields  = fields.filter((_, i) => i % 2 === 0);
   const rightFields = fields.filter((_, i) => i % 2 === 1);
   const rowCount = Math.max(leftFields.length, rightFields.length);
   const boxH = rowCount * lineH + pad * 2;
 
-  doc.setFillColor(...BRAND.lightBlue);
-  doc.setDrawColor(...BRAND.blue);
+  // Very light background + simple border
+  doc.setFillColor(248, 249, 250);
+  doc.setDrawColor(209, 213, 219);
   doc.setLineWidth(0.3);
-  doc.roundedRect(leftMargin, startY, w - leftMargin - rightMargin, boxH, 2, 2, 'FD');
+  doc.roundedRect(leftMargin, startY, w - leftMargin - rightMargin, boxH, 1, 1, 'FD');
 
-  // Vertical divider between columns
-  doc.setDrawColor(...BRAND.blue);
+  // Faint vertical divider
+  doc.setDrawColor(209, 213, 219);
   doc.setLineWidth(0.2);
-  doc.setLineDashPattern([2, 2], 0);
   doc.line(leftMargin + colW, startY + pad, leftMargin + colW, startY + boxH - pad);
-  doc.setLineDashPattern([], 0);
 
   const renderCol = (list, x) => {
     list.forEach((f, i) => {
       const y = startY + pad + lineH * i + lineH * 0.72;
-      // Label
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
-      doc.setTextColor(...BRAND.darkBlue);
+      doc.setTextColor(107, 114, 128);
       doc.text(`${f.label} :`, x, y);
-      // Value — truncate to maxWidth to prevent overflow
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(...BRAND.black);
@@ -219,16 +214,14 @@ function infoBox(doc, fields, startY, leftMargin = 14, rightMargin = 14) {
 
 function sectionTitle(doc, text, y) {
   const w = doc.internal.pageSize.getWidth();
-  // Violet band with coral left accent
-  doc.setFillColor(...BRAND.blue);
-  doc.roundedRect(14, y, w - 28, 7.5, 1, 1, 'F');
-  doc.setFillColor(...BRAND.coral);
-  doc.rect(14, y, 3, 7.5, 'F');
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.3);
+  doc.line(14, y, w - 14, y);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...BRAND.white);
-  doc.text(text.toUpperCase(), 21, y + 5.3);
-  return y + 12;
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.blue);
+  doc.text(text.toUpperCase(), 14, y + 5.5);
+  return y + 11;
 }
 
 // ─── generateRecu ─────────────────────────────────────────────────────────────

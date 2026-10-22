@@ -103,6 +103,8 @@ const ar = {
     err_email_not_found: 'البريد الإلكتروني غير موجود.',
     err_pending:         'الحساب في انتظار تفعيل المشرف.',
     cndp_notice:         'البيانات الشخصية محمية — CNDP رقم A-PO-268/2024',
+    book_demo:           'احجز عرضاً تجريبياً مجانياً — 30 دقيقة',
+    contact_label:       'التواصل',
   },
 
   common: {
