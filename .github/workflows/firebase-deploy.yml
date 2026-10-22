@@ -65,12 +65,12 @@ jobs:
 
       - name: Deploy Firestore rules to erp-pedago-iftl
         continue-on-error: true
-        run: npx firebase-tools@latest deploy --only firestore:rules --project erp-pedago-iftl --non-interactive
+        run: npx firebase-tools@13.29.3 deploy --only firestore:rules --project erp-pedago-iftl --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
 
       - name: Deploy hosting to erp-pedago-iftl
-        run: npx firebase-tools@latest deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
+        run: npx firebase-tools@13.29.3 deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
 
@@ -126,7 +126,7 @@ jobs:
         continue-on-error: true
         run: |
           # Try Firebase CLI first (needs serviceusage permission)
-          npx firebase-tools@latest deploy --only firestore:rules --project edupilot-demo --non-interactive || true
+          npx firebase-tools@13.29.3 deploy --only firestore:rules --project edupilot-demo --non-interactive || true
           # Fallback: deploy rules via Firebase Security Rules REST API
           pip3 install google-auth google-auth-httplib2 -q 2>/dev/null || true
           python3 << 'PYEOF'
@@ -180,6 +180,6 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
 
       - name: Deploy hosting to edupilot-demo
-        run: npx firebase-tools@latest deploy --only hosting:edupilot-demo --project edupilot-demo --non-interactive
+        run: npx firebase-tools@13.29.3 deploy --only hosting:edupilot-demo --project edupilot-demo --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
