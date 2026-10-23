@@ -31,11 +31,6 @@ function normalize(s) {
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-function dupKey(s) {
-  // Key by (nom, prenom) — same person if name matches regardless of group
-  return `${normalize(s.nom)}|${normalize(s.prenom)}`;
-}
-
 export default function DeduplicationPage() {
   const [loading,    setLoading]    = useState(false);
   const [groups,     setGroups]     = useState(null); // { key: [student, ...] }
@@ -51,25 +46,65 @@ export default function DeduplicationPage() {
       const snap = await getDocs(collection(db, 'students'));
       const all  = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
 
-      // Group by normalized name key
-      const byName = {};
-      for (const s of all) {
-        const k = dupKey(s);
-        if (!byName[k]) byName[k] = [];
-        byName[k].push(s);
-      }
+      // ── Union-Find : regroupe par nom|prenom OU même CIN OU même codeApprenant ──
+      // Identique à la logique d'alerte d'ApprenantsPage → aucun doublon invisible
+      const parent = all.map((_, i) => i);
+      const find = (i) => { if (parent[i] !== i) parent[i] = find(parent[i]); return parent[i]; };
+      const union = (i, j) => { parent[find(i)] = find(j); };
 
-      // Keep only groups with more than 1 entry
+      const nameMap = {};  // "nom|prenom" → [idx]
+      const cinMap  = {};  // CIN.upper → [idx]
+      const codeMap = {};  // codeApprenant.upper → [idx]
+
+      all.forEach((s, i) => {
+        // par nom+prénom normalisé
+        const nk = `${normalize(s.nom)}|${normalize(s.prenom)}`;
+        if (!nameMap[nk]) nameMap[nk] = [];
+        nameMap[nk].push(i);
+        // par CIN
+        const cin = String(s.cin || '').trim().toUpperCase();
+        if (cin) { if (!cinMap[cin]) cinMap[cin] = []; cinMap[cin].push(i); }
+        // par codeApprenant ou code (champ alternatif)
+        const code = String(s.codeApprenant || s.code || '').trim().toUpperCase();
+        if (code) { if (!codeMap[code]) codeMap[code] = []; codeMap[code].push(i); }
+      });
+
+      // Union des groupes partageant un identifiant
+      for (const idxs of Object.values(nameMap)) for (let j = 1; j < idxs.length; j++) union(idxs[0], idxs[j]);
+      for (const idxs of Object.values(cinMap))  for (let j = 1; j < idxs.length; j++) union(idxs[0], idxs[j]);
+      for (const idxs of Object.values(codeMap)) for (let j = 1; j < idxs.length; j++) union(idxs[0], idxs[j]);
+
+      // Constituer les groupes > 1 et identifier la raison
+      const byRoot = {};
+      all.forEach((s, i) => {
+        const root = find(i);
+        if (!byRoot[root]) byRoot[root] = [];
+        byRoot[root].push(s);
+      });
+
       const dups = {};
-      for (const [k, arr] of Object.entries(byName)) {
-        if (arr.length > 1) dups[k] = arr.sort((a, b) =>
-          String(a.groupe || '').localeCompare(String(b.groupe || ''))
-        );
+      for (const [root, arr] of Object.entries(byRoot)) {
+        if (arr.length <= 1) continue;
+        // Calculer la raison (nom, CIN, code)
+        const reasons = [];
+        const nks = new Set(arr.map(s => `${normalize(s.nom)}|${normalize(s.prenom)}`));
+        if (nks.size === 1) reasons.push('nom');
+        const cins = arr.map(s => String(s.cin||'').trim().toUpperCase()).filter(Boolean);
+        if (cins.length > 1 && new Set(cins).size < cins.length) reasons.push('CIN');
+        const codes = arr.map(s => String(s.codeApprenant||s.code||'').trim().toUpperCase()).filter(Boolean);
+        if (codes.length > 1 && new Set(codes).size < codes.length) reasons.push('code');
+        if (!reasons.length) reasons.push('identifiant commun');
+        dups[root] = {
+          arr: arr.sort((a, b) => completenessScore(b) - completenessScore(a)), // meilleur en premier
+          reasons,
+        };
       }
 
       setGroups(dups);
-      const total = Object.values(dups).reduce((s, a) => s + a.length, 0);
+      const total = Object.values(dups).reduce((s, g) => s + g.arr.length, 0);
+      const groupCount2 = Object.keys(dups).length;
       if (total === 0) setMsg('✓ Aucun doublon détecté dans la liste des apprenants.');
+      else setMsg(''); // l'UI affichera le résumé
     } catch (err) {
       setMsg('Erreur : ' + err.message);
     } finally {
@@ -139,40 +174,36 @@ export default function DeduplicationPage() {
     setDeleting(false);
   };
 
-  const totalDups  = groups ? Object.values(groups).reduce((s, a) => s + a.length, 0) : 0;
-  const groupCount = groups ? Object.keys(groups).length : 0;
+  // groups = { key: { arr: [...], reasons: [...] } }
+  const allGroups   = groups ? Object.values(groups) : [];
+  const totalDups   = allGroups.reduce((s, g) => s + g.arr.length, 0);
+  const groupCount  = allGroups.length;
 
   // Score de complétude — favorise : niveau canonique correct, codeApprenant, cin, etc.
   const completenessScore = (s) => {
     let score = ['cin', 'filiere', 'groupe', 'email', 'telephone']
       .filter(f => s[f] && String(s[f]).trim()).length;
-    if (s.codeApprenant && String(s.codeApprenant).trim()) score += 3; // champ normalisé
-    else if (s.code && String(s.code).trim())             score += 1;  // ancien champ
-    if (NIVEAUX_VALIDES.has(s.niveau))  score += 3; // niveau canonique correct
-    else if (s.niveau && String(s.niveau).trim()) score += 0; // niveau invalide, pas de bonus
+    if (s.codeApprenant && String(s.codeApprenant).trim()) score += 3;
+    else if (s.code && String(s.code).trim())             score += 1;
+    if (NIVEAUX_VALIDES.has(s.niveau))  score += 3;
     return score;
   };
 
-  // Auto-sélection : garde le meilleur (score max) par groupe, sélectionne tous les autres
+  // Auto-sélection : arr déjà trié par score desc dans loadAndDetect → sélectionne slice(1)
   const autoSelect = () => {
     const ids = new Set();
-    for (const arr of Object.values(groups || {})) {
-      const sorted = [...arr].sort((a, b) => completenessScore(b) - completenessScore(a));
-      sorted.slice(1).forEach(s => ids.add(s._id)); // tous sauf le 1er (meilleur score)
-    }
+    for (const { arr } of allGroups) arr.slice(1).forEach(s => ids.add(s._id));
     setToDelete(ids);
   };
 
-  // Sélectionner tous les IDs de tous les groupes
   const selectAll = () => {
     const ids = new Set();
-    for (const arr of Object.values(groups || {})) arr.forEach(s => ids.add(s._id));
+    for (const { arr } of allGroups) arr.forEach(s => ids.add(s._id));
     setToDelete(ids);
   };
 
   const clearAll = () => setToDelete(new Set());
 
-  // Sélectionner tous sauf le 1er d'un groupe spécifique
   const selectGroupExceptFirst = (arr) => {
     setToDelete(prev => {
       const n = new Set(prev);
@@ -181,7 +212,6 @@ export default function DeduplicationPage() {
     });
   };
 
-  // Sélectionner / désélectionner tout un groupe
   const toggleGroupAll = (arr) => {
     const allChecked = arr.every(s => toDelete.has(s._id));
     setToDelete(prev => {
@@ -277,10 +307,10 @@ export default function DeduplicationPage() {
           </div>
 
           <div className="space-y-4">
-            {Object.entries(groups).map(([key, arr]) => {
-              const [nom, prenom] = key.split('|');
+            {Object.entries(groups).map(([key, { arr, reasons }]) => {
               const allGroupChecked = arr.every(s => toDelete.has(s._id));
               const someGroupChecked = arr.some(s => toDelete.has(s._id));
+              const reasonLabel = { nom: 'même nom', CIN: 'même CIN', code: 'même code', 'identifiant commun': 'id commun' };
               return (
                 <div key={key} className="bg-white border border-red-100 rounded-2xl overflow-hidden shadow-sm">
                   <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-center gap-3 flex-wrap">
@@ -294,8 +324,14 @@ export default function DeduplicationPage() {
                       title="Tout sélectionner / désélectionner dans ce groupe"
                     />
                     <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                    <p className="font-bold text-slate-800 text-sm capitalize">{prenom} {nom}</p>
+                    <p className="font-bold text-slate-800 text-sm capitalize">{arr[0]?.prenom} {arr[0]?.nom}</p>
                     <span className="text-xs text-red-600 font-semibold">{arr.length} entrées</span>
+                    {/* Badges raison de duplication */}
+                    {reasons.map(r => (
+                      <span key={r} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700">
+                        {reasonLabel[r] || r}
+                      </span>
+                    ))}
                     {/* Bouton "garder le 1er" par groupe */}
                     <button
                       onClick={() => selectGroupExceptFirst(arr)}
