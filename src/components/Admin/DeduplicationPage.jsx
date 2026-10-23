@@ -86,6 +86,50 @@ export default function DeduplicationPage() {
   const totalDups  = groups ? Object.values(groups).reduce((s, a) => s + a.length, 0) : 0;
   const groupCount = groups ? Object.keys(groups).length : 0;
 
+  // Score de complétude : nb de champs non vides (code, cin, filiere, groupe, email, telephone)
+  const completenessScore = (s) =>
+    ['code', 'codeApprenant', 'cin', 'filiere', 'niveau', 'groupe', 'email', 'telephone']
+      .filter(f => s[f] && String(s[f]).trim()).length;
+
+  // Auto-sélection : garde le meilleur (score max) par groupe, sélectionne tous les autres
+  const autoSelect = () => {
+    const ids = new Set();
+    for (const arr of Object.values(groups || {})) {
+      const sorted = [...arr].sort((a, b) => completenessScore(b) - completenessScore(a));
+      sorted.slice(1).forEach(s => ids.add(s._id)); // tous sauf le 1er (meilleur score)
+    }
+    setToDelete(ids);
+  };
+
+  // Sélectionner tous les IDs de tous les groupes
+  const selectAll = () => {
+    const ids = new Set();
+    for (const arr of Object.values(groups || {})) arr.forEach(s => ids.add(s._id));
+    setToDelete(ids);
+  };
+
+  const clearAll = () => setToDelete(new Set());
+
+  // Sélectionner tous sauf le 1er d'un groupe spécifique
+  const selectGroupExceptFirst = (arr) => {
+    setToDelete(prev => {
+      const n = new Set(prev);
+      arr.slice(1).forEach(s => n.add(s._id));
+      return n;
+    });
+  };
+
+  // Sélectionner / désélectionner tout un groupe
+  const toggleGroupAll = (arr) => {
+    const allChecked = arr.every(s => toDelete.has(s._id));
+    setToDelete(prev => {
+      const n = new Set(prev);
+      if (allChecked) arr.forEach(s => n.delete(s._id));
+      else arr.forEach(s => n.add(s._id));
+      return n;
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div>
@@ -112,33 +156,78 @@ export default function DeduplicationPage() {
 
       {groups && !loading && groupCount > 0 && (
         <>
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-slate-600">
-              <span className="font-bold text-red-600">{groupCount}</span> doublon(s) détecté(s) —{' '}
-              <span className="font-bold">{totalDups}</span> apprenants concernés.
-            </p>
-            {toDelete.size > 0 && (
+          {/* Résumé + actions de masse */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-slate-700">
+                <span className="font-bold text-red-600">{groupCount}</span> doublon(s) —{' '}
+                <span className="font-bold">{totalDups}</span> apprenants concernés
+                {toDelete.size > 0 && (
+                  <span className="ml-2 font-bold text-red-700">· {toDelete.size} sélectionné(s)</span>
+                )}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition disabled:opacity-50">
-                {deleting ? 'Suppression…' : `Supprimer ${toDelete.size} sélectionné(s)`}
+                onClick={autoSelect}
+                className="px-3 py-1.5 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition">
+                ✦ Auto-sélection intelligente
               </button>
-            )}
+              <button
+                onClick={selectAll}
+                className="px-3 py-1.5 bg-slate-700 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition">
+                Tout sélectionner ({totalDups})
+              </button>
+              {toDelete.size > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="px-3 py-1.5 bg-white text-slate-600 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 transition">
+                  Tout désélectionner
+                </button>
+              )}
+              {toDelete.size > 0 && (
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="px-4 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition disabled:opacity-50 ml-auto">
+                  {deleting ? 'Suppression…' : `🗑 Supprimer ${toDelete.size} sélectionné(s)`}
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-amber-700">
+              <strong>Auto-sélection intelligente</strong> : garde l'entrée la plus complète (code, CIN, filière, groupe…) par doublon et sélectionne toutes les autres. Vérifiez avant de supprimer.
+            </p>
           </div>
 
           <div className="space-y-4">
             {Object.entries(groups).map(([key, arr]) => {
               const [nom, prenom] = key.split('|');
+              const allGroupChecked = arr.every(s => toDelete.has(s._id));
+              const someGroupChecked = arr.some(s => toDelete.has(s._id));
               return (
                 <div key={key} className="bg-white border border-red-100 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-center gap-3">
+                  <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-center gap-3 flex-wrap">
+                    {/* Checkbox groupe : sélectionne/désélectionne tout le groupe */}
+                    <input
+                      type="checkbox"
+                      checked={allGroupChecked}
+                      ref={el => { if (el) el.indeterminate = someGroupChecked && !allGroupChecked; }}
+                      onChange={() => toggleGroupAll(arr)}
+                      className="w-4 h-4 rounded accent-red-600 shrink-0"
+                      title="Tout sélectionner / désélectionner dans ce groupe"
+                    />
                     <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                     <p className="font-bold text-slate-800 text-sm capitalize">{prenom} {nom}</p>
-                    <span className="ml-auto text-xs text-red-600 font-semibold">{arr.length} entrées</span>
+                    <span className="text-xs text-red-600 font-semibold">{arr.length} entrées</span>
+                    {/* Bouton "garder le 1er" par groupe */}
+                    <button
+                      onClick={() => selectGroupExceptFirst(arr)}
+                      className="ml-auto text-[11px] text-violet-600 font-semibold hover:text-violet-800 transition underline underline-offset-2">
+                      Garder le 1er, sélectionner les autres
+                    </button>
                   </div>
                   <div className="divide-y divide-slate-50">
-                    {arr.map(s => (
+                    {arr.map((s, i) => (
                       <div key={s._id} className={`flex items-center gap-3 px-4 py-3 ${toDelete.has(s._id) ? 'bg-red-50/60' : ''}`}>
                         <input
                           type="checkbox"
@@ -149,6 +238,7 @@ export default function DeduplicationPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-slate-700">
                             {s.prenom} {s.nom}
+                            {i === 0 && <span className="ml-2 text-[10px] bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full">le plus complet</span>}
                           </p>
                           <p className="text-xs text-slate-400 mt-0.5">
                             Code : {s.code || s.codeApprenant || '—'} ·
@@ -157,7 +247,7 @@ export default function DeduplicationPage() {
                             CIN : {s.cin || '—'}
                           </p>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0
                           ${s.statut === 'actif' ? 'bg-emerald-100 text-emerald-700' :
                             s.statut === 'archive' ? 'bg-slate-100 text-slate-500' :
                             'bg-amber-100 text-amber-700'}`}>
