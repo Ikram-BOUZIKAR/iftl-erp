@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { generateReleve1A, generateReleve2A } from '../../services/pdfService';
+import { generateReleve1A, generateReleve2A, generateReleveFormationSup } from '../../services/pdfService';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useAuth } from '../../hooks/useAuth';
 import { canSeeNiveau } from '../../utils/roleConfig';
@@ -202,10 +202,6 @@ export default function RelevesPage() {
 
   const handleGenerate = async () => {
     if (!selected) return;
-    if (['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee)) {
-      showToast('Template ' + annee + ' en cours de développement — aperçu disponible uniquement', 'error');
-      return;
-    }
     setGenerating(true);
     try {
       const code = selected.codeApprenant || selected.id;
@@ -214,6 +210,7 @@ export default function RelevesPage() {
         anneeAcademique: anneeAcad,
         filiere: bul?.filiere || selected.filiere || '',
         groupe: bul?.groupe || selected.groupeId || '',
+        niveau: annee,
       };
       const studentData = {
         nom: selected.nom,
@@ -232,6 +229,13 @@ export default function RelevesPage() {
           decision: bul?.decision === 'admis' ? 'ADMIS(E)' : bul?.decision === 'non_admis' ? 'NON ADMIS(E)' : undefined,
         }, branding);
         showToast('Relevé 1A généré', 'success');
+      } else if (['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee)) {
+        generateReleveFormationSup(studentData, info, modules2A, {
+          moyenneGenerale: bul?.moyenneGenerale,
+          mention: bul?.mention,
+          decision: bul?.decision === 'admis' ? 'ADMIS(E)' : bul?.decision === 'non_admis' ? 'NON ADMIS(E)' : undefined,
+        }, branding);
+        showToast('Relevé ' + annee + ' généré', 'success');
       } else {
         if (!modules2A.length) { showToast('Aucune note 2A trouvée pour cet apprenant', 'error'); return; }
         generateReleve2A(studentData, info, modules2A, {

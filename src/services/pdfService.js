@@ -5,8 +5,10 @@ import { fr } from 'date-fns/locale';
 import IFTL_LOGO from '../assets/iftlLogo.js';
 import { formatCurrency } from '../utils/currency';
 
-const INSTITUTE_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
-const INSTITUTE_SHORT = INSTITUTE_NAME.split(/\s+/).slice(0, 2).join(' ');
+const INSTITUTE_NAME     = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
+const INSTITUTE_SHORT    = INSTITUTE_NAME.split(/\s+/).slice(0, 2).join(' ');
+const INSTITUTE_FULL_FR  = 'Institut de Formation Transport & Logistique';
+const INSTITUTE_ARABIC   = 'معهد التكوين في مهن النقل والخدمات اللوجستية';
 const IS_DEMO = import.meta.env.MODE === 'demo';
 
 // ─── Brand helpers ────────────────────────────────────────────────────────────
@@ -136,6 +138,60 @@ function drawIftlHeader(doc, title, subtitle) {
 
   doc.setTextColor(...BRAND.black);
   return 38;
+}
+
+// DOCX-style header: logo left (no background), FR+AR name right, blue separator, titled box
+function drawDocHeader(doc, title, subtitle) {
+  const w = doc.internal.pageSize.getWidth();
+
+  // Logo top-left — no colored background
+  if (!IS_DEMO) {
+    doc.addImage(IFTL_LOGO, 'PNG', 10, 4, 40, 26);
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...BRAND.blue);
+    doc.text(INSTITUTE_SHORT, 30, 18, { align: 'center' });
+  }
+
+  // Institute names right side
+  const rx = w - 12;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.setTextColor(...BRAND.blue);
+  doc.text(INSTITUTE_FULL_FR, rx, 13, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text(INSTITUTE_ARABIC, rx, 22, { align: 'right' });
+
+  // Blue separator line
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.8);
+  doc.line(10, 33, w - 10, 33);
+
+  // Document title — bordered box
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(14, 37, w - 28, 12, 1, 1, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND.blue);
+  doc.text(title, w / 2, 45, { align: 'center' });
+
+  // Subtitle (annee + niveau info)
+  let yEnd = 53;
+  if (subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BRAND.grey);
+    doc.text(subtitle, w / 2, 53, { align: 'center' });
+    yEnd = 59;
+  }
+
+  doc.setTextColor(...BRAND.black);
+  return yEnd;
 }
 
 function drawFooter(doc) {
@@ -1429,6 +1485,9 @@ const FILIERE_LABELS = {
   // Licence
   CNAM:    'Licence Professionnelle Logistique (CNAM)',
   MAINT:   'Technicien(ne) de Maintenance Industrielle',
+  // Formation supérieure
+  TRANS:   'Licence Professionnelle Transit et Logistique Internationale',
+  MLAI:    'Mastère Management de la Logistique et des Activités Industrielles',
 };
 
 function mention(moy) {
@@ -1460,34 +1519,8 @@ export function generateReleve1A(student, info, modules, summary = {}, branding 
   const w = doc.internal.pageSize.getWidth();
   const annee = info.anneeAcademique || '2025-2026';
 
-  // ── Header ──
-  doc.setFillColor(...BRAND.blue);
-  doc.rect(0, 0, w, 38, 'F');
-  doc.setFillColor(...BRAND.yellow);
-  doc.rect(0, 38, w, 3, 'F');
-
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
-  if (!IS_DEMO) {
-    doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
-  } else {
-    doc.setTextColor(...BRAND.blue);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 13 + i * 7, { align: 'center' }));
-    doc.setTextColor(...BRAND.white);
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(...BRAND.yellow);
-  doc.text('RELEVÉ DE NOTES ANNUEL', w - 14, 16, { align: 'right' });
-  doc.setFontSize(8);
-  doc.setTextColor(...BRAND.white);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Année académique : ${annee}`, w - 14, 24, { align: 'right' });
-
-  let y = 50;
+  let y = drawDocHeader(doc, 'RELEVÉ DE NOTES ANNUEL', `Année académique : ${annee}   |   Niveau : Technicien(ne) Spécialisé(e)`);
+  y += 6;
 
   // ── Student identity ──
   const filiereFull = FILIERE_LABELS[info.filiere] || info.filiere || '—';
@@ -1610,34 +1643,8 @@ export function generateReleve2A(student, info, modules, summary2A = {}, brandin
   const w = doc.internal.pageSize.getWidth();
   const annee = info.anneeAcademique || '2025-2026';
 
-  // ── Header ──
-  doc.setFillColor(...BRAND.blue);
-  doc.rect(0, 0, w, 38, 'F');
-  doc.setFillColor(...BRAND.yellow);
-  doc.rect(0, 38, w, 3, 'F');
-
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, 2, 44, 34, 2, 2, 'F');
-  if (!IS_DEMO) {
-    doc.addImage(IFTL_LOGO, 'PNG', 11, 3, 42, 30);
-  } else {
-    doc.setTextColor(...BRAND.blue);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    INSTITUTE_NAME.split(/\s+/).forEach((word, i) => doc.text(word, 32, 13 + i * 7, { align: 'center' }));
-    doc.setTextColor(...BRAND.white);
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...BRAND.yellow);
-  doc.text('RELEVÉ DE NOTES DE FIN DE FORMATION', w - 14, 16, { align: 'right' });
-  doc.setFontSize(8);
-  doc.setTextColor(...BRAND.white);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Année académique : ${annee}`, w - 14, 24, { align: 'right' });
-
-  let y = 50;
+  let y = drawDocHeader(doc, 'RELEVÉ DE NOTES DE FIN DE FORMATION', `Année académique : ${annee}   |   Niveau : Technicien(ne) Spécialisé(e)`);
+  y += 6;
 
   // ── Student identity ──
   const filiereFull = FILIERE_LABELS[info.filiere] || info.filiere || '—';
@@ -1768,6 +1775,138 @@ export function generateReleve2A(student, info, modules, summary2A = {}, brandin
 
   drawFooter(doc);
   const fname = `Releve2A_${student.codeApprenant || student.nom}_${annee.replace(/\//g, '-')}.pdf`;
+  doc.save(fname);
+}
+
+// ─── Relevé Formation Supérieure (Licence CNAM, Licence Transitaire, Mastère) ─
+/**
+ * @param {object} student  { nom, prenom, codeApprenant, cin, dateNaissance, sexe }
+ * @param {object} info     { anneeAcademique, filiere, groupe, niveau }
+ *                          niveau: 'Licence' | 'LicenceTransitaire' | 'Mastère'
+ * @param {Array}  modules  [{ ref?, nom, note, coeff }]
+ * @param {object} summary  { moyenneGenerale?, mention?, decision? }
+ */
+export function generateReleveFormationSup(student, info, modules, summary = {}, branding = null) {
+  _setBrand(branding);
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const w = doc.internal.pageSize.getWidth();
+  const annee = info.anneeAcademique || '2025-2026';
+
+  const NIVEAU_LABELS = {
+    Licence:            'Licence Professionnelle',
+    LicenceTransitaire: 'Licence Professionnelle — Transit',
+    Mastère:            'Mastère Professionnel',
+  };
+  const FILIERE_FALLBACK = {
+    Licence:            'Licence Professionnelle Logistique (CNAM)',
+    LicenceTransitaire: 'Transit et Logistique Internationale',
+    Mastère:            'Management de la Logistique et des Activités Industrielles',
+  };
+  const niveau = info.niveau || 'Licence';
+  const niveauLabel = NIVEAU_LABELS[niveau] || niveau;
+  const filiereFull = FILIERE_LABELS[info.filiere] || FILIERE_FALLBACK[niveau] || info.filiere || '—';
+
+  let y = drawDocHeader(doc, 'RELEVÉ DE NOTES ANNUEL', `Année académique : ${annee}   |   Niveau : ${niveauLabel}`);
+  y += 6;
+
+  // ── Filière banner ──
+  doc.setFillColor(...BRAND.lightBlue);
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, y, w - 28, 8, 1, 1, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...BRAND.darkBlue);
+  doc.text(`Filière : ${filiereFull}`, 18, y + 5.5);
+  y += 14;
+
+  // ── Student identity ──
+  const fields = [
+    { label: 'Nom & Prénom',     value: `${student.nom || ''} ${student.prenom || ''}`.trim() },
+    { label: 'Code Apprenant',   value: student.codeApprenant || '—' },
+    { label: 'Sexe',             value: student.sexe === 'F' ? 'Féminin' : student.sexe === 'M' ? 'Masculin' : '—' },
+    { label: 'C.N.I',            value: student.cin || '—' },
+    { label: 'Date de naissance',value: student.dateNaissance || '—' },
+  ];
+  y = infoBox(doc, fields, y, 14, 14);
+  y += 4;
+
+  // ── Notes table ──
+  const moy = summary.moyenneGenerale ?? moyGenFromModules(modules);
+  const men = summary.mention || mention(moy);
+  const decision = summary.decision || (moy !== null && moy >= 10 ? 'ADMIS(E)' : 'NON ADMIS(E)');
+
+  const rows = modules.map(m => [
+    m.ref || '—',
+    m.nom || '—',
+    m.note !== null && m.note !== undefined ? Number(m.note).toFixed(2) : '—',
+    String(m.coeff || 1),
+  ]);
+  rows.push([
+    { content: 'Moyenne Générale Annuelle', colSpan: 2, styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white } },
+    { content: moy !== null ? moy.toFixed(2) : '—', styles: { fontStyle: 'bold', fillColor: BRAND.blue, textColor: BRAND.white, halign: 'center' } },
+    { content: '', styles: { fillColor: BRAND.blue } },
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 14, right: 14 },
+    head: [['Réf.', 'Module', 'Note Générale (/20)', 'Coef.']],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+    headStyles: { fillColor: BRAND.darkBlue, textColor: BRAND.white, fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [248, 250, 253] },
+    columnStyles: {
+      0: { cellWidth: 22, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 26, halign: 'center' },
+      3: { cellWidth: 18, halign: 'center' },
+    },
+    didParseCell: (data) => {
+      if (data.row.index === rows.length - 1 && data.section === 'body') {
+        data.cell.styles.fillColor = BRAND.blue;
+        data.cell.styles.textColor = BRAND.white;
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
+  // ── Mention & Décision ──
+  const boxW = (w - 28 - 6) / 2;
+  ['Mention', 'Décision'].forEach((label, i) => {
+    const val = i === 0 ? men : decision;
+    const color = i === 1 ? (val.startsWith('ADMIS') ? [0, 130, 60] : [180, 0, 0]) : BRAND.darkBlue;
+    const x = 14 + i * (boxW + 6);
+    doc.setFillColor(248, 250, 253);
+    doc.setDrawColor(...BRAND.blue);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, boxW, 10, 1, 1, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...BRAND.grey);
+    doc.text(label + ' :', x + 4, y + 4.5);
+    doc.setFontSize(9);
+    doc.setTextColor(...color);
+    doc.text(val, x + boxW / 2, y + 7.5, { align: 'center' });
+  });
+  y += 16;
+
+  // ── Signatures: Direction Générale (left) + Direction Pédagogique (right) ──
+  const sigW = 64;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.grey);
+  doc.text('Direction Générale :', 14, y);
+  doc.text('Direction Pédagogique :', w - 14, y, { align: 'right' });
+  doc.setDrawColor(...BRAND.blue);
+  doc.setLineWidth(0.2);
+  doc.line(14, y + 18, 14 + sigW, y + 18);
+  doc.line(w - 14 - sigW, y + 18, w - 14, y + 18);
+
+  drawFooter(doc);
+  const fname = `Releve_FS_${student.codeApprenant || student.nom}_${annee.replace(/\//g, '-')}.pdf`;
   doc.save(fname);
 }
 
