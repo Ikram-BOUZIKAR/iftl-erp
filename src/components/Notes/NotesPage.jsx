@@ -1738,6 +1738,27 @@ function PortailEntrantTab() {
   const handleImport = async (sub) => {
     setImporting(sub.id);
     try {
+      // Hard duplicate check — block if notes already exist for this module/group/session
+      const existingEvals = await getDocs(query(
+        collection(db, 'evaluations'),
+        where('moduleId', '==', sub.moduleId),
+        where('groupeId', '==', sub.groupeId),
+        where('sessionAcademique', '==', sub.semestre),
+      ));
+      let existingNoteCount = 0;
+      for (const evDoc of existingEvals.docs) {
+        const nSnap = await getDocs(query(
+          collection(db, 'notes'),
+          where('evaluationId', '==', evDoc.id),
+        ));
+        existingNoteCount += nSnap.size;
+      }
+      if (existingNoteCount > 0) {
+        toast.error(`⚠️ Des notes existent déjà pour ce module/groupe/session (${existingNoteCount} note(s)). Supprimez d'abord les notes existantes avant de réimporter.`);
+        setImporting(null);
+        return;
+      }
+
       const evalRef = await addDoc(collection(db, 'evaluations'), {
         type:             sub.type,
         titre:            `${sub.type} — ${sub.moduleNom}`,
