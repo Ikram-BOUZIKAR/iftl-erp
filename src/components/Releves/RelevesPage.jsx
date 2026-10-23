@@ -9,7 +9,9 @@ import { useTranslation } from 'react-i18next';
 const ANNEE_BY_NIVEAU = {
   '1A': '2026-2027',
   '2A': '2026-2027',
+  'TechnicienQ': '2026-2027',
   'Licence': '2025-2026',
+  'LicenceTransitaire': '2025-2026',
   'Mastère': '2025-2026',
 };
 
@@ -18,7 +20,9 @@ function matchesNiveau(student, annee) {
   const af = (student.anneeFormation || '').toLowerCase();
   if (annee === '1A') return niv.includes('1a') || af === '1a' || niv.includes('première') || (!niv && !af);
   if (annee === '2A') return niv.includes('2a') || af === '2a' || niv.includes('deuxième');
-  if (annee === 'Licence') return niv.includes('licence') || af === 'licence' || niv.includes('cnam');
+  if (annee === 'Licence') return (niv.includes('licence') && !niv.includes('transitaire')) || af === 'licence' || niv.includes('cnam');
+  if (annee === 'LicenceTransitaire') return niv.includes('transitaire') || af === 'licencetransitaire';
+  if (annee === 'TechnicienQ') return niv.includes('technicien q') || niv.includes('technicienq') || af === 'technicienq' || (niv.includes('qualif') && niv.includes('tech'));
   if (annee === 'Mastère') return niv.includes('astère') || niv.includes('aster') || af === 'mastère' || af === 'master';
   return true;
 }
@@ -101,7 +105,7 @@ export default function RelevesPage() {
 
   // When a student is selected + non-1A mode, fetch their notes
   useEffect(() => {
-    if (!selected || !['2A', 'Licence', 'Mastère'].includes(annee)) { setNotes2A([]); setEvals2A([]); return; }
+    if (!selected || !['2A', 'Licence', 'LicenceTransitaire', 'TechnicienQ', 'Mastère'].includes(annee)) { setNotes2A([]); setEvals2A([]); return; }
     let cancelled = false;
     setLoadingNotes(true);
     async function fetch2A() {
@@ -111,7 +115,7 @@ export default function RelevesPage() {
           getDocs(collection(db, 'evaluations')),
         ]);
         if (cancelled) return;
-        if (annee === '2A') {
+        if (annee === '2A' || annee === 'TechnicienQ') {
           setNotes2A(nSnap.docs.filter(d => (d.data().evaluationId || '').includes('2A')).map(d => ({ id: d.id, ...d.data() })));
           setEvals2A(evSnap.docs.filter(d => d.id.includes('2A')).map(d => ({ id: d.id, ...d.data() })));
         } else {
@@ -169,9 +173,9 @@ export default function RelevesPage() {
     return bulletins.find(b => b.studentCode === code || b.studentId === code) || null;
   }, [selected, bulletins]);
 
-  // Build 2A/Licence/Mastère modules list from notes + evaluations
+  // Build 2A/TechnicienQ/Licence/LicenceTransitaire/Mastère modules list from notes + evaluations
   const modules2A = useMemo(() => {
-    if (!selected || !['2A', 'Licence', 'Mastère'].includes(annee) || !notes2A.length) return [];
+    if (!selected || !['2A', 'TechnicienQ', 'Licence', 'LicenceTransitaire', 'Mastère'].includes(annee) || !notes2A.length) return [];
     const evalMap = {};
     for (const ev of evals2A) evalMap[ev.id] = ev;
     return notes2A.map(n => {
@@ -195,7 +199,7 @@ export default function RelevesPage() {
 
   const handleGenerate = async () => {
     if (!selected) return;
-    if (['Licence', 'Mastère'].includes(annee)) {
+    if (['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee)) {
       showToast('Template ' + annee + ' en cours de développement — aperçu disponible uniquement', 'error');
       return;
     }
@@ -243,13 +247,13 @@ export default function RelevesPage() {
     }
   };
 
-  const canGenerate = selected && (annee === '1A' ? modules1A.length > 0 : ['Licence', 'Mastère'].includes(annee) ? true : modules2A.length > 0);
+  const canGenerate = selected && (annee === '1A' ? modules1A.length > 0 : ['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee) ? true : modules2A.length > 0);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">{t('releves.title')}</h1>
-        <p className="text-sm text-slate-500 mt-1">Génération PDF des relevés — 1A TS, 2A TS, Licence CNAM, Mastère / Master</p>
+        <p className="text-sm text-slate-500 mt-1">Génération PDF des relevés — 1A TS, 2A TS, Technicien Q, Licence CNAM, Licence Transitaire, Mastère / Master</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -287,15 +291,17 @@ export default function RelevesPage() {
           {/* Type selector */}
           <div className="bg-white rounded-2xl border border-slate-200 p-4">
             <h2 className="text-sm font-bold text-slate-700 mb-3">2. Type de relevé</h2>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-wrap gap-2">
               {[
                 { key: '1A', label: 'Relevé 1A TS' },
                 { key: '2A', label: 'Relevé 2A TS' },
+                { key: 'TechnicienQ', label: 'Technicien Q' },
                 { key: 'Licence', label: 'Licence CNAM' },
+                { key: 'LicenceTransitaire', label: 'Licence Transitaire' },
                 { key: 'Mastère', label: 'Mastère / Master' },
               ].map(a => (
                 <button key={a.key} onClick={() => { setAnnee(a.key); setSelected(null); }}
-                  className={`py-2 rounded-xl text-sm font-semibold border transition-colors ${annee === a.key ? 'bg-[#005989] text-white border-[#005989]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                  className={`flex-1 min-w-[45%] py-2 rounded-xl text-sm font-semibold border transition-colors ${annee === a.key ? 'bg-[#005989] text-white border-[#005989]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                   {a.label}
                 </button>
               ))}
@@ -373,12 +379,12 @@ export default function RelevesPage() {
                 </div>
               )}
 
-              {/* 2A / Licence / Mastère Preview + inputs */}
-              {['2A', 'Licence', 'Mastère'].includes(annee) && (
+              {/* 2A / TechnicienQ / Licence / LicenceTransitaire / Mastère Preview + inputs */}
+              {['2A', 'TechnicienQ', 'Licence', 'LicenceTransitaire', 'Mastère'].includes(annee) && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
                   <h2 className="text-sm font-bold text-slate-700">Aperçu — Modules {annee}</h2>
 
-                  {['Licence', 'Mastère'].includes(annee) && (
+                  {['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee) && (
                     <p className="text-xs text-blue-600 bg-blue-50 rounded-xl px-3 py-2">
                       ℹ️ Template PDF {annee} en cours de développement. L'aperçu affiche les notes disponibles.
                     </p>
@@ -468,7 +474,7 @@ export default function RelevesPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                {generating ? t('releves.generating') : ['Licence', 'Mastère'].includes(annee) ? `Aperçu ${annee} — ${selected.nom} ${selected.prenom}` : `${t('releves.generate_btn')} ${annee} TS — ${selected.nom} ${selected.prenom}`}
+                {generating ? t('releves.generating') : ['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee) ? `Aperçu ${annee} — ${selected.nom} ${selected.prenom}` : `${t('releves.generate_btn')} ${annee} TS — ${selected.nom} ${selected.prenom}`}
               </button>
             </>
           ) : (

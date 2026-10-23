@@ -1243,6 +1243,34 @@ function NotesDashboardTab({ modules, groupes, evaluations }) {
   const [filterGroupe, setFilterGroupe] = useState('');
   const [filterModule, setFilterModule] = useState('');
   const [filterSession, setFilterSession] = useState('');
+  const [drillEval, setDrillEval] = useState(null);
+  const [drillNotes, setDrillNotes] = useState([]);
+  const [drillLoading, setDrillLoading] = useState(false);
+
+  const handleDrill = async (row) => {
+    setDrillEval(row);
+    setDrillLoading(true);
+    setDrillNotes([]);
+    try {
+      const nSnap = await getDocs(query(collection(db, 'notes'), where('evaluationId', '==', row.evalId)));
+      const notesList = nSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const withNames = await Promise.all(notesList.map(async n => {
+        try {
+          const sSnap = await getDoc(doc(db, 'students', n.studentId));
+          const s = sSnap.exists() ? sSnap.data() : null;
+          return { ...n, nomComplet: s ? `${s.prenom} ${s.nom}` : n.studentId, codeApprenant: s?.codeApprenant || n.studentId };
+        } catch {
+          return { ...n, nomComplet: n.studentId, codeApprenant: n.studentId };
+        }
+      }));
+      withNames.sort((a, b) => (a.nomComplet || '').localeCompare(b.nomComplet || ''));
+      setDrillNotes(withNames);
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setDrillLoading(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -1396,7 +1424,7 @@ function NotesDashboardTab({ modules, groupes, evaluations }) {
                   const grp = groupes.find(g => g.id === r.groupeId);
                   const typeStyle = TYPE_EVAL_STYLES[r.type] || { cls: 'bg-slate-100 text-slate-600', label: r.type || '—' };
                   return (
-                    <tr key={r.evalId} className="hover:bg-slate-50 transition-colors">
+                    <tr key={r.evalId} onClick={() => handleDrill(r)} className="hover:bg-slate-50 transition-colors cursor-pointer">
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-800 truncate max-w-[200px]">{r.evalTitre}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
@@ -1454,6 +1482,80 @@ function NotesDashboardTab({ modules, groupes, evaluations }) {
           </div>
         )}
       </div>
+
+      {/* Drill-down modal */}
+      {drillEval && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setDrillEval(null)}>
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50">
+              <div>
+                <p className="font-bold text-slate-800">{drillEval.evalTitre}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {modules.find(m => m.id === drillEval.moduleId)?.nom || drillEval.moduleId || '—'}
+                  {' · '}
+                  {groupes.find(g => g.id === drillEval.groupeId)?.nom || '—'}
+                  {' · '}
+                  {drillEval.session || '—'}
+                </p>
+              </div>
+              <button onClick={() => setDrillEval(null)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-lg">✕</button>
+            </div>
+            <div className="flex gap-4 px-5 py-3 border-b border-slate-100 text-xs text-slate-500 flex-wrap">
+              <span>Notés : <strong className="text-slate-700">{drillEval.noted}</strong></span>
+              <span>Absents : <strong className="text-amber-600">{drillEval.absent}</strong></span>
+              {drillEval.avg !== null && <span>Moyenne : <strong className={drillEval.avg >= 10 ? 'text-emerald-600' : 'text-red-500'}>{drillEval.avg.toFixed(2)}/20</strong></span>}
+              <span className="text-emerald-600">✓ Validés : {drillEval.validated}</span>
+              <span className="text-amber-600">↺ Rachat : {drillEval.rachat}</span>
+              <span className="text-red-500">✗ Non val. : {drillEval.failed}</span>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {drillLoading ? (
+                <div className="flex justify-center py-10"><Spinner /></div>
+              ) : drillNotes.length === 0 ? (
+                <p className="text-center text-slate-400 text-sm py-10">Aucune note trouvée.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Apprenant</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Code</th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Note /20</th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {drillNotes.map(n => (
+                      <tr key={n.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-2.5 font-medium text-slate-800">{n.nomComplet}</td>
+                        <td className="px-4 py-2.5 text-xs text-slate-400 font-mono hidden sm:table-cell">{n.codeApprenant}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          {n.absent
+                            ? <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ABS</span>
+                            : n.note !== null
+                              ? <span className={`font-bold ${n.note >= 10 ? 'text-emerald-600' : n.note >= 9 ? 'text-amber-600' : 'text-red-500'}`}>{n.note}</span>
+                              : <span className="text-slate-300">—</span>
+                          }
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {n.absent
+                            ? <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">Absent</span>
+                            : n.note !== null
+                              ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${n.note >= 10 ? 'bg-emerald-100 text-emerald-700' : n.note >= 9 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                                  {n.note >= 10 ? 'Validé' : n.note >= 9 ? 'Rachat' : 'Non validé'}
+                                </span>
+                              : <span className="text-slate-300">—</span>
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
