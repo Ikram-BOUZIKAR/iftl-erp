@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { canSeeNiveau } from '../../utils/roleConfig';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
+import { calculerMoyenneUELicence } from '../../utils/notesUtils';
 
 const ANNEE_BY_NIVEAU = {
   '1A': '2026-2027',
@@ -181,14 +182,55 @@ export default function RelevesPage() {
     if (!selected || !['2A', 'TechnicienQ', 'Licence', 'LicenceTransitaire', 'Mastère'].includes(annee) || !notes2A.length) return [];
     const evalMap = {};
     for (const ev of evals2A) evalMap[ev.id] = ev;
+
+    // Pour Licence/LicenceTransitaire/Mastère : regrouper par module et appliquer
+    // Formule : CTL × 25% + max(EFM, min(Ratt, 12)) × 75%
+    if (['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee)) {
+      const byModule = {};
+      for (const n of notes2A) {
+        const ev = evalMap[n.evaluationId] || {};
+        const moduleId = ev.moduleId;
+        if (!moduleId) continue;
+        if (!byModule[moduleId]) {
+          const modDoc = allModules.find(m => m.id === moduleId);
+          byModule[moduleId] = {
+            ref:   moduleId,
+            nom:   modDoc?.nom || moduleId,
+            coeff: modDoc?.coeff ?? modDoc?.coefficient ?? ev.coefficient ?? 2,
+            code:  modDoc?.code || moduleId,
+            cc: null, efm: null, rattrapage: null,
+          };
+        }
+        const type = (ev.type || '').toUpperCase();
+        const val  = n.note !== null && n.note !== undefined ? Number(n.note) : null;
+        // Accepte les deux systèmes de typage (CC/EFM/RATTRAPAGE et controle/examen_rattrapage)
+        if (type === 'CC' || type === 'CTL' || type === 'CONTROLE' || type === 'CONTRÔLE') {
+          byModule[moduleId].cc = val;
+        } else if (type === 'EFM') {
+          byModule[moduleId].efm = val;
+        } else if (type === 'RATTRAPAGE' || type === 'EXAMEN_RATTRAPAGE') {
+          byModule[moduleId].rattrapage = val;
+        }
+      }
+      return Object.values(byModule)
+        .map(m => ({
+          ref:   m.ref,
+          nom:   m.nom,
+          note:  calculerMoyenneUELicence(m.cc, m.efm, m.rattrapage, m.code),
+          coeff: m.coeff,
+        }))
+        .sort((a, b) => (a.ref || '').localeCompare(b.ref || ''));
+    }
+
+    // 2A / TechnicienQ : un note = une ligne (formule déjà calculée côté saisie)
     return notes2A.map(n => {
       const ev = evalMap[n.evaluationId] || {};
       const modDoc = allModules.find(m => m.id === ev.moduleId);
       return {
-        ref: ev.moduleId || '—',
-        nom: modDoc?.nom || ev.moduleId || n.evaluationId,
-        note: n.note,
-        coeff: modDoc?.coeff || modDoc?.coefficient || ev.coefficient || 2,
+        ref:   ev.moduleId || '—',
+        nom:   modDoc?.nom || ev.moduleId || n.evaluationId,
+        note:  n.note,
+        coeff: modDoc?.coeff ?? modDoc?.coefficient ?? ev.coefficient ?? 2,
       };
     }).sort((a, b) => (a.ref || '').localeCompare(b.ref || ''));
   }, [selected, annee, notes2A, evals2A, allModules]);
