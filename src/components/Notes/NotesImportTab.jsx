@@ -81,6 +81,8 @@ export default function NotesImportTab({ modules, groupes }) {
   const [showEvalMeta, setShowEvalMeta] = useState(false);
   const [evalMeta, setEvalMeta]     = useState({ CC: {}, EFM: {}, RATTRAPAGE: {} });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dupWarn, setDupWarn] = useState(null);
+  const [dupConfirmed, setDupConfirmed] = useState(false);
 
   const isLicence = programme === 'licence_cnam';
   const selectedModule = modules?.find(m => m.id === moduleId);
@@ -165,6 +167,37 @@ export default function NotesImportTab({ modules, groupes }) {
     toast.success(`${parsed.length} ligne(s) importée(s) depuis le presse-papiers.`);
   };
 
+  // Reset dup state when selection changes
+  useEffect(() => { setDupWarn(null); setDupConfirmed(false); }, [moduleId, groupeId, semestre]);
+
+  // ─── Vérification doublons ───────────────────────────────────────────────────
+
+  const checkDuplicates = async () => {
+    if (!moduleId || !groupeId) return null;
+    const found = [];
+    let total = 0;
+    for (const type of EVAL_TYPES_META) {
+      const evalSnap = await getDocs(query(
+        collection(db, 'evaluations'),
+        where('moduleId', '==', moduleId),
+        where('groupeId', '==', groupeId),
+        where('type', '==', type),
+        where('sessionAcademique', '==', semestre),
+      ));
+      for (const evalDoc of evalSnap.docs) {
+        const notesSnap = await getDocs(query(
+          collection(db, 'notes'),
+          where('evaluationId', '==', evalDoc.id),
+        ));
+        if (notesSnap.size > 0) {
+          found.push({ type, count: notesSnap.size });
+          total += notesSnap.size;
+        }
+      }
+    }
+    return total > 0 ? { types: found, total } : null;
+  };
+
   // ─── Suppression des notes importées ────────────────────────────────────────
 
   const handleDelete = async () => {
@@ -206,6 +239,25 @@ export default function NotesImportTab({ modules, groupes }) {
     if (!moduleId || !groupeId) { toast.error('Sélectionnez un module et un groupe.'); return; }
     const filled = rowsWithCalc.filter(r => r.cc !== '' || r.efm !== '' || r.rattrapage !== '');
     if (!filled.length) { toast.error('Aucune note à enregistrer.'); return; }
+
+    if (!dupConfirmed) {
+      setSaving(true);
+      let dups = null;
+      try {
+        dups = await checkDuplicates();
+      } catch (err) {
+        toast.error('Erreur vérification doublons : ' + err.message);
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+      if (dups) {
+        setDupWarn(dups);
+        return;
+      }
+    }
+    setDupConfirmed(false);
+    setDupWarn(null);
 
     setSaving(true);
     try {
@@ -427,6 +479,37 @@ export default function NotesImportTab({ modules, groupes }) {
           {saving ? 'Enregistrement…' : '💾 Enregistrer'}
         </button>
       </div>
+
+      {/* Duplicate warning */}
+      {dupWarn && !dupConfirmed && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-4 flex items-start gap-3">
+          <span className="text-2xl mt-0.5">⚠️</span>
+          <div className="flex-1">
+            <p className="font-bold text-amber-800 text-sm">Notes déjà enregistrées pour ce module / groupe / session</p>
+            <p className="text-amber-700 text-xs mt-1">
+              {dupWarn.types.map(t => `${t.type} : ${t.count} note(s)`).join(' · ')} — Total : <strong>{dupWarn.total} note(s)</strong>
+            </p>
+            <p className="text-amber-600 text-xs mt-1.5">
+              En continuant, les notes existantes seront <strong>remplacées</strong> par les nouvelles valeurs.
+              Pour repartir de zéro, utilisez d'abord <em>Supprimer notes importées</em>.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { setDupWarn(null); setDupConfirmed(false); }}
+                className="px-4 py-1.5 text-sm border border-amber-300 rounded-xl text-amber-700 hover:bg-amber-100 transition-colors font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { setDupConfirmed(true); setTimeout(handleSave, 0); }}
+                className="px-4 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold transition-colors"
+              >
+                Remplacer quand même
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Zone de collage */}
       {showPaste && (
