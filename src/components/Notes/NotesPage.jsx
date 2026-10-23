@@ -739,6 +739,7 @@ function SaisieTab({ evaluations, modules, groupes }) {
 
 function BulletinsTab({ evaluations, modules, groupes }) {
   const toast = useToast();
+  const { branding } = useBranding();
   const [selectedGroupeId, setSelectedGroupeId] = useState('');
   const [students, setStudents] = useState([]);
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -991,6 +992,7 @@ function PvTab({ evaluations, modules, groupes }) {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const toast = useToast();
+  const { branding } = useBranding();
 
   const MENTIONS = { '≥16': 'Très Bien', '≥14': 'Bien', '≥12': 'Assez Bien', '≥10': 'Passable', '<10': 'Non Admis' };
 
