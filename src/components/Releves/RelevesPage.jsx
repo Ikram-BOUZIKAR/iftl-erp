@@ -189,27 +189,35 @@ export default function RelevesPage() {
       const byModule = {};
       for (const n of notes2A) {
         const ev = evalMap[n.evaluationId] || {};
-        const moduleId = ev.moduleId;
-        if (!moduleId) continue;
-        if (!byModule[moduleId]) {
-          const modDoc = allModules.find(m => m.id === moduleId);
-          byModule[moduleId] = {
-            ref:   moduleId,
-            nom:   modDoc?.nom || moduleId,
+        // Clé de regroupement : moduleId prioritaire, sinon moduleNom (fallback si moduleId absent)
+        const moduleKey = ev.moduleId || ev.moduleNom || ev.module;
+        if (!moduleKey) continue;
+        if (!byModule[moduleKey]) {
+          const modDoc = (ev.moduleId
+            ? (allModules.find(m => m.id === ev.moduleId)
+            || allModules.find(m => m.code === ev.moduleId))
+            : null)
+            || allModules.find(m => ev.moduleNom && m.nom === ev.moduleNom)
+            || allModules.find(m => ev.moduleNom && m.code === ev.moduleNom);
+          byModule[moduleKey] = {
+            ref:   ev.moduleId || moduleKey,
+            nom:   modDoc?.nom || ev.moduleNom || ev.module || moduleKey,
             coeff: modDoc?.coeff ?? modDoc?.coefficient ?? ev.coefficient ?? 2,
-            code:  modDoc?.code || moduleId,
+            code:  modDoc?.code || ev.moduleCode || ev.moduleId || moduleKey,
             ccNotes: [], efm: null, rattrapage: null,
           };
         }
-        const type = (ev.type || '').toUpperCase();
+        // Détection du type — robuste : ev.type prioritaire, sinon parse ev.code (ex: "IMPORT_CC_LTR112_S1")
+        const rawType = (ev.type || '').toUpperCase().trim();
+        const codeType = !rawType && ev.code ? (ev.code.split('_')[1] || '').toUpperCase() : '';
+        const type = rawType || codeType;
         const val  = n.note !== null && n.note !== undefined ? Number(n.note) : null;
-        // Accepte les deux systèmes de typage (CC/EFM/RATTRAPAGE et controle/examen_rattrapage)
         if (type === 'CC' || type === 'CTL' || type === 'CONTROLE' || type === 'CONTRÔLE') {
-          if (val !== null) byModule[moduleId].ccNotes.push(val);
+          if (val !== null) byModule[moduleKey].ccNotes.push(val);
         } else if (type === 'EFM') {
-          byModule[moduleId].efm = val;
+          byModule[moduleKey].efm = val;
         } else if (type === 'RATTRAPAGE' || type === 'EXAMEN_RATTRAPAGE') {
-          byModule[moduleId].rattrapage = val;
+          byModule[moduleKey].rattrapage = val;
         }
       }
       return Object.values(byModule)
@@ -232,10 +240,13 @@ export default function RelevesPage() {
     // 2A / TechnicienQ : un note = une ligne (formule déjà calculée côté saisie)
     return notes2A.map(n => {
       const ev = evalMap[n.evaluationId] || {};
-      const modDoc = allModules.find(m => m.id === ev.moduleId);
+      const modDoc = (ev.moduleId
+        ? (allModules.find(m => m.id === ev.moduleId) || allModules.find(m => m.code === ev.moduleId))
+        : null)
+        || allModules.find(m => ev.moduleNom && m.nom === ev.moduleNom);
       return {
-        ref:   ev.moduleId || '—',
-        nom:   modDoc?.nom || ev.moduleId || n.evaluationId,
+        ref:   ev.moduleId || ev.moduleNom || '—',
+        nom:   modDoc?.nom || ev.moduleNom || ev.module || ev.moduleId || n.evaluationId,
         note:  n.note,
         coeff: modDoc?.coeff ?? modDoc?.coefficient ?? ev.coefficient ?? 2,
       };
