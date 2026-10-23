@@ -15,12 +15,12 @@ const INST_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
 const INST_LOGO = import.meta.env.VITE_DEFAULT_LOGO_URL || null;
 
 const PROGRAMMES = [
-  { value: '1A_TS',               label: '1ère Année TS',          annee: '2026-2027' },
-  { value: '2A_TS',               label: '2ème Année TS',          annee: '2026-2027' },
-  { value: 'TechnicienQ',         label: 'Technicien Qualifié',    annee: '2026-2027' },
-  { value: 'licence_cnam',        label: 'Licence CNAM',           annee: '2025-2026' },
-  { value: 'licence_transitaire', label: 'Licence Transitaire',    annee: '2025-2026' },
-  { value: 'mastere',             label: 'Mastère / Master',       annee: '2025-2026' },
+  { value: '1A_TS',               label: '1ère Année TS',                  annee: '2026-2027' },
+  { value: '2A_TS',               label: '2ème Année TS',                  annee: '2026-2027' },
+  { value: 'TechnicienQ',         label: 'Technicien + Qualification',     annee: '2026-2027' },
+  { value: 'licence_cnam',        label: 'Licence CNAM',                   annee: '2025-2026' },
+  { value: 'licence_transitaire', label: 'Licence Transitaire',            annee: '2025-2026' },
+  { value: 'mastere',             label: 'Mastère / Master',               annee: '2025-2026' },
 ];
 
 const EVAL_TYPES = [
@@ -207,7 +207,8 @@ export default function PortailNotesPublic() {
   const [e1, setE1]                             = useState({});
 
   // Step 2 — Sélection
-  const [programme, setProgramme]     = useState('1A_TS');
+  const [programme, setProgramme]       = useState('1A_TS');
+  const [anneeSelectee, setAnneeSelectee] = useState('2026-2027');
   const [groupeId, setGroupeId]       = useState('');
   const [groupeNom, setGroupeNom]     = useState('');
   const [moduleId, setModuleId]       = useState('');
@@ -347,8 +348,14 @@ export default function PortailNotesPublic() {
 
   const effectiveIntervenantNom = intervenantId === '__autre__' ? intervenantAutre : intervenantNom;
   const effectiveModuleNom      = moduleId === '__autre__' ? moduleAutre : moduleNom;
-  const anneeAcademique         = PROGRAMMES.find(p => p.value === programme)?.annee || '2026-2027';
+  const anneeAcademique         = anneeSelectee;
   const programmeLabel          = PROGRAMMES.find(p => p.value === programme)?.label || '';
+
+  // Sync year default when programme changes
+  useEffect(() => {
+    const defaultAnnee = PROGRAMMES.find(p => p.value === programme)?.annee || '2026-2027';
+    setAnneeSelectee(defaultAnnee);
+  }, [programme]);
 
   // Init notes
   useEffect(() => {
@@ -428,7 +435,7 @@ export default function PortailNotesPublic() {
   const resetAll = () => {
     setStep(1); setIntervenantId(''); setIntervenantNom(''); setIntervenantAutre('');
     setDate(new Date().toISOString().slice(0, 10));
-    setProgramme('1A_TS');
+    setProgramme('1A_TS'); setAnneeSelectee('2026-2027');
     setGroupeId(''); setGroupeNom(''); setModuleId(''); setModuleNom(''); setModuleAutre('');
     setEvalType('CC'); setSemestre('S1'); setStudents([]); setNotes({});
     setE1({}); setE2({}); setSaveErr(null); setSearch('');
@@ -651,13 +658,21 @@ export default function PortailNotesPublic() {
             <div style={{ background: C.card, borderRadius: 20, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '32px 28px' }}>
               <h2 style={{ margin: '0 0 24px', fontSize: 18, fontWeight: 900, color: C.ink }}>Groupe, module &amp; évaluation</h2>
 
-              <Field label="Programme / Niveau" required>
-                <FSelect value={programme} onChange={e => setProgramme(e.target.value)}>
-                  {PROGRAMMES.map(p => (
-                    <option key={p.value} value={p.value}>{p.label} — {p.annee}</option>
-                  ))}
-                </FSelect>
-              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <Field label="Programme / Niveau" required>
+                  <FSelect value={programme} onChange={e => setProgramme(e.target.value)}>
+                    {PROGRAMMES.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </FSelect>
+                </Field>
+                <Field label="Année académique" required>
+                  <FSelect value={anneeSelectee} onChange={e => setAnneeSelectee(e.target.value)}>
+                    <option value="2025-2026">2025-2026</option>
+                    <option value="2026-2027">2026-2027</option>
+                  </FSelect>
+                </Field>
+              </div>
 
               <Field label="Groupe" required error={e2.groupe}>
                 <FSelect value={groupeId} onChange={e => onGroupeChange(e.target.value)}>

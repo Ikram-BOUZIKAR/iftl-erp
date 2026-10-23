@@ -1686,7 +1686,8 @@ function PortailEntrantTab() {
   const [expanded, setExpanded]       = useState(null);
   const [importing, setImporting]     = useState(null);
   const [rejecting, setRejecting]     = useState(null);
-  const [filterStatut, setFilterStatut] = useState('en_attente');
+  const [filterStatut, setFilterStatut]     = useState('en_attente');
+  const [filterProgramme, setFilterProgramme] = useState('all');
 
   // Code d'accès management
   const [currentCode, setCurrentCode] = useState('');
@@ -1731,9 +1732,20 @@ function PortailEntrantTab() {
 
   useEffect(() => { loadSubmissions(); loadCode(); }, []);
 
-  const filtered = submissions.filter(s =>
-    filterStatut === 'all' ? true : s.statut === filterStatut
-  );
+  const PROGRAMMES_FILTER = [
+    { value: '1A_TS',               label: '1A TS' },
+    { value: '2A_TS',               label: '2A TS' },
+    { value: 'TechnicienQ',         label: 'T+Q' },
+    { value: 'licence_cnam',        label: 'Licence CNAM' },
+    { value: 'licence_transitaire', label: 'Lic. Transitaire' },
+    { value: 'mastere',             label: 'Mastère' },
+  ];
+
+  const filtered = submissions.filter(s => {
+    const matchStatut = filterStatut === 'all' || s.statut === filterStatut;
+    const matchProg   = filterProgramme === 'all' || s.programme === filterProgramme;
+    return matchStatut && matchProg;
+  });
 
   const handleImport = async (sub) => {
     setImporting(sub.id);
@@ -1867,6 +1879,26 @@ function PortailEntrantTab() {
         </div>
       </div>
 
+      {/* Programme filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Programme :</span>
+        <button
+          onClick={() => setFilterProgramme('all')}
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${filterProgramme === 'all' ? 'bg-[#005989] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+        >
+          Tous
+        </button>
+        {PROGRAMMES_FILTER.map(p => (
+          <button
+            key={p.value}
+            onClick={() => setFilterProgramme(p.value)}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${filterProgramme === p.value ? 'bg-[#005989] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       {/* Lien portail + Code d'accès */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Lien */}
@@ -1964,6 +1996,8 @@ function PortailEntrantTab() {
                 </div>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                  {sub.programmeLabel && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#e8f4fb] text-[#005989]">🎓 {sub.programmeLabel}</span>}
+                  {sub.anneeAcademique && <span className="text-xs text-slate-400">{sub.anneeAcademique}</span>}
                   <span className="text-xs text-slate-400">{sub.intervenantNom} · {sub.date}</span>
                   <span className="text-xs text-slate-400">{sub.type} · {sub.semestre}</span>
                 </div>
