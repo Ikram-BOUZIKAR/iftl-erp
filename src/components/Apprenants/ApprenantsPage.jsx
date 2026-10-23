@@ -125,7 +125,11 @@ function ImportApprenantsModal({ groupes, existingStudents, onClose, onDone, def
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
 
-  const existingCodeMap = new Map(existingStudents.map(s => [(s.codeApprenant || '').toUpperCase(), s.id]));
+  // Détecte les doublons sur codeApprenant, code (import Groupes) ou l'ID Firestore (= code pour imports Groupes)
+  const existingCodeMap = new Map(existingStudents.map(s => {
+    const k = (s.codeApprenant || s.code || '').toUpperCase() || s.id.toUpperCase();
+    return [k, s.id];
+  }));
   const existingCodes = new Set(existingCodeMap.keys());
 
   const handleFile = (e) => {

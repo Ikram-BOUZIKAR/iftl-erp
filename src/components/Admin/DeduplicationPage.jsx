@@ -1,6 +1,20 @@
 import { useState } from 'react';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+
+// Mappe typeFormation → clé niveau canonique (même logique que GroupesPage)
+function resolveNiveauCanonique(raw) {
+  if (!raw) return '';
+  const VALIDES = ['1A TS','2A TS','Licence CNAM','Licence ISTL','Mastère ESLI MLAI','QUALIF'];
+  if (VALIDES.includes(raw)) return raw;
+  if (raw === 'Technicien Spécialisé') return '1A TS'; // heuristique (pas d'anneePromotion ici)
+  if (raw === 'Qualification')         return 'QUALIF';
+  if (raw === 'Licence Transitaire')   return 'Licence ISTL';
+  if (raw === 'Mastère ISLI')          return 'Mastère ESLI MLAI';
+  if (raw === 'Licence CNAM')          return 'Licence CNAM';
+  return raw;
+}
+const NIVEAUX_VALIDES = new Set(['1A TS','2A TS','Licence CNAM','Licence ISTL','Mastère ESLI MLAI','QUALIF']);
 
 function Spinner() {
   return (
@@ -28,6 +42,8 @@ export default function DeduplicationPage() {
   const [toDelete,   setToDelete]   = useState(new Set());
   const [deleting,   setDeleting]   = useState(false);
   const [msg,        setMsg]        = useState('');
+  const [repairing,  setRepairing]  = useState(false);
+  const [repairMsg,  setRepairMsg]  = useState('');
 
   const loadAndDetect = async () => {
     setLoading(true); setMsg('');
@@ -69,6 +85,46 @@ export default function DeduplicationPage() {
     });
   };
 
+  // Répare les niveaux incorrects ("Technicien Spécialisé" → "1A TS", etc.)
+  const repairNiveaux = async () => {
+    setRepairing(true); setRepairMsg('');
+    try {
+      const snap = await getDocs(collection(db, 'students'));
+      const toFix = [];
+      snap.forEach(d => {
+        const s = d.data();
+        const niv = s.niveau || '';
+        if (!NIVEAUX_VALIDES.has(niv) && niv) {
+          const fixed = resolveNiveauCanonique(niv);
+          if (fixed !== niv) toFix.push({ id: d.id, newNiveau: fixed, oldNiveau: niv });
+        }
+      });
+      if (toFix.length === 0) { setRepairMsg('✓ Tous les niveaux sont déjà corrects.'); setRepairing(false); return; }
+      // also fix codeApprenant missing
+      const toFixCode = [];
+      snap.forEach(d => {
+        const s = d.data();
+        if (!s.codeApprenant && s.code) toFixCode.push({ id: d.id, code: s.code });
+      });
+      // Batch writes (500 max par batch)
+      const allFixes = [
+        ...toFix.map(f => ({ id: f.id, data: { niveau: f.newNiveau, updatedAt: new Date() } })),
+        ...toFixCode.map(f => ({ id: f.id, data: { codeApprenant: f.code, updatedAt: new Date() } })),
+      ];
+      let done = 0;
+      for (let i = 0; i < allFixes.length; i += 400) {
+        const chunk = allFixes.slice(i, i + 400);
+        const batch = writeBatch(db);
+        chunk.forEach(({ id, data }) => batch.update(doc(db, 'students', id), data));
+        await batch.commit();
+        done += chunk.length;
+      }
+      setRepairMsg(`✓ ${toFix.length} niveau(x) corrigé(s) · ${toFixCode.length} champ codeApprenant ajouté(s)`);
+    } catch (err) {
+      setRepairMsg('Erreur : ' + err.message);
+    } finally { setRepairing(false); }
+  };
+
   const confirmDelete = async () => {
     if (toDelete.size === 0) return;
     if (!window.confirm(`Supprimer définitivement ${toDelete.size} apprenant(s) sélectionné(s) ?`)) return;
@@ -86,10 +142,16 @@ export default function DeduplicationPage() {
   const totalDups  = groups ? Object.values(groups).reduce((s, a) => s + a.length, 0) : 0;
   const groupCount = groups ? Object.keys(groups).length : 0;
 
-  // Score de complétude : nb de champs non vides (code, cin, filiere, groupe, email, telephone)
-  const completenessScore = (s) =>
-    ['code', 'codeApprenant', 'cin', 'filiere', 'niveau', 'groupe', 'email', 'telephone']
+  // Score de complétude — favorise : niveau canonique correct, codeApprenant, cin, etc.
+  const completenessScore = (s) => {
+    let score = ['cin', 'filiere', 'groupe', 'email', 'telephone']
       .filter(f => s[f] && String(s[f]).trim()).length;
+    if (s.codeApprenant && String(s.codeApprenant).trim()) score += 3; // champ normalisé
+    else if (s.code && String(s.code).trim())             score += 1;  // ancien champ
+    if (NIVEAUX_VALIDES.has(s.niveau))  score += 3; // niveau canonique correct
+    else if (s.niveau && String(s.niveau).trim()) score += 0; // niveau invalide, pas de bonus
+    return score;
+  };
 
   // Auto-sélection : garde le meilleur (score max) par groupe, sélectionne tous les autres
   const autoSelect = () => {
@@ -139,12 +201,27 @@ export default function DeduplicationPage() {
         </p>
       </div>
 
-      <button
-        onClick={loadAndDetect}
-        disabled={loading}
-        className="px-5 py-2.5 bg-violet-600 text-white rounded-xl font-semibold text-sm shadow hover:bg-violet-700 transition disabled:opacity-50">
-        {loading ? 'Analyse en cours…' : 'Analyser la liste des apprenants'}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={loadAndDetect}
+          disabled={loading}
+          className="px-5 py-2.5 bg-violet-600 text-white rounded-xl font-semibold text-sm shadow hover:bg-violet-700 transition disabled:opacity-50">
+          {loading ? 'Analyse en cours…' : 'Analyser la liste des apprenants'}
+        </button>
+        <button
+          onClick={repairNiveaux}
+          disabled={repairing}
+          className="px-5 py-2.5 bg-teal-600 text-white rounded-xl font-semibold text-sm shadow hover:bg-teal-700 transition disabled:opacity-50"
+          title="Corrige les niveaux incorrect (ex: 'Technicien Spécialisé' → '1A TS') et ajoute le champ codeApprenant manquant">
+          {repairing ? 'Réparation…' : '🔧 Réparer les niveaux'}
+        </button>
+      </div>
+
+      {repairMsg && (
+        <div className={`rounded-xl px-4 py-3 text-sm font-medium ${repairMsg.startsWith('✓') ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {repairMsg}
+        </div>
+      )}
 
       {loading && <Spinner />}
 

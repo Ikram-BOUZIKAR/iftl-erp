@@ -74,6 +74,20 @@ function EmptyState({ onAdd }) {
 
 // ── Panel liste apprenants d'un groupe ────────────────────────────────────────
 
+// Mappe typeFormation + anneePromotion → clé niveau canonique ("1A TS", "2A TS", etc.)
+function resolveNiveauFromGroupe(groupe) {
+  const tf    = groupe.typeFormation || groupe.niveau || '';
+  const annee = groupe.anneePromotion || '';
+  if (tf === 'Technicien Spécialisé' || tf === 'Qualification')
+    return annee === '2ème année' ? '2A TS' : '1A TS';
+  if (tf === 'Licence CNAM')        return 'Licence CNAM';
+  if (tf === 'Licence Transitaire') return 'Licence ISTL';
+  if (tf === 'Mastère ESLI MLAI')   return 'Mastère ESLI MLAI';
+  const VALIDES = ['1A TS','2A TS','Licence CNAM','Licence ISTL','Mastère ESLI MLAI','QUALIF'];
+  if (VALIDES.includes(tf)) return tf;
+  return tf;
+}
+
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (!lines.length) return [];
@@ -166,7 +180,8 @@ function GroupeDetailPanel({ groupe, onClose, toast }) {
             groupe: groupe.nom,
             filiereCode: groupe.filiereCode || '',
             filiere: groupe.filiere || '',
-            niveau: groupe.niveau || '',
+            niveau: resolveNiveauFromGroupe(groupe), // clé canonique ("1A TS" etc.)
+            codeApprenant: code,                     // champ normalisé attendu par ApprenantsPage
             anneeAcademique: groupe.annee || '',
             statut: 'actif',
             updatedAt: new Date().toISOString(),
