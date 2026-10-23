@@ -114,8 +114,10 @@ export default function RelevesPage() {
     setLoadingNotes(true);
     async function fetch2A() {
       try {
+        // Notes peuvent être stockées avec codeApprenant OU avec l'id Firestore (selon la source)
+        const studentIds = [...new Set([selected.codeApprenant, selected.id].filter(Boolean))];
         const [nSnap, evSnap] = await Promise.all([
-          getDocs(query(collection(db, 'notes'), where('studentId', '==', selected.codeApprenant || selected.id))),
+          getDocs(query(collection(db, 'notes'), where('studentId', 'in', studentIds))),
           getDocs(collection(db, 'evaluations')),
         ]);
         if (cancelled) return;
