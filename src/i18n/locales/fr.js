@@ -78,13 +78,17 @@ const fr = {
   },
 
   roles: {
-    admin:       'Administrateur',
-    direction:   'Direction',
-    scolarite:   'Scolarité',
-    intervenant: 'Intervenant',
-    apprenant:   'Apprenant',
-    parent:      'Parent',
-    user:        'Utilisateur',
+    admin:           'Administrateur',
+    direction:       'Direction',
+    scolarite:       'Scolarité',
+    scolarite_sup:   'Scolarité — Formation Supérieure',
+    dir_mastere:     'Dir. pédago — Mastère',
+    dir_cnam:        'Dir. pédago — Licence CNAM',
+    dir_transitaire: 'Dir. pédago — Licence ISTL',
+    intervenant:     'Intervenant',
+    apprenant:       'Apprenant',
+    parent:          'Parent',
+    user:            'Utilisateur',
   },
 
   login: {

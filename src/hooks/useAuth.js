@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { getNiveauxAcces } from '../utils/roleConfig';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -96,6 +97,8 @@ export function useAuth() {
     }
   };
 
+  const role = userProfile?.role ?? null;
+
   return {
     user,
     userProfile,
@@ -105,8 +108,10 @@ export function useAuth() {
     login,
     logout,
     isAuthenticated: !!user,
-    hasRole: (role) => userProfile?.role === role,
-    hasAnyRole: (roles) => roles?.includes(userProfile?.role),
+    hasRole: (r) => role === r,
+    hasAnyRole: (roles) => roles?.includes(role),
+    // Niveaux autorisés pour ce rôle (null = accès total, tableau = filtrage actif)
+    niveauxAcces: getNiveauxAcces(role),
   };
 }
 

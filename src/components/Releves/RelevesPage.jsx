@@ -3,6 +3,8 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { generateReleve1A, generateReleve2A } from '../../services/pdfService';
 import { useBranding } from '../../contexts/BrandingContext';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeNiveau } from '../../utils/roleConfig';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
 
@@ -58,6 +60,7 @@ export default function RelevesPage() {
   const { showToast } = useToast();
   const { t } = useTranslation();
   const { branding } = useBranding();
+  const { niveauxAcces } = useAuth();
 
   const [students, setStudents] = useState([]);
   const [allModules, setAllModules] = useState([]);
@@ -293,13 +296,13 @@ export default function RelevesPage() {
             <h2 className="text-sm font-bold text-slate-700 mb-3">2. Type de relevé</h2>
             <div className="flex flex-wrap gap-2">
               {[
-                { key: '1A', label: 'Relevé 1A TS' },
-                { key: '2A', label: 'Relevé 2A TS' },
-                { key: 'TechnicienQ', label: 'Technicien Q' },
-                { key: 'Licence', label: 'Licence CNAM' },
-                { key: 'LicenceTransitaire', label: 'Licence Transitaire' },
-                { key: 'Mastère', label: 'Mastère / Master' },
-              ].map(a => (
+                { key: '1A',               label: 'Relevé 1A TS',       niveauKey: '1A TS'           },
+                { key: '2A',               label: 'Relevé 2A TS',       niveauKey: '2A TS'           },
+                { key: 'TechnicienQ',      label: 'Technicien Q',       niveauKey: 'QUALIF'          },
+                { key: 'Licence',          label: 'Licence CNAM',       niveauKey: 'Licence CNAM'    },
+                { key: 'LicenceTransitaire', label: 'Licence Transitaire', niveauKey: 'Licence ISTL' },
+                { key: 'Mastère',          label: 'Mastère / Master',   niveauKey: 'Mastère ESLI MLAI' },
+              ].filter(a => canSeeNiveau(niveauxAcces, a.niveauKey)).map(a => (
                 <button key={a.key} onClick={() => { setAnnee(a.key); setSelected(null); }}
                   className={`flex-1 min-w-[45%] py-2 rounded-xl text-sm font-semibold border transition-colors ${annee === a.key ? 'bg-[#005989] text-white border-[#005989]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                   {a.label}

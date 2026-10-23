@@ -8,6 +8,8 @@ import { studentsService } from '../../services/firestore';
 import ApprenantForm from './ApprenantForm';
 import { useToast } from '../UI/Toast';
 import { useConfirm } from '../UI/ConfirmDialog';
+import { useAuth } from '../../hooks/useAuth';
+import { canSeeNiveau } from '../../utils/roleConfig';
 
 // ─── Niveaux ──────────────────────────────────────────────────────────────────
 const NIVEAUX = [
@@ -286,7 +288,7 @@ function StatutBadge({ statut }) {
 }
 
 // ─── Selector de niveau (écran d'accueil) ─────────────────────────────────────
-function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
+function NiveauSelector({ students, groupes, niveauxAcces, onSelect, onAdd, onImport }) {
   const { t } = useTranslation();
   // Compter par niveau normalisé
   const counts = useMemo(() => {
@@ -369,7 +371,7 @@ function NiveauSelector({ students, groupes, onSelect, onAdd, onImport }) {
 
       {/* Niveau cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {NIVEAUX.filter(niv => niveauVisible.has(niv.key)).map(niv => {
+        {NIVEAUX.filter(niv => niveauVisible.has(niv.key) && canSeeNiveau(niveauxAcces, niv.key)).map(niv => {
           const count = counts[niv.key] || 0;
           const actifs = students.filter(s => normalizeNiveau(s.niveau) === niv.key && s.statut === 'actif').length;
           // Groupes distincts pour ce niveau
@@ -796,8 +798,16 @@ export default function ApprenantsPage() {
   const toast = useToast();
   const confirm = useConfirm();
   const { t } = useTranslation();
-  const { data: students, loading, refetch } = useStudents();
+  const { niveauxAcces } = useAuth();
+  const { data: studentsAll, loading, refetch } = useStudents();
   const { data: groupes, unique: uniqueGroupes } = useGroupes();
+  // Filtrage par niveaux autorisés (null = pas de filtre)
+  const students = useMemo(
+    () => niveauxAcces
+      ? studentsAll.filter(s => canSeeNiveau(niveauxAcces, normalizeNiveau(s.niveau)))
+      : studentsAll,
+    [studentsAll, niveauxAcces],
+  );
   const [searchParams] = useSearchParams();
   const [selectedNiveau, setSelectedNiveau] = useState(() => {
     const niv = searchParams.get('niveau');
@@ -902,6 +912,7 @@ export default function ApprenantsPage() {
         <NiveauSelector
           students={students}
           groupes={groupes}
+          niveauxAcces={niveauxAcces}
           onSelect={handleSelectNiveau}
           onAdd={openAdd}
           onImport={openImport}

@@ -317,7 +317,11 @@ function ModalCreateUser({ onClose, onCreated }) {
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Rôle *</label>
             <select value={form.role} onChange={e => set('role', e.target.value)} className={`${inp} bg-white`}>
               <option value="scolarite">Scolarité</option>
+              <option value="scolarite_sup">Scolarité — Formation Supérieure</option>
               <option value="direction">Direction</option>
+              <option value="dir_mastere">Direction pédago — Mastère</option>
+              <option value="dir_cnam">Direction pédago — Licence CNAM</option>
+              <option value="dir_transitaire">Direction pédago — Licence ISTL</option>
               <option value="intervenant">Intervenant</option>
               <option value="admin">Administrateur</option>
             </select>
@@ -339,21 +343,29 @@ function ModalCreateUser({ onClose, onCreated }) {
 // ─── Utilisateurs tab ─────────────────────────────────────────────────────────
 
 const ROLES = [
-  { value: 'admin',       label: 'Administrateur' },
-  { value: 'direction',   label: 'Direction'       },
-  { value: 'scolarite',   label: 'Scolarité'       },
-  { value: 'intervenant', label: 'Intervenant'     },
-  { value: 'apprenant',   label: 'Apprenant'       },
-  { value: 'parent',      label: 'Parent / Tuteur' },
+  { value: 'admin',           label: 'Administrateur'                   },
+  { value: 'direction',       label: 'Direction'                        },
+  { value: 'scolarite',       label: 'Scolarité'                        },
+  { value: 'scolarite_sup',   label: 'Scolarité — Formation Supérieure' },
+  { value: 'dir_mastere',     label: 'Dir. pédago — Mastère'            },
+  { value: 'dir_cnam',        label: 'Dir. pédago — Licence CNAM'       },
+  { value: 'dir_transitaire', label: 'Dir. pédago — Licence ISTL'       },
+  { value: 'intervenant',     label: 'Intervenant'                      },
+  { value: 'apprenant',       label: 'Apprenant'                        },
+  { value: 'parent',          label: 'Parent / Tuteur'                  },
 ];
 
 const ROLE_BADGE = {
-  admin:       'bg-indigo-100 text-indigo-700 border-indigo-200',
-  direction:   'bg-[#005989]/10 text-[#005989] border-[#005989]/20',
-  scolarite:   'bg-[#c8d45d]/30 text-[#5a6a00] border-[#c8d45d]/50',
-  intervenant: 'bg-violet-100 text-violet-700 border-violet-200',
-  apprenant:   'bg-emerald-100 text-emerald-700 border-emerald-200',
-  parent:      'bg-orange-100 text-orange-700 border-orange-200',
+  admin:           'bg-indigo-100 text-indigo-700 border-indigo-200',
+  direction:       'bg-[#005989]/10 text-[#005989] border-[#005989]/20',
+  scolarite:       'bg-[#c8d45d]/30 text-[#5a6a00] border-[#c8d45d]/50',
+  scolarite_sup:   'bg-purple-100 text-purple-700 border-purple-200',
+  dir_mastere:     'bg-rose-100 text-rose-700 border-rose-200',
+  dir_cnam:        'bg-violet-100 text-violet-700 border-violet-200',
+  dir_transitaire: 'bg-amber-100 text-amber-700 border-amber-200',
+  intervenant:     'bg-violet-100 text-violet-700 border-violet-200',
+  apprenant:       'bg-emerald-100 text-emerald-700 border-emerald-200',
+  parent:          'bg-orange-100 text-orange-700 border-orange-200',
 };
 
 const ROLE_LABEL = Object.fromEntries(ROLES.map(r => [r.value, r.label]));

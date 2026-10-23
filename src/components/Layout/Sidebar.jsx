@@ -51,10 +51,15 @@ function Ico({ k, cls = 'w-[18px] h-[18px] shrink-0' }) {
 }
 
 // ── Role visibility ───────────────────────────────────────────────────────────
+import { ROLE_ROUTES } from '../../utils/roleConfig';
+
 const ACCESS = {
   admin:       null,  // null = all
   direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
   scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
+  ...Object.fromEntries(
+    ['scolarite_sup', 'dir_mastere', 'dir_cnam', 'dir_transitaire'].map(r => [r, ROLE_ROUTES[r]])
+  ),
   intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/apprenants', '/annonces'],
   apprenant:   ['/', '/planning', '/notes', '/annonces'],
   parent:      ['/', '/notes', '/annonces'],
