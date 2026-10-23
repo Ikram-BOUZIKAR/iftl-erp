@@ -71,9 +71,44 @@ jobs:
 
       - name: Deploy Firestore indexes to erp-pedago-iftl
         continue-on-error: true
-        run: npx firebase-tools@13.29.3 deploy --only firestore:indexes --project erp-pedago-iftl --non-interactive
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
+        run: |
+          pip3 install google-auth google-auth-httplib2 -q 2>/dev/null || true
+          python3 << 'PYEOF'
+          import json, urllib.request, urllib.error
+          try:
+            from google.oauth2 import service_account
+            import google.auth.transport.requests
+            SCOPES = ['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/datastore']
+            creds = service_account.Credentials.from_service_account_file('/tmp/sa_iftl.json', scopes=SCOPES)
+            creds.refresh(google.auth.transport.requests.Request())
+            token = creds.token
+            project = 'erp-pedago-iftl'
+            base = f'https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/collectionGroups'
+            headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+            indexes = [
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'campagneId','order':'ASCENDING'},{'fieldPath':'statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'campagneId','order':'ASCENDING'},{'fieldPath':'filiereCode','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'fraisDossier.statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'statut','order':'ASCENDING'},{'fieldPath':'fraisDossier.statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+            ]
+            for idx in indexes:
+              cg = idx['collectionGroup']
+              body = json.dumps({'queryScope':'COLLECTION','fields': idx['fields']}).encode()
+              req = urllib.request.Request(f'{base}/{cg}/indexes', data=body, headers=headers)
+              try:
+                resp = json.loads(urllib.request.urlopen(req).read())
+                print(f'Index créé: {cg} {[f["fieldPath"] for f in idx["fields"]]} → {resp.get("name","?")}')
+              except urllib.error.HTTPError as e:
+                err = e.read().decode()[:200]
+                if 'ALREADY_EXISTS' in err or 'already exists' in err.lower():
+                  print(f'Index déjà existant (OK): {cg} {[f["fieldPath"] for f in idx["fields"]]}')
+                else:
+                  print(f'Erreur index {cg}: {e.code} {err}')
+            print('Déploiement des index terminé.')
+          except Exception as e:
+            print(f'Erreur générale indexes (non-bloquant): {e}')
+          PYEOF
 
       - name: Deploy hosting to erp-pedago-iftl
         run: npx firebase-tools@13.29.3 deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
