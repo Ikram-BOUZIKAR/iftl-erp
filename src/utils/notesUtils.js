@@ -103,14 +103,6 @@ export function getDecisionPassage(moy) {
 
 // ── Formules d'import ─────────────────────────────────────────────────────────
 
-export const FORMULES_MODULE = [
-  { value: 'efm_seul',       label: 'EFM seul (règle par défaut)' },
-  { value: 'cc_40_efm_60',   label: 'CC × 0,4 + EFM × 0,6' },
-  { value: 'cc_examen_demi', label: '(CC + EFM) ÷ 2' },
-  { value: 'wm_intro_seule', label: 'WM — Intro seule (gr A/B/C)' },
-  { value: 'licence_cnam',   label: 'Licence CNAM — CTL × 0,25 + EFM × 0,75' },
-];
-
 function _n(v) {
   if (v === null || v === undefined || v === '') return null;
   const n = parseFloat(String(v).replace(',', '.'));
@@ -119,31 +111,18 @@ function _n(v) {
 const _r2 = v => Math.round(v * 100) / 100;
 
 /**
- * Moyenne d'un module 1A TS selon la formule choisie.
- * Si rattrapage présent : CC × 0,4 + Rattrapage × 0,6 (remplace tout).
+ * Moyenne d'un module 1A TS / 2A TS.
+ * Formule universelle : CC × 0,4 + EFM × 0,6
+ * Rattrapage remplace l'EFM uniquement s'il est supérieur.
  */
-export function calculerMoyenneModule1ATS(cc, efm, rattrapage, formule = 'efm_seul') {
+export function calculerMoyenneModule1ATS(cc, efm, rattrapage) {
   const cc_ = _n(cc), efm_ = _n(efm), ratt_ = _n(rattrapage);
-  if (ratt_ !== null) {
-    if (cc_ !== null) return _r2(cc_ * 0.4 + ratt_ * 0.6);
-    return _r2(ratt_ * 0.6);
-  }
-  switch (formule) {
-    case 'efm_seul':
-      return efm_;
-    case 'cc_40_efm_60':
-      if (cc_ !== null && efm_ !== null) return _r2(cc_ * 0.4 + efm_ * 0.6);
-      if (efm_ !== null) return _r2(efm_ * 0.6);
-      if (cc_ !== null) return _r2(cc_ * 0.4);
-      return null;
-    case 'cc_examen_demi':
-      if (cc_ !== null && efm_ !== null) return _r2((cc_ + efm_) / 2);
-      return cc_ !== null ? cc_ : efm_;
-    case 'wm_intro_seule':
-      return cc_;
-    default:
-      return efm_;
-  }
+  let efmEff = efm_;
+  if (ratt_ !== null && (efm_ === null || ratt_ > efm_)) efmEff = ratt_;
+  if (cc_ !== null && efmEff !== null) return _r2(cc_ * 0.4 + efmEff * 0.6);
+  if (efmEff !== null) return _r2(efmEff * 0.6);
+  if (cc_ !== null) return _r2(cc_ * 0.4);
+  return null;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useCandidatures, useGroupes } from '../../hooks/useData';
 import { candidaturesService, historiqueService } from '../../services/firestore';
@@ -142,6 +142,7 @@ export default function CandidaturesAdminPage() {
   const [complementSaving, setComplementSaving] = useState(false);
   const [bulkAction, setBulkAction]     = useState('');
   const [showConvocationModal, setShowConvocationModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const filieres = [...new Set(candidatures.map(c => c.filiere || c.niveauFormation).filter(Boolean))].sort();
   const villes   = [...new Set(candidatures.map(c => c.ville).filter(Boolean))].sort();
@@ -373,6 +374,16 @@ export default function CandidaturesAdminPage() {
     setHistory([]);
   };
 
+  const handleDeleteCandidature = async (c) => {
+    try {
+      await deleteDoc(doc(db, 'candidatures', c.id));
+      if (selected?.id === c.id) setSelected(null);
+      setConfirmDeleteId(null);
+      refetch();
+      toast.success(`Candidature de ${c.prenom} ${c.nom} supprimée.`);
+    } catch (err) { toast.error(err.message); }
+  };
+
   const handleExport = () => {
     const cols = ['Réf','Nom','Prénom','CIN','Email','Téléphone','Ville','Filière','Programme','Année','Statut','Date soumission'];
     const rows = filtered.map(c => [
@@ -457,6 +468,24 @@ export default function CandidaturesAdminPage() {
             → Inscrire
           </button>
         )}
+        {confirmDeleteId === c.id ? (
+          <span className="flex items-center gap-1.5">
+            <button onClick={() => handleDeleteCandidature(c)}
+              className={`${btnCls} bg-red-700 hover:bg-red-800 text-white`}>
+              Confirmer suppression
+            </button>
+            <button onClick={() => setConfirmDeleteId(null)}
+              className={`${btnCls} border border-slate-200 text-slate-500 hover:bg-slate-50`}>
+              Annuler
+            </button>
+          </span>
+        ) : (
+          <button onClick={() => setConfirmDeleteId(c.id)}
+            title="Supprimer ce dossier définitivement"
+            className={`${btnCls} border border-red-200 text-red-500 hover:bg-red-50`}>
+            🗑
+          </button>
+        )}
       </div>
     );
   }
@@ -500,6 +529,38 @@ export default function CandidaturesAdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Pipeline de traitements */}
+      {candidatures.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Pipeline de traitement</p>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {[
+              { key: 'soumise',         label: 'Soumises',       color: 'bg-blue-100 text-blue-700' },
+              { key: 'en_verification', label: 'En vérif.',      color: 'bg-amber-100 text-amber-700' },
+              { key: 'incomplet',       label: 'Incomplet',      color: 'bg-orange-100 text-orange-700' },
+              { key: 'complet',         label: 'Complet',        color: 'bg-teal-100 text-teal-700' },
+              { key: 'valide',          label: 'Validé',         color: 'bg-emerald-100 text-emerald-700' },
+              { key: 'convoque',        label: 'Convoqué',       color: 'bg-purple-100 text-purple-700' },
+              { key: 'admis',           label: 'Admis',          color: 'bg-green-100 text-green-700' },
+              { key: 'liste_attente',   label: 'Liste att.',     color: 'bg-purple-50 text-purple-600' },
+              { key: 'refuse',          label: 'Refusé',         color: 'bg-red-100 text-red-600' },
+              { key: 'inscrite',        label: 'Inscrit',        color: 'bg-blue-200 text-blue-800' },
+            ].map(s => {
+              const count = candidatures.filter(c => c.statut === s.key || (s.key === 'soumise' && c.statut === 'recu')).length;
+              if (count === 0) return null;
+              return (
+                <button key={s.key}
+                  onClick={() => setFilterStatut(filterStatut === s.key ? '' : s.key)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition ${s.color} ${filterStatut === s.key ? 'ring-2 ring-offset-1 ring-current' : 'hover:opacity-80'}`}>
+                  <span className="text-base font-black">{count}</span>
+                  <span>{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">

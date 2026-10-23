@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  collection, doc, getDocs, query, where, writeBatch, addDoc, serverTimestamp,
+  collection, doc, getDocs, query, where, writeBatch, addDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useToast } from '../UI/Toast';
 import {
-  FORMULES_MODULE,
   calculerMoyenneModule1ATS,
   calculerMoyenneUELicence,
   getStatutModule,
@@ -44,10 +43,18 @@ const PROGRAMMES = [
   { value: 'licence_cnam', label: 'Licence CNAM' },
 ];
 
-// UEs Licence CNAM dans l'ordre officiel
 const UES_LICENCE = [
   'CFA109','LTR112','ESC118','LTR135','LTR126','LTR113','ESC121','LTR143','ANG320','TED001','UAM10K',
 ];
+
+const EVAL_TYPES_META = ['CC', 'EFM', 'RATTRAPAGE'];
+
+function makeDefaultMeta(type, mod, semestre) {
+  return {
+    titre: `${type} — ${mod?.code || ''} — ${semestre}`,
+    coefficient: type === 'EFM' ? (mod?.coefficient ?? 1) : 1,
+  };
+}
 
 // ─── Paste parser ──────────────────────────────────────────────────────────────
 
@@ -62,21 +69,32 @@ function parsePaste(text) {
 export default function NotesImportTab({ modules, groupes }) {
   const toast = useToast();
 
-  const [programme, setProgramme]     = useState('1A_TS');
-  const [groupeId, setGroupeId]       = useState('');
-  const [moduleId, setModuleId]       = useState('');
-  const [formule, setFormule]         = useState('efm_seul');
-  const [semestre, setSemestre]       = useState('S1');
+  const [programme, setProgramme]   = useState('1A_TS');
+  const [groupeId, setGroupeId]     = useState('');
+  const [moduleId, setModuleId]     = useState('');
+  const [semestre, setSemestre]     = useState('S1');
   const [loadingStudents, setLoadingStudents] = useState(false);
-  const [saving, setSaving]           = useState(false);
-  const [rows, setRows]               = useState([]);
-  const [showPaste, setShowPaste]     = useState(false);
-  const [pasteText, setPasteText]     = useState('');
+  const [saving, setSaving]         = useState(false);
+  const [rows, setRows]             = useState([]);
+  const [showPaste, setShowPaste]   = useState(false);
+  const [pasteText, setPasteText]   = useState('');
+  const [showEvalMeta, setShowEvalMeta] = useState(false);
+  const [evalMeta, setEvalMeta]     = useState({ CC: {}, EFM: {}, RATTRAPAGE: {} });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isLicence = programme === 'licence_cnam';
   const selectedModule = modules?.find(m => m.id === moduleId);
 
-  // Charge les étudiants du groupe
+  // Sync evalMeta defaults when module/semestre changes
+  useEffect(() => {
+    if (!selectedModule && !semestre) return;
+    setEvalMeta({
+      CC:         makeDefaultMeta('CC', selectedModule, semestre),
+      EFM:        makeDefaultMeta('EFM', selectedModule, semestre),
+      RATTRAPAGE: makeDefaultMeta('RATTRAPAGE', selectedModule, semestre),
+    });
+  }, [selectedModule, semestre]);
+
   const loadStudents = useCallback(async () => {
     if (!groupeId) return;
     setLoadingStudents(true);
@@ -101,19 +119,16 @@ export default function NotesImportTab({ modules, groupes }) {
 
   useEffect(() => { if (groupeId) loadStudents(); else setRows([]); }, [groupeId, loadStudents]);
 
-  // Recalcul à chaque changement de row ou formule
   const rowsWithCalc = useMemo(() => rows.map(r => {
     let moy = null;
     if (isLicence) {
-      const code = selectedModule?.code || '';
-      moy = calculerMoyenneUELicence(r.cc, r.efm, r.rattrapage, code);
+      moy = calculerMoyenneUELicence(r.cc, r.efm, r.rattrapage, selectedModule?.code || '');
     } else {
-      moy = calculerMoyenneModule1ATS(r.cc, r.efm, r.rattrapage, formule);
+      moy = calculerMoyenneModule1ATS(r.cc, r.efm, r.rattrapage);
     }
     return { ...r, moy: R2(moy), statut: getStatutModule(R2(moy)) };
-  }), [rows, formule, isLicence, selectedModule]);
+  }), [rows, isLicence, selectedModule]);
 
-  // Stats résumé
   const stats = useMemo(() => {
     const withMoy = rowsWithCalc.filter(r => r.moy !== null);
     if (!withMoy.length) return null;
@@ -124,9 +139,11 @@ export default function NotesImportTab({ modules, groupes }) {
     return { avg, valide, rachat, nonVal, total: withMoy.length };
   }, [rowsWithCalc]);
 
-  const setCell = (idx, field, val) => {
+  const setCell = (idx, field, val) =>
     setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
-  };
+
+  const clearRow = (idx) =>
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, cc: '', efm: '', rattrapage: '' } : r));
 
   // ─── Import coller depuis Excel ─────────────────────────────────────────────
 
@@ -141,16 +158,46 @@ export default function NotesImportTab({ modules, groupes }) {
         )
       );
       if (!match) return r;
-      return {
-        ...r,
-        cc:         match[1] || r.cc,
-        efm:        match[2] || r.efm,
-        rattrapage: match[3] || r.rattrapage,
-      };
+      return { ...r, cc: match[1] || r.cc, efm: match[2] || r.efm, rattrapage: match[3] || r.rattrapage };
     }));
     setShowPaste(false);
     setPasteText('');
     toast.success(`${parsed.length} ligne(s) importée(s) depuis le presse-papiers.`);
+  };
+
+  // ─── Suppression des notes importées ────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!moduleId || !groupeId) return;
+    setSaving(true);
+    try {
+      const batch = writeBatch(db);
+      let noteCount = 0;
+      for (const type of EVAL_TYPES_META) {
+        const evalSnap = await getDocs(query(
+          collection(db, 'evaluations'),
+          where('moduleId', '==', moduleId),
+          where('groupeId', '==', groupeId),
+          where('type', '==', type),
+          where('sessionAcademique', '==', semestre),
+        ));
+        for (const evalDoc of evalSnap.docs) {
+          const notesSnap = await getDocs(query(
+            collection(db, 'notes'),
+            where('evaluationId', '==', evalDoc.id),
+          ));
+          notesSnap.forEach(d => { batch.delete(d.ref); noteCount++; });
+        }
+      }
+      await batch.commit();
+      toast.success(`${noteCount} note(s) supprimée(s).`);
+      setConfirmDelete(false);
+      await loadStudents();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ─── Sauvegarde Firestore ────────────────────────────────────────────────────
@@ -162,11 +209,8 @@ export default function NotesImportTab({ modules, groupes }) {
 
     setSaving(true);
     try {
-      // Trouve ou crée les évaluations CC / EFM / RATTRAPAGE
-      const evalTypes = ['CC', 'EFM', 'RATTRAPAGE'];
       const evalIds = {};
-
-      for (const type of evalTypes) {
+      for (const type of EVAL_TYPES_META) {
         const q = query(
           collection(db, 'evaluations'),
           where('moduleId', '==', moduleId),
@@ -178,16 +222,16 @@ export default function NotesImportTab({ modules, groupes }) {
         if (!snap.empty) {
           evalIds[type] = snap.docs[0].id;
         } else {
-          const mod = selectedModule;
+          const meta = evalMeta[type] || makeDefaultMeta(type, selectedModule, semestre);
           const newEval = await addDoc(collection(db, 'evaluations'), {
-            titre: `Import ${type} — ${mod?.code || moduleId} — ${semestre}`,
-            code:  `IMPORT_${type}_${mod?.code || moduleId}_${semestre}`,
+            titre:  meta.titre  || makeDefaultMeta(type, selectedModule, semestre).titre,
+            code:   `IMPORT_${type}_${selectedModule?.code || moduleId}_${semestre}`,
             type,
             moduleId,
             groupeId,
             sessionAcademique: semestre,
             bareme: 20,
-            coefficient: type === 'EFM' ? (mod?.coefficient ?? 1) : 1,
+            coefficient: s2n(meta.coefficient) ?? makeDefaultMeta(type, selectedModule, semestre).coefficient,
             createdAt: serverTimestamp(),
             importedAt: serverTimestamp(),
           });
@@ -195,7 +239,6 @@ export default function NotesImportTab({ modules, groupes }) {
         }
       }
 
-      // Charge les notes existantes pour chaque évaluation
       const existingNotes = {};
       for (const [type, evalId] of Object.entries(evalIds)) {
         const snap = await getDocs(query(collection(db, 'notes'), where('evaluationId', '==', evalId)));
@@ -205,20 +248,16 @@ export default function NotesImportTab({ modules, groupes }) {
 
       const batch = writeBatch(db);
       const now = new Date();
-
       for (const r of filled) {
         const pairs = [
-          { type: 'CC',         val: s2n(r.cc) },
-          { type: 'EFM',        val: s2n(r.efm) },
+          { type: 'CC', val: s2n(r.cc) },
+          { type: 'EFM', val: s2n(r.efm) },
           { type: 'RATTRAPAGE', val: s2n(r.rattrapage) },
         ];
         for (const { type, val } of pairs) {
           if (val === null) continue;
           const evalId = evalIds[type];
-          const payload = {
-            evaluationId: evalId, studentId: r.studentId,
-            note: val, absent: false, commentaire: '', updatedAt: now,
-          };
+          const payload = { evaluationId: evalId, studentId: r.studentId, note: val, absent: false, commentaire: '', updatedAt: now };
           const existing = existingNotes[type][r.studentId];
           if (existing) {
             batch.update(doc(db, 'notes', existing), payload);
@@ -227,9 +266,8 @@ export default function NotesImportTab({ modules, groupes }) {
           }
         }
       }
-
       await batch.commit();
-      toast.success(`${filled.length} étudiant(s) enregistré(s) — ${Object.keys(evalIds).join(', ')}`);
+      toast.success(`${filled.length} étudiant(s) enregistré(s).`);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -247,10 +285,10 @@ export default function NotesImportTab({ modules, groupes }) {
 
       {/* Config bar */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Programme</label>
-            <select value={programme} onChange={e => { setProgramme(e.target.value); setModuleId(''); setFormule('efm_seul'); }}
+            <select value={programme} onChange={e => { setProgramme(e.target.value); setModuleId(''); }}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#005989]">
               {PROGRAMMES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
@@ -280,18 +318,6 @@ export default function NotesImportTab({ modules, groupes }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Formule</label>
-            <select value={formule} onChange={e => setFormule(e.target.value)} disabled={isLicence}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#005989] disabled:opacity-50">
-              {isLicence
-                ? <option value="licence_cnam">Licence CNAM — CTL × 0,25 + EFM × 0,75</option>
-                : FORMULES_MODULE.filter(f => f.value !== 'licence_cnam').map(f =>
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  )
-              }
-            </select>
-          </div>
-          <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Session</label>
             <select value={semestre} onChange={e => setSemestre(e.target.value)}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#005989]">
@@ -302,16 +328,49 @@ export default function NotesImportTab({ modules, groupes }) {
           </div>
         </div>
 
-        {/* Formule hint */}
+        {/* Formule info */}
         <div className="mt-3 px-3 py-2 bg-slate-50 rounded-xl text-xs text-slate-500 border border-slate-100">
           {isLicence
             ? <>CTL × 0,25 + max(EFM, min(Ratt, 12)) × 0,75 · LTR126 : relèvement à 10 si 9 ≤ moy &lt; 10</>
-            : formule === 'efm_seul'       ? 'EFM = note finale · Si rattrapage : CC × 0,4 + Ratt × 0,6'
-            : formule === 'cc_40_efm_60'  ? 'CC × 0,4 + EFM × 0,6 · Si rattrapage : CC × 0,4 + Ratt × 0,6'
-            : formule === 'cc_examen_demi' ? '(CC + EFM) ÷ 2 · Si rattrapage : CC × 0,4 + Ratt × 0,6'
-            : formule === 'wm_intro_seule' ? 'Intro seule (WM gr A/B/C) — note intro dans la colonne CC'
-            : 'Formule personnalisée'
+            : <>Formule universelle : <strong>CC × 0,4 + EFM × 0,6</strong> · Si Ratt &gt; EFM : CC × 0,4 + Ratt × 0,6</>
           }
+        </div>
+
+        {/* Paramètres évaluations */}
+        <div className="mt-3">
+          <button onClick={() => setShowEvalMeta(v => !v)}
+            className="text-xs font-semibold text-[#005989] hover:underline flex items-center gap-1">
+            {showEvalMeta ? '▲' : '▼'} Paramètres des évaluations (titre, coefficient)
+          </button>
+          {showEvalMeta && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {EVAL_TYPES_META.map(type => (
+                <div key={type} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">{type}</p>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-0.5">Titre</label>
+                      <input type="text"
+                        value={evalMeta[type]?.titre ?? ''}
+                        onChange={e => setEvalMeta(m => ({ ...m, [type]: { ...m[type], titre: e.target.value } }))}
+                        className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#005989]"
+                        placeholder={makeDefaultMeta(type, selectedModule, semestre).titre}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-0.5">Coefficient</label>
+                      <input type="number" min="0" step="0.5"
+                        value={evalMeta[type]?.coefficient ?? ''}
+                        onChange={e => setEvalMeta(m => ({ ...m, [type]: { ...m[type], coefficient: e.target.value } }))}
+                        className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#005989]"
+                        placeholder={makeDefaultMeta(type, selectedModule, semestre).coefficient}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -338,6 +397,27 @@ export default function NotesImportTab({ modules, groupes }) {
         <span className="text-sm font-semibold text-slate-700 flex-1">
           {rows.length > 0 ? `${rows.length} étudiant(s) — ${selectedModule?.code || '—'} · ${semestre}` : 'Sélectionnez un groupe pour charger les étudiants'}
         </span>
+        {rows.length > 0 && moduleId && (
+          !confirmDelete
+            ? (
+              <button onClick={() => setConfirmDelete(true)}
+                className="text-sm px-3 py-1.5 border border-red-200 rounded-xl text-red-600 hover:bg-red-50 transition">
+                🗑 Supprimer notes importées
+              </button>
+            ) : (
+              <span className="flex items-center gap-2 text-sm">
+                <span className="text-red-600 font-medium">Confirmer la suppression ?</span>
+                <button onClick={handleDelete} disabled={saving}
+                  className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-40">
+                  Oui, supprimer
+                </button>
+                <button onClick={() => setConfirmDelete(false)}
+                  className="px-3 py-1 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50">
+                  Annuler
+                </button>
+              </span>
+            )
+        )}
         <button onClick={() => setShowPaste(v => !v)}
           className="text-sm px-3 py-1.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition">
           📋 Coller depuis Excel
@@ -387,11 +467,12 @@ export default function NotesImportTab({ modules, groupes }) {
                   <th className={`px-4 py-3 ${col}`}>Rattrapage</th>
                   <th className={`px-4 py-3 ${col}`}>Moy</th>
                   <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide text-center">Statut</th>
+                  <th className="px-2 py-3 w-8" />
                 </tr>
               </thead>
               <tbody>
                 {loadingStudents ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-slate-400 text-sm">Chargement…</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-slate-400 text-sm">Chargement…</td></tr>
                 ) : rowsWithCalc.map((r, i) => (
                   <tr key={r.studentId} className={`border-b border-slate-50 hover:bg-slate-50/50 transition ${r.moy !== null && r.moy < 9 ? 'bg-red-50/30' : r.moy !== null && r.moy < 10 ? 'bg-amber-50/30' : ''}`}>
                     <td className="px-4 py-2 text-slate-500 font-mono text-xs">{r.code}</td>
@@ -419,6 +500,15 @@ export default function NotesImportTab({ modules, groupes }) {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statutBadge(r.statut)}`}>
                           {statutLabel(r.statut)}
                         </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      {(r.cc !== '' || r.efm !== '' || r.rattrapage !== '') && (
+                        <button onClick={() => clearRow(i)}
+                          title="Effacer les notes de cette ligne"
+                          className="text-slate-300 hover:text-red-400 text-xs leading-none transition">
+                          ✕
+                        </button>
                       )}
                     </td>
                   </tr>
