@@ -77,9 +77,10 @@ const TYPE_EVAL_STYLES = {
 };
 
 const TABS = [
+  { key: 'dashboard', label: '📊 Vue d\'ensemble' },
   { key: 'evaluations', label: 'Évaluations' },
   { key: 'saisie', label: 'Saisie des notes' },
-  { key: 'import', label: '📊 Import notes' },
+  { key: 'import', label: 'Import notes' },
   { key: 'bulletins', label: 'Bulletins' },
   { key: 'pv', label: 'PV du groupe' },
   { key: 'portail', label: '📥 Portail entrant' },
@@ -1233,6 +1234,230 @@ function PvTab({ evaluations, modules, groupes }) {
   );
 }
 
+// ─── Tab: Vue d'ensemble (dashboard) ─────────────────────────────────────────
+
+function NotesDashboardTab({ modules, groupes, evaluations }) {
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState([]);
+  const [filterGroupe, setFilterGroupe] = useState('');
+  const [filterModule, setFilterModule] = useState('');
+  const [filterSession, setFilterSession] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const results = [];
+        for (const ev of evaluations) {
+          const nSnap = await getDocs(query(collection(db, 'notes'), where('evaluationId', '==', ev.id)));
+          const allNotes = nSnap.docs.map(d => d.data());
+          if (allNotes.length === 0) continue;
+          const noted = allNotes.filter(n => !n.absent && n.note !== null);
+          const absent = allNotes.filter(n => n.absent).length;
+          const avg = noted.length > 0 ? noted.reduce((s, n) => s + n.note, 0) / noted.length : null;
+          results.push({
+            evalId: ev.id,
+            evalTitre: ev.titre,
+            moduleId: ev.moduleId,
+            groupeId: ev.groupeId,
+            session: ev.sessionAcademique,
+            type: ev.type,
+            date: ev.date,
+            source: ev.source || (ev.importedAt ? 'import' : 'saisie'),
+            total: allNotes.length,
+            noted: noted.length,
+            absent,
+            avg,
+            validated: noted.filter(n => n.note >= 10).length,
+            rachat: noted.filter(n => n.note >= 9 && n.note < 10).length,
+            failed: noted.filter(n => n.note < 9).length,
+          });
+        }
+        results.sort((a, b) => {
+          const ga = (groupes.find(g => g.id === a.groupeId)?.nom || '');
+          const gb = (groupes.find(g => g.id === b.groupeId)?.nom || '');
+          return ga.localeCompare(gb) || (a.moduleId || '').localeCompare(b.moduleId || '');
+        });
+        setStats(results);
+      } catch (err) {
+        toast.error('Erreur : ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [evaluations]);
+
+  const filtered = useMemo(() => stats.filter(s => {
+    if (filterGroupe && s.groupeId !== filterGroupe) return false;
+    if (filterModule && s.moduleId !== filterModule) return false;
+    if (filterSession && s.session !== filterSession) return false;
+    return true;
+  }), [stats, filterGroupe, filterModule, filterSession]);
+
+  const totalNoted = filtered.reduce((s, r) => s + r.noted, 0);
+  const totalValidated = filtered.reduce((s, r) => s + r.validated, 0);
+  const totalRachat = filtered.reduce((s, r) => s + r.rachat, 0);
+  const totalFailed = filtered.reduce((s, r) => s + r.failed, 0);
+  const avgGlobal = totalNoted > 0
+    ? filtered.reduce((s, r) => s + (r.avg || 0) * r.noted, 0) / totalNoted
+    : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
+          <option value="">Tous les groupes</option>
+          {uniqueByNorm(groupes).map(g => <option key={g.id} value={g.id}>{g.nom}</option>)}
+        </select>
+        <select value={filterModule} onChange={e => setFilterModule(e.target.value)}
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
+          <option value="">Tous les modules</option>
+          {modules.map(m => <option key={m.id} value={m.id}>{m.code} — {m.nom}</option>)}
+        </select>
+        <select value={filterSession} onChange={e => setFilterSession(e.target.value)}
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white">
+          <option value="">Toutes sessions</option>
+          <option value="S1">S1</option>
+          <option value="S2">S2</option>
+        </select>
+        {(filterGroupe || filterModule || filterSession) && (
+          <button onClick={() => { setFilterGroupe(''); setFilterModule(''); setFilterSession(''); }}
+            className="text-xs text-slate-400 hover:text-slate-700 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors">
+            ✕ Réinitialiser
+          </button>
+        )}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Évaluations', value: filtered.length, color: 'text-[#005989]' },
+          { label: 'Moyenne globale', value: avgGlobal !== null ? avgGlobal.toFixed(2) + '/20' : '—', color: avgGlobal !== null && avgGlobal >= 10 ? 'text-emerald-600' : 'text-red-500' },
+          { label: 'Apprenants notés', value: totalNoted, color: 'text-slate-700' },
+          { label: 'Taux de réussite', value: totalNoted > 0 ? ((totalValidated / totalNoted) * 100).toFixed(0) + '%' : '—', color: 'text-emerald-600' },
+        ].map(c => (
+          <div key={c.label} className="bg-white rounded-2xl border border-slate-200 p-4 text-center shadow-sm">
+            <p className={`text-2xl font-bold ${c.color}`}>{c.value}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{c.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Stats breakdown */}
+      {totalNoted > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Répartition globale</p>
+          <div className="flex gap-6 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+              <span className="text-sm text-slate-600">Validé (≥10) : <strong className="text-emerald-600">{totalValidated}</strong> <span className="text-slate-400">({totalNoted > 0 ? ((totalValidated/totalNoted)*100).toFixed(0) : 0}%)</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
+              <span className="text-sm text-slate-600">Rachat (9-9.99) : <strong className="text-amber-600">{totalRachat}</strong> <span className="text-slate-400">({totalNoted > 0 ? ((totalRachat/totalNoted)*100).toFixed(0) : 0}%)</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
+              <span className="text-sm text-slate-600">Non validé (&lt;9) : <strong className="text-red-600">{totalFailed}</strong> <span className="text-slate-400">({totalNoted > 0 ? ((totalFailed/totalNoted)*100).toFixed(0) : 0}%)</span></span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-10 text-center"><Spinner /></div>
+        ) : filtered.length === 0 ? (
+          <div className="p-10 text-center text-slate-500 text-sm">Aucune note saisie pour ces critères.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Évaluation</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Module</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Groupe</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Notés</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Moy. classe</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">✓ Validés</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">↺ Rachat</th>
+                  <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">✗ Non val.</th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden xl:table-cell">Source</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map(r => {
+                  const mod = modules.find(m => m.id === r.moduleId);
+                  const grp = groupes.find(g => g.id === r.groupeId);
+                  const typeStyle = TYPE_EVAL_STYLES[r.type] || { cls: 'bg-slate-100 text-slate-600', label: r.type || '—' };
+                  return (
+                    <tr key={r.evalId} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-800 truncate max-w-[200px]">{r.evalTitre}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${typeStyle.cls}`}>{typeStyle.label}</span>
+                          {r.session && <span className="text-[10px] text-slate-400">{r.session}</span>}
+                          {r.date && <span className="text-[10px] text-slate-400">{new Date(r.date).toLocaleDateString('fr-FR')}</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell text-slate-600 text-xs">
+                        {mod ? <><p className="font-medium text-slate-700">{mod.code}</p><p className="text-slate-400 truncate max-w-[160px]">{mod.nom}</p></> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell text-slate-600 text-xs">{grp?.nom || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="text-sm font-semibold text-slate-700">{r.noted}</span>
+                        {r.absent > 0 && <span className="ml-1 text-xs text-amber-500">+{r.absent}abs</span>}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {r.avg !== null ? (
+                          <span className={`text-sm font-bold ${r.avg >= 10 ? 'text-emerald-600' : r.avg >= 9 ? 'text-amber-600' : 'text-red-500'}`}>
+                            {r.avg.toFixed(2)}
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-3 text-center hidden lg:table-cell">
+                        {r.noted > 0 ? (
+                          <span className="text-xs font-semibold text-emerald-600">
+                            {r.validated} <span className="text-slate-400 font-normal">({((r.validated/r.noted)*100).toFixed(0)}%)</span>
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-3 text-center hidden lg:table-cell">
+                        {r.noted > 0 ? (
+                          <span className="text-xs font-semibold text-amber-600">
+                            {r.rachat} <span className="text-slate-400 font-normal">({((r.rachat/r.noted)*100).toFixed(0)}%)</span>
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-3 text-center hidden lg:table-cell">
+                        {r.noted > 0 ? (
+                          <span className="text-xs font-semibold text-red-500">
+                            {r.failed} <span className="text-slate-400 font-normal">({((r.failed/r.noted)*100).toFixed(0)}%)</span>
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-3 hidden xl:table-cell">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.source === 'import' ? 'bg-violet-100 text-violet-700' : r.source === 'portail' ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {r.source === 'import' ? '📊 Import' : r.source === 'portail' ? '📥 Portail' : '✍ Saisie'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
@@ -1304,6 +1529,13 @@ export default function NotesPage() {
       </div>
 
       {/* Tab content */}
+      {activeTab === 'dashboard' && (
+        <NotesDashboardTab
+          modules={modules}
+          groupes={groupes}
+          evaluations={evaluations}
+        />
+      )}
       {activeTab === 'evaluations' && (
         <EvaluationsTab
           evaluations={evaluations}

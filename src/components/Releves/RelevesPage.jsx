@@ -6,8 +6,22 @@ import { useBranding } from '../../contexts/BrandingContext';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
 
-const ANNEE_1A = '2026-2027';
-const ANNEE_2A = '2026-2027';
+const ANNEE_BY_NIVEAU = {
+  '1A': '2026-2027',
+  '2A': '2026-2027',
+  'Licence': '2025-2026',
+  'Mastère': '2025-2026',
+};
+
+function matchesNiveau(student, annee) {
+  const niv = (student.niveau || '').toLowerCase();
+  const af = (student.anneeFormation || '').toLowerCase();
+  if (annee === '1A') return niv.includes('1a') || af === '1a' || niv.includes('première') || (!niv && !af);
+  if (annee === '2A') return niv.includes('2a') || af === '2a' || niv.includes('deuxième');
+  if (annee === 'Licence') return niv.includes('licence') || af === 'licence' || niv.includes('cnam');
+  if (annee === 'Mastère') return niv.includes('astère') || niv.includes('aster') || af === 'mastère' || af === 'master';
+  return true;
+}
 
 const FILIERE_LABELS = {
   OTM:  'Transport Multimodal et Logistique Internationale',
@@ -48,6 +62,7 @@ export default function RelevesPage() {
   const [search, setSearch]   = useState('');
   const [selected, setSelected] = useState(null);
   const [annee, setAnnee]     = useState('1A');
+  const [anneeAcad, setAnneeAcad] = useState('2026-2027');
   const [generating, setGenerating] = useState(false);
 
   // For 2A: manual missing notes
@@ -79,9 +94,14 @@ export default function RelevesPage() {
     load();
   }, []);
 
-  // When a student is selected + 2A mode, fetch their 2A notes
+  // Sync academic year when niveau changes
   useEffect(() => {
-    if (!selected || annee !== '2A') { setNotes2A([]); setEvals2A([]); return; }
+    setAnneeAcad(ANNEE_BY_NIVEAU[annee] || '2026-2027');
+  }, [annee]);
+
+  // When a student is selected + non-1A mode, fetch their notes
+  useEffect(() => {
+    if (!selected || !['2A', 'Licence', 'Mastère'].includes(annee)) { setNotes2A([]); setEvals2A([]); return; }
     let cancelled = false;
     setLoadingNotes(true);
     async function fetch2A() {
@@ -91,8 +111,13 @@ export default function RelevesPage() {
           getDocs(collection(db, 'evaluations')),
         ]);
         if (cancelled) return;
-        setNotes2A(nSnap.docs.filter(d => (d.data().evaluationId || '').includes('2A')).map(d => ({ id: d.id, ...d.data() })));
-        setEvals2A(evSnap.docs.filter(d => d.id.includes('2A')).map(d => ({ id: d.id, ...d.data() })));
+        if (annee === '2A') {
+          setNotes2A(nSnap.docs.filter(d => (d.data().evaluationId || '').includes('2A')).map(d => ({ id: d.id, ...d.data() })));
+          setEvals2A(evSnap.docs.filter(d => d.id.includes('2A')).map(d => ({ id: d.id, ...d.data() })));
+        } else {
+          setNotes2A(nSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          setEvals2A(evSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
       } finally {
         if (!cancelled) setLoadingNotes(false);
       }
@@ -113,14 +138,16 @@ export default function RelevesPage() {
   const codeIndex = useMemo(() => buildCodeIndex(allModules), [allModules]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return students.slice(0, 50);
+    const hasNiveauData = students.some(s => s.niveau || s.anneeFormation);
+    const byNiveau = hasNiveauData ? students.filter(s => matchesNiveau(s, annee)) : students;
+    if (!search.trim()) return byNiveau.slice(0, 50);
     const q = search.toLowerCase();
-    return students.filter(s =>
+    return byNiveau.filter(s =>
       (s.nom || '').toLowerCase().includes(q) ||
       (s.prenom || '').toLowerCase().includes(q) ||
       (s.codeApprenant || '').toLowerCase().includes(q)
     ).slice(0, 50);
-  }, [students, search]);
+  }, [students, search, annee]);
 
   // Build 1A modules list for selected student
   const modules1A = useMemo(() => {
@@ -142,9 +169,9 @@ export default function RelevesPage() {
     return bulletins.find(b => b.studentCode === code || b.studentId === code) || null;
   }, [selected, bulletins]);
 
-  // Build 2A modules list from notes + evaluations
+  // Build 2A/Licence/Mastère modules list from notes + evaluations
   const modules2A = useMemo(() => {
-    if (!selected || annee !== '2A' || !notes2A.length) return [];
+    if (!selected || !['2A', 'Licence', 'Mastère'].includes(annee) || !notes2A.length) return [];
     const evalMap = {};
     for (const ev of evals2A) evalMap[ev.id] = ev;
     return notes2A.map(n => {
@@ -168,12 +195,16 @@ export default function RelevesPage() {
 
   const handleGenerate = async () => {
     if (!selected) return;
+    if (['Licence', 'Mastère'].includes(annee)) {
+      showToast('Template ' + annee + ' en cours de développement — aperçu disponible uniquement', 'error');
+      return;
+    }
     setGenerating(true);
     try {
       const code = selected.codeApprenant || selected.id;
       const bul = bulletins.find(b => b.studentCode === code || b.studentId === code);
       const info = {
-        anneeAcademique: ANNEE_1A,
+        anneeAcademique: anneeAcad,
         filiere: bul?.filiere || selected.filiere || '',
         groupe: bul?.groupe || selected.groupeId || '',
       };
@@ -196,8 +227,7 @@ export default function RelevesPage() {
         showToast('Relevé 1A généré', 'success');
       } else {
         if (!modules2A.length) { showToast('Aucune note 2A trouvée pour cet apprenant', 'error'); return; }
-        const info2A = { ...info, anneeAcademique: ANNEE_2A };
-        generateReleve2A(studentData, info2A, modules2A, {
+        generateReleve2A(studentData, info, modules2A, {
           moy2A,
           moy1A:    moy1A    ? parseFloat(moy1A)    : null,
           moyStage: moyStage ? parseFloat(moyStage) : null,
@@ -213,13 +243,13 @@ export default function RelevesPage() {
     }
   };
 
-  const canGenerate = selected && (annee === '1A' ? modules1A.length > 0 : modules2A.length > 0);
+  const canGenerate = selected && (annee === '1A' ? modules1A.length > 0 : ['Licence', 'Mastère'].includes(annee) ? true : modules2A.length > 0);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">{t('releves.title')}</h1>
-        <p className="text-sm text-slate-500 mt-1">Génération PDF des relevés annuels 1A TS et de fin de formation 2A TS</p>
+        <p className="text-sm text-slate-500 mt-1">Génération PDF des relevés — 1A TS, 2A TS, Licence CNAM, Mastère / Master</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -257,13 +287,27 @@ export default function RelevesPage() {
           {/* Type selector */}
           <div className="bg-white rounded-2xl border border-slate-200 p-4">
             <h2 className="text-sm font-bold text-slate-700 mb-3">2. Type de relevé</h2>
-            <div className="flex gap-2">
-              {['1A', '2A'].map(a => (
-                <button key={a} onClick={() => setAnnee(a)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${annee === a ? 'bg-[#005989] text-white border-[#005989]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                  Relevé {a} TS
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: '1A', label: 'Relevé 1A TS' },
+                { key: '2A', label: 'Relevé 2A TS' },
+                { key: 'Licence', label: 'Licence CNAM' },
+                { key: 'Mastère', label: 'Mastère / Master' },
+              ].map(a => (
+                <button key={a.key} onClick={() => { setAnnee(a.key); setSelected(null); }}
+                  className={`py-2 rounded-xl text-sm font-semibold border transition-colors ${annee === a.key ? 'bg-[#005989] text-white border-[#005989]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                  {a.label}
                 </button>
               ))}
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Année académique</label>
+              <select value={anneeAcad} onChange={e => setAnneeAcad(e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-[#005989] bg-white">
+                <option value="2026-2027">2026-2027</option>
+                <option value="2025-2026">2025-2026</option>
+                <option value="2024-2025">2024-2025</option>
+              </select>
             </div>
           </div>
         </div>
@@ -329,15 +373,21 @@ export default function RelevesPage() {
                 </div>
               )}
 
-              {/* 2A Preview + inputs */}
-              {annee === '2A' && (
+              {/* 2A / Licence / Mastère Preview + inputs */}
+              {['2A', 'Licence', 'Mastère'].includes(annee) && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
-                  <h2 className="text-sm font-bold text-slate-700">Aperçu — Modules 2A</h2>
+                  <h2 className="text-sm font-bold text-slate-700">Aperçu — Modules {annee}</h2>
+
+                  {['Licence', 'Mastère'].includes(annee) && (
+                    <p className="text-xs text-blue-600 bg-blue-50 rounded-xl px-3 py-2">
+                      ℹ️ Template PDF {annee} en cours de développement. L'aperçu affiche les notes disponibles.
+                    </p>
+                  )}
 
                   {loadingNotes ? (
-                    <p className="text-sm text-slate-400">Chargement des notes 2A…</p>
+                    <p className="text-sm text-slate-400">Chargement des notes…</p>
                   ) : modules2A.length === 0 ? (
-                    <p className="text-sm text-amber-600 bg-amber-50 rounded-xl px-3 py-2">Aucune note 2A trouvée pour cet apprenant dans le PV importé.</p>
+                    <p className="text-sm text-amber-600 bg-amber-50 rounded-xl px-3 py-2">Aucune note trouvée pour cet apprenant.</p>
                   ) : (
                     <div className="overflow-x-auto rounded-xl border border-slate-100">
                       <table className="w-full text-xs">
@@ -418,7 +468,7 @@ export default function RelevesPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                {generating ? t('releves.generating') : `${t('releves.generate_btn')} ${annee} TS — ${selected.nom} ${selected.prenom}`}
+                {generating ? t('releves.generating') : ['Licence', 'Mastère'].includes(annee) ? `Aperçu ${annee} — ${selected.nom} ${selected.prenom}` : `${t('releves.generate_btn')} ${annee} TS — ${selected.nom} ${selected.prenom}`}
               </button>
             </>
           ) : (
