@@ -300,7 +300,9 @@ export default function RelevesPage() {
       } else if (['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee)) {
         const uam10kMod  = modules2A.find(m => m.code === 'UAM10K');
         const uam10kNote = uam10kMod?.note ?? null;
-        const moyGen     = bul?.moyenneGenerale ?? moy2A;
+        // moy2A (calculé en temps réel depuis les notes + ECTS) prime toujours sur
+        // la valeur stockée dans bulletins (potentiellement ancienne / incorrecte).
+        const moyGen     = moy2A ?? bul?.moyenneGenerale;
         let decision;
         if (bul?.decision) {
           decision = bul.decision === 'admis' ? 'ADMIS(E)' : 'NON ADMIS(E)';
