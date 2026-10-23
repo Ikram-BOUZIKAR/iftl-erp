@@ -69,15 +69,29 @@ export default function EmargementLibreModal({ groupes, intervenants, onClose })
 
   useEffect(() => {
     if (!selectedGroupe?.id) { setModules([]); return; }
-    const q = selectedGroupe.filiereCode
-      ? query(collection(db, 'modules'), where('filiereCode', '==', selectedGroupe.filiereCode))
-      : query(collection(db, 'modules'));
-    getDocs(q).then(snap => {
-      const mods = [];
-      snap.forEach(d => mods.push({ id: d.id, ...d.data() }));
-      mods.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-      setModules(mods);
-    }).catch(() => setModules([]));
+    const fetchMods = async () => {
+      try {
+        // Try filière-filtered first; fall back to all modules if none found
+        if (selectedGroupe.filiereCode) {
+          const qFiltered = query(collection(db, 'modules'), where('filiereCode', '==', selectedGroupe.filiereCode));
+          const snap = await getDocs(qFiltered);
+          if (snap.size > 0) {
+            const mods = [];
+            snap.forEach(d => mods.push({ id: d.id, ...d.data() }));
+            mods.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+            setModules(mods);
+            return;
+          }
+        }
+        // No filiereCode or no matching modules → load all
+        const snapAll = await getDocs(query(collection(db, 'modules')));
+        const all = [];
+        snapAll.forEach(d => all.push({ id: d.id, ...d.data() }));
+        all.sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+        setModules(all);
+      } catch { setModules([]); }
+    };
+    fetchMods();
   }, [selectedGroupe?.id, selectedGroupe?.filiereCode]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));

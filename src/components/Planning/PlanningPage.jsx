@@ -124,7 +124,7 @@ export default function PlanningPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab]         = useState('planning'); // 'planning' | 'calendrier'
   const [dayView, setDayView]             = useState('tous');     // 'semaine' | 'weekend' | 'tous'
-  const [anneeAcademique, setAnneeAcademique] = useState('2025-2026');
+  const [anneeAcademique, setAnneeAcademique] = useState('2026-2027');
 
   const weekDays = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
 

@@ -237,7 +237,9 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
   const filteredModules = useMemo(() => {
     if (!primaryGroupeId || loadingAff || groupAffectations.length === 0) return modules;
     const moduleIds = new Set(groupAffectations.map(a => a.moduleId));
-    return modules.filter(m => moduleIds.has(m.id));
+    const filtered = modules.filter(m => moduleIds.has(m.id));
+    // Affectations exist but moduleIds are stale (modules re-imported) → show all
+    return filtered.length > 0 ? filtered : modules;
   }, [primaryGroupeId, groupAffectations, loadingAff, modules]);
 
   const handleModuleChange = (moduleId) => {
