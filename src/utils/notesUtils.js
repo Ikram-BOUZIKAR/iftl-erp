@@ -132,6 +132,8 @@ export function calculerMoyenneModule1ATS(cc, efm, rattrapage) {
  */
 export function calculerMoyenneUELicence(ctl, efm, rattrapage, codeUE = '') {
   const ctl_ = _n(ctl), efm_ = _n(efm), ratt_ = _n(rattrapage);
+  // UAM10K : note unique (soutenance/mémoire), pas de pondération CTL/EFM
+  if (codeUE === 'UAM10K') return efm_ !== null ? efm_ : ctl_ !== null ? ctl_ : null;
   let efmEff = efm_;
   if (ratt_ !== null) {
     const capped = Math.min(ratt_, 12);

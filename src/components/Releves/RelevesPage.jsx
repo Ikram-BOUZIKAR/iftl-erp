@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { canSeeNiveau } from '../../utils/roleConfig';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
-import { calculerMoyenneUELicence } from '../../utils/notesUtils';
+import { calculerMoyenneUELicence, calculerMoyenneGeneraleLicence } from '../../utils/notesUtils';
 
 const ANNEE_BY_NIVEAU = {
   '1A': '2026-2027',
@@ -198,14 +198,14 @@ export default function RelevesPage() {
             nom:   modDoc?.nom || moduleId,
             coeff: modDoc?.coeff ?? modDoc?.coefficient ?? ev.coefficient ?? 2,
             code:  modDoc?.code || moduleId,
-            cc: null, efm: null, rattrapage: null,
+            ccNotes: [], efm: null, rattrapage: null,
           };
         }
         const type = (ev.type || '').toUpperCase();
         const val  = n.note !== null && n.note !== undefined ? Number(n.note) : null;
         // Accepte les deux systèmes de typage (CC/EFM/RATTRAPAGE et controle/examen_rattrapage)
         if (type === 'CC' || type === 'CTL' || type === 'CONTROLE' || type === 'CONTRÔLE') {
-          byModule[moduleId].cc = val;
+          if (val !== null) byModule[moduleId].ccNotes.push(val);
         } else if (type === 'EFM') {
           byModule[moduleId].efm = val;
         } else if (type === 'RATTRAPAGE' || type === 'EXAMEN_RATTRAPAGE') {
@@ -213,12 +213,19 @@ export default function RelevesPage() {
         }
       }
       return Object.values(byModule)
-        .map(m => ({
-          ref:   m.ref,
-          nom:   m.nom,
-          note:  calculerMoyenneUELicence(m.cc, m.efm, m.rattrapage, m.code),
-          coeff: m.coeff,
-        }))
+        .map(m => {
+          // Moyenne des CTL si plusieurs contrôles (ex : CTL1 + CTL2 / 2 comme ESSAF)
+          const ccMoy = m.ccNotes.length > 0
+            ? m.ccNotes.reduce((s, v) => s + v, 0) / m.ccNotes.length
+            : null;
+          return {
+            ref:   m.ref,
+            nom:   m.nom,
+            note:  calculerMoyenneUELicence(ccMoy, m.efm, m.rattrapage, m.code),
+            coeff: m.coeff,
+            code:  m.code,
+          };
+        })
         .sort((a, b) => (a.ref || '').localeCompare(b.ref || ''));
     }
 
@@ -237,10 +244,18 @@ export default function RelevesPage() {
 
   const moy2A = useMemo(() => {
     if (!modules2A.length) return null;
+    // Licence CNAM : moyenne pondérée par ECTS (UAM10K exclue) — identique à ESSAF
+    if (annee === 'Licence') {
+      const ues = modules2A
+        .filter(m => m.note !== null && m.note !== undefined)
+        .map(m => ({ code: m.code || m.ref, moyenne: m.note }));
+      return calculerMoyenneGeneraleLicence(ues);
+    }
+    // Autres niveaux : pondération par coeff Firestore
     const valid = modules2A.filter(m => m.note !== null && m.note !== undefined);
     const sumCoeff = valid.reduce((s, m) => s + m.coeff, 0);
     return sumCoeff > 0 ? valid.reduce((s, m) => s + m.note * m.coeff, 0) / sumCoeff : null;
-  }, [modules2A]);
+  }, [modules2A, annee]);
 
   const handleGenerate = async () => {
     if (!selected) return;
@@ -272,10 +287,22 @@ export default function RelevesPage() {
         }, branding);
         showToast('Relevé 1A généré', 'success');
       } else if (['Licence', 'LicenceTransitaire', 'Mastère'].includes(annee)) {
+        const uam10kMod  = modules2A.find(m => m.code === 'UAM10K');
+        const uam10kNote = uam10kMod?.note ?? null;
+        const moyGen     = bul?.moyenneGenerale ?? moy2A;
+        let decision;
+        if (bul?.decision) {
+          decision = bul.decision === 'admis' ? 'ADMIS(E)' : 'NON ADMIS(E)';
+        } else if (moyGen !== null) {
+          // Réussite Licence : moy ≥ 10 ET UAM10K ≥ 10
+          const uam10kOk = uam10kNote === null || uam10kNote >= 10;
+          decision = moyGen >= 10 && uam10kOk ? 'ADMIS(E)' : 'AJOURNÉ(E)';
+        }
         generateReleveFormationSup(studentData, info, modules2A, {
-          moyenneGenerale: bul?.moyenneGenerale,
+          moyenneGenerale: moyGen,
+          uam10kNote,
           mention: bul?.mention,
-          decision: bul?.decision === 'admis' ? 'ADMIS(E)' : bul?.decision === 'non_admis' ? 'NON ADMIS(E)' : undefined,
+          decision,
         }, branding);
         showToast('Relevé ' + annee + ' généré', 'success');
       } else {
