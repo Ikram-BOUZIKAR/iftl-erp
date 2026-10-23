@@ -27,6 +27,7 @@ import {
   calculerMoyennePassage,
   getDecisionPassage,
 } from '../../utils/notesUtils';
+import NotesImportTab from './NotesImportTab';
 
 // ── Helpers: group deduplication (hyphen vs en-dash) ─────────────────────────
 function normalizeDash(str) {
@@ -78,6 +79,7 @@ const TYPE_EVAL_STYLES = {
 const TABS = [
   { key: 'evaluations', label: 'Évaluations' },
   { key: 'saisie', label: 'Saisie des notes' },
+  { key: 'import', label: '📊 Import notes' },
   { key: 'bulletins', label: 'Bulletins' },
   { key: 'pv', label: 'PV du groupe' },
   { key: 'portail', label: '📥 Portail entrant' },
@@ -1317,6 +1319,9 @@ export default function NotesPage() {
           modules={modules}
           groupes={groupes}
         />
+      )}
+      {activeTab === 'import' && (
+        <NotesImportTab modules={modules} groupes={groupes} />
       )}
       {activeTab === 'bulletins' && (
         <BulletinsTab

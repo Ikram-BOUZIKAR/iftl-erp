@@ -101,6 +101,110 @@ export function getDecisionPassage(moy) {
   return               { decision: 'REDOUBLANT(E)', color: 'red'     };
 }
 
+// ── Formules d'import ─────────────────────────────────────────────────────────
+
+export const FORMULES_MODULE = [
+  { value: 'efm_seul',       label: 'EFM seul (règle par défaut)' },
+  { value: 'cc_40_efm_60',   label: 'CC × 0,4 + EFM × 0,6' },
+  { value: 'cc_examen_demi', label: '(CC + EFM) ÷ 2' },
+  { value: 'wm_intro_seule', label: 'WM — Intro seule (gr A/B/C)' },
+  { value: 'licence_cnam',   label: 'Licence CNAM — CTL × 0,25 + EFM × 0,75' },
+];
+
+function _n(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+const _r2 = v => Math.round(v * 100) / 100;
+
+/**
+ * Moyenne d'un module 1A TS selon la formule choisie.
+ * Si rattrapage présent : CC × 0,4 + Rattrapage × 0,6 (remplace tout).
+ */
+export function calculerMoyenneModule1ATS(cc, efm, rattrapage, formule = 'efm_seul') {
+  const cc_ = _n(cc), efm_ = _n(efm), ratt_ = _n(rattrapage);
+  if (ratt_ !== null) {
+    if (cc_ !== null) return _r2(cc_ * 0.4 + ratt_ * 0.6);
+    return _r2(ratt_ * 0.6);
+  }
+  switch (formule) {
+    case 'efm_seul':
+      return efm_;
+    case 'cc_40_efm_60':
+      if (cc_ !== null && efm_ !== null) return _r2(cc_ * 0.4 + efm_ * 0.6);
+      if (efm_ !== null) return _r2(efm_ * 0.6);
+      if (cc_ !== null) return _r2(cc_ * 0.4);
+      return null;
+    case 'cc_examen_demi':
+      if (cc_ !== null && efm_ !== null) return _r2((cc_ + efm_) / 2);
+      return cc_ !== null ? cc_ : efm_;
+    case 'wm_intro_seule':
+      return cc_;
+    default:
+      return efm_;
+  }
+}
+
+/**
+ * Moyenne d'une UE Licence CNAM.
+ * CTL × 0,25 + max(EFM, min(Ratt, 12)) × 0,75
+ * LTR126 : si 9 ≤ moy < 10 → relevé à 10.
+ */
+export function calculerMoyenneUELicence(ctl, efm, rattrapage, codeUE = '') {
+  const ctl_ = _n(ctl), efm_ = _n(efm), ratt_ = _n(rattrapage);
+  let efmEff = efm_;
+  if (ratt_ !== null) {
+    const capped = Math.min(ratt_, 12);
+    efmEff = efm_ !== null ? Math.max(efm_, capped) : capped;
+  }
+  if (ctl_ === null && efmEff === null) return null;
+  let moy;
+  if (ctl_ !== null && efmEff !== null) moy = _r2(ctl_ * 0.25 + efmEff * 0.75);
+  else if (efmEff !== null) moy = _r2(efmEff * 0.75);
+  else moy = _r2(ctl_ * 0.25);
+  if (codeUE === 'LTR126' && moy !== null && moy >= 9 && moy < 10) moy = 10;
+  return moy;
+}
+
+// ECTS Licence CNAM (UAM10K hors moyenne)
+export const ECTS_LICENCE = {
+  CFA109: 6, LTR112: 4, ESC118: 4, LTR135: 6, LTR126: 4,
+  LTR113: 6, ESC121: 4, LTR143: 6, ANG320: 6, TED001: 3,
+};
+
+/**
+ * Moyenne générale Licence CNAM pondérée par ECTS (UAM10K exclue).
+ * Si moy ≥ 10 : toutes UE notées acquises.
+ * Licence validée : moy ≥ 10, TED001 ≥ 10, UAM10K ≥ 10.
+ */
+export function calculerMoyenneGeneraleLicence(ues) {
+  const notables = ues.filter(u => u.code !== 'UAM10K' && u.moyenne !== null);
+  if (!notables.length) return null;
+  const totalECTS = notables.reduce((s, u) => s + (ECTS_LICENCE[u.code] ?? 0), 0);
+  if (totalECTS === 0) return null;
+  return _r2(notables.reduce((s, u) => s + u.moyenne * (ECTS_LICENCE[u.code] ?? 0), 0) / totalECTS);
+}
+
+/** Statut d'un module 1A TS. */
+export function getStatutModule(moy) {
+  if (moy === null || moy === undefined) return null;
+  if (moy >= 10) return 'valide';
+  if (moy >= 9)  return 'rachat';
+  return 'non_valide';
+}
+
+/**
+ * Moyenne 1A TS pondérée par coefficients.
+ * @param {Array<{moyenne: number|null, coeff: number}>} modules
+ */
+export function calculerMoyenne1AGroupe(modules) {
+  const ok = modules.filter(m => m.moyenne !== null && m.coeff > 0);
+  if (!ok.length) return null;
+  const totalCoeff = ok.reduce((s, m) => s + m.coeff, 0);
+  return _r2(ok.reduce((s, m) => s + m.moyenne * m.coeff, 0) / totalCoeff);
+}
+
 // ── Deadline helpers ──────────────────────────────────────────────────────────
 
 export const NOTE_DEADLINES = {
