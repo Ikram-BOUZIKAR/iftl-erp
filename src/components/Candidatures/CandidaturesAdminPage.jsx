@@ -6,6 +6,7 @@ import { candidaturesService, historiqueService } from '../../services/firestore
 import { useToast } from '../UI/Toast';
 import { sendCandidatureStatut } from '../../services/emailService';
 import { useTranslation } from 'react-i18next';
+import ConvocationBatchModal from './ConvocationBatchModal';
 
 const BRAND = '#005989';
 
@@ -22,6 +23,7 @@ const STATUTS = {
   refuse:         { label: 'Refusé(e)',          cls: 'bg-red-100 text-red-600',        dot: 'bg-red-500',      pipe: 6 },
   retire:         { label: 'Retiré(e)',          cls: 'bg-slate-100 text-slate-500',    dot: 'bg-slate-400',    pipe: 6 },
   brouillon:      { label: 'Brouillon',          cls: 'bg-slate-50 text-slate-400',     dot: 'bg-slate-300',    pipe: 0 },
+  inscrite:       { label: 'Inscrit(e)',          cls: 'bg-blue-100 text-blue-800',      dot: 'bg-blue-600',     pipe: 7 },
   // Legacy aliases (backwards compat)
   recu:           { label: 'Soumise',            cls: 'bg-blue-100 text-blue-700',      dot: 'bg-blue-500',     pipe: 1 },
   en_cours:       { label: 'En vérification',    cls: 'bg-amber-100 text-amber-700',    dot: 'bg-amber-500',    pipe: 2 },
@@ -138,6 +140,7 @@ export default function CandidaturesAdminPage() {
   const [complementForm, setComplementForm] = useState({ docs: [], deadline: '', note: '' });
   const [complementSaving, setComplementSaving] = useState(false);
   const [bulkAction, setBulkAction]     = useState('');
+  const [showConvocationModal, setShowConvocationModal] = useState(false);
 
   const filieres = [...new Set(candidatures.map(c => c.filiere || c.niveauFormation).filter(Boolean))].sort();
   const villes   = [...new Set(candidatures.map(c => c.ville).filter(Boolean))].sort();
@@ -301,10 +304,20 @@ export default function CandidaturesAdminPage() {
 
   const handleBulkAction = async () => {
     if (!bulkAction || selectedIds.size === 0) return;
+    // Only apply to candidatures where the action is a valid next step
+    const eligibleIds = [...selectedIds].filter(id => {
+      const c = candidatures.find(x => x.id === id);
+      return c && getNextActions(c.statut).includes(bulkAction);
+    });
+    if (eligibleIds.length === 0) {
+      toast.error('Aucun dossier sélectionné ne peut passer à ce statut.');
+      return;
+    }
+    const skipped = selectedIds.size - eligibleIds.length;
     try {
-      for (const id of selectedIds) {
-        await updateDoc(doc(db, 'candidatures', id), { statut: bulkAction, dateTraitement: new Date() });
+      for (const id of eligibleIds) {
         const c = candidatures.find(x => x.id === id);
+        await updateDoc(doc(db, 'candidatures', id), { statut: bulkAction, dateTraitement: new Date() });
         if (c?.email) {
           sendCandidatureStatut(db, {
             email: c.email, prenom: c.prenom, nom: c.nom, ref: c.ref,
@@ -312,7 +325,10 @@ export default function CandidaturesAdminPage() {
           }).catch(() => {});
         }
       }
-      toast.success(`${selectedIds.size} dossier(s) → ${STATUTS[bulkAction]?.label}`);
+      const msg = skipped > 0
+        ? `${eligibleIds.length} dossier(s) → ${STATUTS[bulkAction]?.label} (${skipped} ignoré(s) — statut incompatible)`
+        : `${eligibleIds.length} dossier(s) → ${STATUTS[bulkAction]?.label}`;
+      toast.success(msg);
       setSelectedIds(new Set());
       setBulkAction('');
       refetch();
@@ -548,6 +564,10 @@ export default function CandidaturesAdminPage() {
           <button onClick={handleBulkAction} disabled={!bulkAction}
             className="bg-white text-[#005989] text-sm font-bold px-4 py-1.5 rounded-lg hover:bg-slate-100 transition disabled:opacity-40">
             Appliquer
+          </button>
+          <button onClick={() => setShowConvocationModal(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-1.5 rounded-lg transition">
+            📅 Convoquer (lot)
           </button>
           <button onClick={() => { setSelectedIds(new Set()); setBulkAction(''); }}
             className="text-white/60 hover:text-white text-sm transition ml-auto">
@@ -946,6 +966,16 @@ export default function CandidaturesAdminPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Convocation batch modal */}
+      {showConvocationModal && (
+        <ConvocationBatchModal
+          candidatures={candidatures}
+          selectedIds={selectedIds}
+          onClose={() => setShowConvocationModal(false)}
+          onDone={() => { setSelectedIds(new Set()); refetch(); }}
+        />
       )}
 
       {/* Convert to student modal */}

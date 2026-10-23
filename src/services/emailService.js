@@ -529,10 +529,14 @@ export async function sendReinscriptionRefusee(db, { email, prenom, nom, annee, 
 // ─── Candidatures ──────────────────────────────────────────────────────────────
 
 const CANDIDATURE_STATUT_META = {
-  accepte:       { label: 'Admis(e)',        color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', borderLeft: '#059669', icon: '🎉', titre: 'Félicitations — Vous êtes admis(e) !' },
-  liste_attente: { label: 'Liste d\'attente',color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', borderLeft: '#7c3aed', icon: '⏳', titre: 'Votre dossier est en liste d\'attente' },
-  refuse:        { label: 'Non retenu(e)',   color: '#dc2626', bg: '#fef2f2', border: '#fecaca', borderLeft: '#dc2626', icon: '📋', titre: 'Suite donnée à votre candidature' },
-  en_cours:      { label: 'En traitement',   color: '#d97706', bg: '#fffbeb', border: '#fde68a', borderLeft: '#d97706', icon: '🔍', titre: 'Votre dossier est en cours d\'examen' },
+  accepte:       { label: 'Admis(e)',             color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', borderLeft: '#059669', icon: '🎉', titre: 'Félicitations — Vous êtes admis(e) !' },
+  admis:         { label: 'Admis(e)',             color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', borderLeft: '#059669', icon: '🎉', titre: 'Félicitations — Vous êtes admis(e) !' },
+  liste_attente: { label: 'Liste d\'attente',     color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', borderLeft: '#7c3aed', icon: '⏳', titre: 'Votre dossier est en liste d\'attente' },
+  refuse:        { label: 'Non retenu(e)',        color: '#dc2626', bg: '#fef2f2', border: '#fecaca', borderLeft: '#dc2626', icon: '📋', titre: 'Suite donnée à votre candidature' },
+  en_cours:      { label: 'En traitement',        color: '#d97706', bg: '#fffbeb', border: '#fde68a', borderLeft: '#d97706', icon: '🔍', titre: 'Votre dossier est en cours d\'examen' },
+  incomplet:     { label: 'Compléments requis',   color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', borderLeft: '#ea580c', icon: '📎', titre: 'Compléments demandés pour votre dossier' },
+  convoque:      { label: 'Convoqué(e)',          color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', borderLeft: '#7c3aed', icon: '📅', titre: 'Convocation — Entretien / Test d\'admission' },
+  valide:        { label: 'Dossier validé',       color: '#0d9488', bg: '#f0fdfa', border: '#99f6e4', borderLeft: '#0d9488', icon: '✔',  titre: 'Votre dossier a été validé' },
 };
 
 function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
@@ -549,7 +553,7 @@ function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
       ${ref ? `<tr style="background:#f8fafc"><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Référence</td><td style="padding:10px 16px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${ref}</td></tr>` : ''}
       ${filiere ? `<tr><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600">Filière</td><td style="padding:10px 16px;font-size:13px;font-weight:700">${filiere}</td></tr>` : ''}
     </table>
-    ${statut === 'accepte' ? `
+    ${(statut === 'accepte' || statut === 'admis') ? `
       <p style="line-height:1.7">Votre dossier de candidature a été retenu. Vous serez contacté(e) prochainement par la scolarité pour les modalités d'inscription définitive.</p>
       <p style="line-height:1.7">Bienvenue à ${INSTITUTE_NAME} !</p>
     ` : statut === 'liste_attente' ? `
@@ -558,6 +562,12 @@ function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
       <p style="line-height:1.7">Nous avons examiné votre dossier de candidature et nous regrettons de ne pouvoir y donner suite favorablement cette année.</p>
       ${motif ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin:12px 0"><p style="margin:0;font-size:13px;color:#475569"><strong>Motif :</strong> ${motif}</p></div>` : ''}
       <p style="line-height:1.7">Nous vous encourageons à postuler de nouveau lors de la prochaine session.</p>
+    ` : statut === 'incomplet' ? `
+      <p style="line-height:1.7">Votre dossier est en cours de traitement mais des documents supplémentaires sont nécessaires. Veuillez contacter la scolarité ou déposer les pièces manquantes dès que possible.</p>
+    ` : statut === 'convoque' ? `
+      <p style="line-height:1.7">Votre dossier a été validé et vous êtes convoqué(e) pour un entretien ou un test d'admission. Consultez les détails de votre convocation sur le portail candidat ou contactez la scolarité.</p>
+    ` : statut === 'valide' ? `
+      <p style="line-height:1.7">Votre dossier est complet et a été validé par notre équipe pédagogique. Vous serez prochainement convoqué(e) pour la suite du processus d'admission.</p>
     ` : `
       <p style="line-height:1.7">Votre dossier de candidature est actuellement en cours d'examen par notre équipe pédagogique. Nous vous informerons de la suite dans les meilleurs délais.</p>
     `}
@@ -566,6 +576,41 @@ function candidatureStatutHtml({ prenom, nom, ref, filiere, statut, motif }) {
     </div>
     <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité ${INSTITUTE_NAME}</strong></p>
   `);
+}
+
+function candidatureConfirmationHtml({ prenom, nom, ref, filiere, anneeEntree }) {
+  return baseLayout(`
+    <p style="font-size:15px;line-height:1.7">Bonjour <strong>${prenom} ${nom}</strong>,</p>
+    <div style="background:#f0f8ff;border:1px solid #bce0f7;border-left:4px solid #005989;border-radius:8px;padding:24px;margin:20px 0;text-align:center">
+      <div style="font-size:36px;margin-bottom:10px">📬</div>
+      <h2 style="margin:0 0 6px;color:#005989;font-size:19px">Votre dossier a bien été reçu</h2>
+      ${ref ? `<p style="color:#0077b6;margin:4px 0 0;font-size:13px;opacity:0.8">Réf. dossier : <strong>${ref}</strong></p>` : ''}
+    </div>
+    <p style="line-height:1.7">Nous avons bien reçu votre dossier de candidature. Notre équipe va l'examiner et vous tiendrons informé(e) de la suite sous <strong>48 heures ouvrées</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      ${ref ? `<tr style="background:#f8fafc"><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Référence</td><td style="padding:10px 16px;font-size:13px;font-weight:700;font-family:monospace;border-bottom:1px solid #e2e8f0">${ref}</td></tr>` : ''}
+      ${filiere ? `<tr><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Filière</td><td style="padding:10px 16px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0">${filiere}</td></tr>` : ''}
+      ${anneeEntree ? `<tr><td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600">Année</td><td style="padding:10px 16px;font-size:13px;font-weight:700">${anneeEntree}</td></tr>` : ''}
+    </table>
+    <p style="line-height:1.7">Vous pouvez suivre l'état de votre dossier à tout moment en vous rendant sur notre portail candidat en saisissant votre numéro de CIN.</p>
+    <div style="background:#f0f7fd;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:16px 0">
+      <p style="margin:0;font-size:13px;color:#1e40af"><strong>Contact scolarité :</strong> <a href="mailto:scolarite@${EMAIL_DOMAIN}" style="color:#005989">scolarite@${EMAIL_DOMAIN}</a></p>
+    </div>
+    <p style="margin-top:28px;line-height:1.7">Cordialement,<br><strong>La scolarité ${INSTITUTE_NAME}</strong></p>
+  `);
+}
+
+/** Sends a confirmation email to a candidate right after they submit their application. */
+export async function sendCandidatureConfirmation(db, { email, prenom, nom, ref, filiere, anneeEntree }) {
+  if (!email) return;
+  const html = candidatureConfirmationHtml({ prenom, nom, ref, filiere, anneeEntree });
+  return sendEmail(db, {
+    to: email,
+    toName: `${prenom} ${nom}`,
+    subject: `Dossier reçu — ${ref} — ${INSTITUTE_NAME}`,
+    htmlContent: html,
+    textContent: `Bonjour ${prenom} ${nom},\n\nNous avons bien reçu votre dossier de candidature (réf: ${ref}).\nFilière : ${filiere || '—'}\nAnnée : ${anneeEntree || '—'}\n\nNous vous répondrons sous 48h ouvrées.\nContactez-nous : scolarite@${EMAIL_DOMAIN}\n\nCordialement,\nLa scolarité ${INSTITUTE_NAME}`,
+  });
 }
 
 /**

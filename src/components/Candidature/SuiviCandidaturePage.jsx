@@ -63,16 +63,50 @@ function StatusMessage({ candidature }) {
     </div>
   );
 
-  if (st === 'convoque') return (
-    <div className="rounded-2xl p-4 mb-4 border border-purple-200 bg-purple-50">
-      <p className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-        📅 Convocation
-      </p>
-      <p className="text-sm text-purple-800 leading-relaxed">
-        Vous avez été convoqué(e) pour un entretien ou un test d&apos;admission. Consultez vos emails ou contactez l&apos;établissement pour les détails.
-      </p>
-    </div>
-  );
+  if (st === 'convoque') {
+    const conv = candidature.convocation;
+    return (
+      <div className="rounded-2xl p-4 mb-4 border border-purple-200 bg-purple-50">
+        <p className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          📅 Convocation
+        </p>
+        {conv ? (
+          <div className="space-y-2">
+            {conv.dateEntretien && (
+              <div className="flex justify-between text-sm">
+                <span className="text-purple-600 font-medium">Date</span>
+                <span className="text-purple-900 font-bold">
+                  {new Date(conv.dateEntretien).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                  {conv.heureEntretien ? ` à ${conv.heureEntretien}` : ''}
+                </span>
+              </div>
+            )}
+            {conv.salle && (
+              <div className="flex justify-between text-sm">
+                <span className="text-purple-600 font-medium">Salle</span>
+                <span className="text-purple-900 font-bold">{conv.salle}</span>
+              </div>
+            )}
+            {conv.codeExamen && (
+              <div className="flex justify-between text-sm">
+                <span className="text-purple-600 font-medium">Code candidat</span>
+                <span className="text-purple-900 font-bold font-mono">{conv.codeExamen}</span>
+              </div>
+            )}
+            {conv.noteConvocation && (
+              <p className="text-xs text-purple-700 italic border-t border-purple-200 pt-2 mt-2">
+                {conv.noteConvocation}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-purple-800 leading-relaxed">
+            Vous avez été convoqué(e) pour un entretien ou un test d&apos;admission. Les détails vous seront communiqués prochainement.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   if (st === 'valide') return (
     <div className="rounded-2xl p-4 mb-4 border border-emerald-200 bg-emerald-50">

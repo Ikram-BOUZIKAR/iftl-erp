@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
+import { sendCandidatureConfirmation } from '../../services/emailService';
 
 // Convertit un File en data URI (images compressées, PDFs natifs)
 const toBase64 = (file, maxWidth = 700, quality = 0.72) =>
@@ -77,8 +78,10 @@ const DOCS = [
   { key: 'attestation',  label: 'Attestation de travail',      required: false },
 ];
 
+const CAMPAGNE_ID = 'INS-2027';
+
 const INITIAL = {
-  nom: '', prenom: '', dateNaissance: '', cin: '', sexe: '', nationalite: 'Marocaine',
+  nom: '', prenom: '', dateNaissance: '', cin: '', typeId: 'cin', sexe: '', nationalite: 'Marocaine',
   telephone: '', email: '', adresse: '', ville: '',
   niveauScolaire: '', specBac: '', moyenneBac: '', mentionBac: '', anneeBac: '',
   typeLycee: '', massar: '', etablissement: '', situationPro: '',
@@ -201,7 +204,15 @@ export default function CandidaturePage() {
   const [files, setFiles]         = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult]       = useState(null);
+  const [attijariToken, setAttijariToken] = useState('26090MkqC12511771F3U60W3NG3TSH28GTQUU');
   const fileRefs = useRef({});
+
+  useEffect(() => {
+    getDoc(doc(db, 'settings', 'campagnes')).then(snap => {
+      const token = snap.exists() ? snap.data()?.[CAMPAGNE_ID]?.attijariToken : null;
+      if (token) setAttijariToken(token);
+    }).catch(() => {});
+  }, []);
 
   const set = (key, val) => {
     setForm(f => ({ ...f, [key]: val }));
@@ -215,7 +226,7 @@ export default function CandidaturePage() {
       if (!form.nom.trim())           e.nom           = 'Champ obligatoire';
       if (!form.prenom.trim())        e.prenom        = 'Champ obligatoire';
       if (!form.dateNaissance)        e.dateNaissance = 'Champ obligatoire';
-      if (!form.cin.trim())           e.cin           = 'Champ obligatoire';
+      if (!form.cin.trim())           e.cin           = form.typeId === 'passeport' ? 'Numéro de passeport obligatoire' : 'CIN obligatoire';
       if (!form.sexe)                 e.sexe          = 'Champ obligatoire';
       if (!form.telephone.trim())     e.telephone     = 'Champ obligatoire';
       if (!form.email.trim())         e.email         = 'Champ obligatoire';
@@ -306,12 +317,20 @@ export default function CandidaturePage() {
         email: emailNorm,
         ref: reference,
         statut: 'soumise',
+        campagneId: CAMPAGNE_ID,
+        fraisDossier: { statut: 'non_regle', montant: 0, updatedAt: new Date() },
         fichierKeys,
         nbFichiers: fichierKeys.length,
         createdAt: new Date(),
       });
       // Create index entry for suivi page lookup
       await setDoc(indexRef, { candidatureId: cinNorm, ref: reference, createdAt: new Date() });
+
+      // Send confirmation email (best-effort — ne bloque pas la soumission)
+      sendCandidatureConfirmation(db, {
+        email: emailNorm, prenom: form.prenom, nom: form.nom,
+        ref: reference, filiere: form.filiere, anneeEntree: form.anneeEntree,
+      }).catch(() => {});
 
       setResult({ ref: reference, doublon: false });
       setStep(6);
@@ -346,7 +365,7 @@ export default function CandidaturePage() {
               </div>
               <h2 className="text-2xl font-extrabold text-slate-800 mb-2">{t('candidaturePublic.success_title')}</h2>
               <p className="text-slate-500 text-sm mb-5">
-                Confirmation envoyée à <strong className="text-slate-700">{form.email}</strong><br />et par WhatsApp au <strong className="text-slate-700">{form.telephone}</strong>.
+                Dossier enregistré avec succès. Conservez votre référence — vous serez contacté(e) à l&apos;adresse <strong className="text-slate-700">{form.email}</strong> sous 48h ouvrées.
               </p>
               {ref && (
                 <div className="bg-[#005989]/5 border border-[#005989]/15 rounded-2xl px-5 py-4 mb-6 inline-block w-full">
@@ -369,7 +388,7 @@ export default function CandidaturePage() {
                 ))}
               </div>
               <a
-                href="https://attijari-payment.cmi.co.ma/fim/paymentLinkService?token=26090MkqC12511771F3U60W3NG3TSH28GTQUU"
+                href={`https://attijari-payment.cmi.co.ma/fim/paymentLinkService?token=${attijariToken}`}
                 target="_blank" rel="noreferrer"
                 className="flex items-center justify-center gap-2 w-full py-3 bg-[#005989] text-white rounded-xl font-bold hover:bg-[#004070] transition text-sm mb-3"
               >
@@ -484,7 +503,29 @@ export default function CandidaturePage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TInput label={t('candidaturePublic.form_dob')} name="dateNaissance" type="date" form={form} set={set} errors={errors} required />
-                <TInput label={t('candidaturePublic.form_cin')} name="cin" form={form} set={set} errors={errors} required placeholder="AB123456" />
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Label text={form.typeId === 'passeport' ? 'N° Passeport' : t('candidaturePublic.form_cin')} required />
+                    <div className="ml-auto flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+                      <button type="button"
+                        onClick={() => { set('typeId', 'cin'); }}
+                        className={`px-2.5 py-1 font-semibold transition ${form.typeId === 'cin' ? 'bg-[#005989] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                        CIN
+                      </button>
+                      <button type="button"
+                        onClick={() => { set('typeId', 'passeport'); }}
+                        className={`px-2.5 py-1 font-semibold transition ${form.typeId === 'passeport' ? 'bg-[#005989] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                        Passeport
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="text" value={form.cin} onChange={e => set('cin', e.target.value)}
+                    placeholder={form.typeId === 'passeport' ? 'Ex : AB1234567' : 'Ex : BE123456'}
+                    className={`${INPUT_BASE} ${errors.cin ? err_cls : ok_cls} uppercase`}
+                  />
+                  <Err msg={errors.cin} />
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TSelect label="Sexe" name="sexe" form={form} set={set} errors={errors} required

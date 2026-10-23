@@ -3,6 +3,7 @@ import {
   addDoc,
   getDocs,
   getDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -10,7 +11,8 @@ import {
   where,
   orderBy,
   Timestamp,
-  writeBatch
+  writeBatch,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -296,21 +298,66 @@ export const candidaturesService = {
     const candSnap = await getDoc(doc(db, 'candidatures', candidatureId));
     if (!candSnap.exists()) throw new Error('Candidature non trouvée');
     const cand = candSnap.data();
+
+    // Idempotence: already converted
+    if (cand.studentId) {
+      const existing = await getDoc(doc(db, 'students', cand.studentId));
+      if (existing.exists()) return { id: cand.studentId, ...existing.data() };
+    }
+
+    // CIN duplicate check
+    const cinNorm = (cand.cin || '').trim().toUpperCase();
+    if (cinNorm) {
+      const dupQ = query(collection(db, 'students'), where('cin', '==', cinNorm));
+      const dupSnap = await getDocs(dupQ);
+      if (!dupSnap.empty) throw new Error(`Un apprenant avec le CIN ${cinNorm} existe déjà (ID: ${dupSnap.docs[0].id})`);
+    }
+
+    // Generate codeApprenant via transaction on counter
+    const counterRef = doc(db, 'settings', 'apprenant_counters');
+    let codeApprenant = '';
+    const year = new Date().getFullYear();
+
+    await runTransaction(db, async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      const counters = counterSnap.exists() ? counterSnap.data() : {};
+      const key = `seq_${year}`;
+      const next = (counters[key] || 0) + 1;
+      tx.set(counterRef, { ...counters, [key]: next }, { merge: true });
+      codeApprenant = `APP-${year}-${String(next).padStart(4, '0')}`;
+    });
+
+    const anneeAcademique = cand.anneeEntree || `${year}-${year + 1}`;
     const studentData = {
       nom: cand.nom,
       prenom: cand.prenom,
       email: cand.email,
       telephone: cand.telephone || '',
-      cin: cand.cin || '',
+      cin: cinNorm,
       dateNaissance: cand.dateNaissance || '',
+      sexe: cand.sexe || '',
+      nationalite: cand.nationalite || '',
+      adresse: cand.adresse || '',
+      ville: cand.ville || '',
       filiere: cand.filiere || '',
-      niveau: cand.niveau || '',
+      niveau: cand.niveauScolaire || cand.niveau || '',
       photoURL: cand.photoURL || '',
+      codeApprenant,
+      anneeAcademique,
+      campagneId: cand.campagneId || '',
       statut: 'actif',
-      ...extraData
+      candidatureRef: candidatureId,
+      ...extraData,
     };
-    const studentRef = await addDoc(collection(db, 'students'), { ...studentData, createdAt: new Date(), updatedAt: new Date() });
-    await updateDoc(doc(db, 'candidatures', candidatureId), { statut: 'accepte', studentId: studentRef.id, dateTraitement: new Date() });
+
+    const studentRef = doc(collection(db, 'students'));
+    await setDoc(studentRef, { ...studentData, createdAt: new Date(), updatedAt: new Date() });
+    await updateDoc(doc(db, 'candidatures', candidatureId), {
+      statut: 'inscrite',
+      studentId: studentRef.id,
+      codeApprenant,
+      dateTraitement: new Date(),
+    });
     return { id: studentRef.id, ...studentData };
   }
 };
