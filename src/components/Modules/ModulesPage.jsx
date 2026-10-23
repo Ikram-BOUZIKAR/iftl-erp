@@ -45,13 +45,24 @@ const TYPE_STYLES = {
   professionnel: { cls: 'bg-orange-100 text-orange-700', label: 'Professionnel' },
 };
 
-const ANNEES = ['1', '2', '3'];
+const NIVEAUX = [
+  { value: '1A',                label: '1A — Technicien(ne) Spécialisé(e)' },
+  { value: '2A',                label: '2A — Technicien(ne) Spécialisé(e)' },
+  { value: 'TechnicienQ',      label: 'TQ — Technicien(ne) Qualifié(e)' },
+  { value: 'Licence',           label: 'Licence Professionnelle CNAM' },
+  { value: 'LicenceTransitaire',label: 'Licence Professionnelle Transitaire' },
+  { value: 'Mastère',           label: 'Mastère Professionnel' },
+];
+const NIVEAU_LABEL = Object.fromEntries(NIVEAUX.map(n => [n.value, n.label]));
+// Rétrocompatibilité anciens docs (anneeFormation = '1', '2', '3')
+const LEGACY_NIVEAU = { '1': '1A', '2': '2A', '3': 'TechnicienQ' };
+const resolveNiveau = v => LEGACY_NIVEAU[v] || v || '1A';
 
 const EMPTY_FORM = {
   code: '',
   nom: '',
   filiereCode: '',
-  anneeFormation: '1',
+  anneeFormation: '1A',
   coeff: 1,
   heuresTotal: 0,
   type: 'theorique',
@@ -99,7 +110,7 @@ function Spinner() {
 
 const CSV_HEADERS = ['code', 'nom', 'filiereCode', 'anneeFormation', 'type', 'coeff', 'heuresTotal', 'description'];
 const VALID_TYPES = ['theorique', 'pratique', 'professionnel'];
-const VALID_ANNEES = ['1', '2', '3'];
+const VALID_ANNEES = NIVEAUX.map(n => n.value).concat(['1', '2', '3']); // '1','2','3' = legacy
 
 function downloadCSVTemplate() {
   const exampleRows = [
@@ -154,7 +165,7 @@ function validateRow(row, existingCodes) {
   if (row.filierecode && !FILIERES.includes(row.filierecode.toUpperCase()))
     errors.push(`Filière invalide: ${row.filierecode} (valides: ${FILIERES.join(', ')})`);
   if (row.anneeformation && !VALID_ANNEES.includes(String(row.anneeformation)))
-    errors.push(`Année invalide: ${row.anneeformation} (valides: 1, 2, 3)`);
+    errors.push(`Niveau invalide: ${row.anneeformation} (valides: 1A, 2A, TechnicienQ, Licence, LicenceTransitaire, Mastère)`);
   if (row.type && !VALID_TYPES.includes(row.type.toLowerCase()))
     errors.push(`Type invalide: ${row.type} (valides: theorique, pratique, professionnel)`);
   if (row.coeff && isNaN(Number(row.coeff))) errors.push('Coefficient non numérique');
@@ -167,7 +178,7 @@ function rowToPayload(row) {
     code: (row.code || '').trim().toUpperCase(),
     nom: (row.nom || '').trim(),
     filiereCode: (row.filierecode || '').trim().toUpperCase(),
-    anneeFormation: String(row.anneeformation || '1').trim(),
+    anneeFormation: resolveNiveau(String(row.anneeformation || '1A').trim()),
     type: (row.type || 'theorique').trim().toLowerCase(),
     coeff: Number(row.coeff) || 1,
     heuresTotal: Number(row.heurestotal) || 0,
@@ -407,7 +418,7 @@ export default function ModulesPage() {
       code: m.code || '',
       nom: m.nom || '',
       filiereCode: m.filiereCode || '',
-      anneeFormation: m.anneeFormation || '1',
+      anneeFormation: resolveNiveau(m.anneeFormation || '1A'),
       coeff: m.coeff ?? 1,
       heuresTotal: m.heuresTotal ?? 0,
       type: m.type || 'theorique',
@@ -463,7 +474,7 @@ export default function ModulesPage() {
 
   const filtered = useMemo(() => modules.filter(m => {
     if (filterFiliere && m.filiereCode !== filterFiliere) return false;
-    if (filterAnnee && String(m.anneeFormation) !== filterAnnee) return false;
+    if (filterAnnee && resolveNiveau(String(m.anneeFormation)) !== filterAnnee) return false;
     if (filterType && m.type !== filterType) return false;
     return true;
   }), [modules, filterFiliere, filterAnnee, filterType]);
@@ -548,10 +559,8 @@ export default function ModulesPage() {
           onChange={e => setFilterAnnee(e.target.value)}
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
         >
-          <option value="">Toutes les années</option>
-          <option value="1">Année 1</option>
-          <option value="2">Année 2</option>
-          <option value="3">Année 3</option>
+          <option value="">Tous les niveaux</option>
+          {NIVEAUX.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
         </select>
         <select
           value={filterType}
@@ -625,7 +634,7 @@ export default function ModulesPage() {
                       ) : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className="text-slate-600 text-sm">A{m.anneeFormation || '—'}</span>
+                      <span className="text-slate-600 text-sm text-xs">{NIVEAU_LABEL[resolveNiveau(m.anneeFormation)] || m.anneeFormation || '—'}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${typeStyle.cls}`}>{typeStyle.label}</span>
@@ -708,13 +717,13 @@ export default function ModulesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Année de formation *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Niveau *</label>
                   <select
                     value={form.anneeFormation}
                     onChange={e => setField('anneeFormation', e.target.value)}
                     className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#005989] bg-white"
                   >
-                    {ANNEES.map(a => <option key={a} value={a}>Année {a}</option>)}
+                    {NIVEAUX.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
                   </select>
                 </div>
               </div>
