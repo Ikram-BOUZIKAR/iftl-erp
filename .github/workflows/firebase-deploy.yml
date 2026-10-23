@@ -69,6 +69,12 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
 
+      - name: Deploy Firestore indexes to erp-pedago-iftl
+        continue-on-error: true
+        run: npx firebase-tools@13.29.3 deploy --only firestore:indexes --project erp-pedago-iftl --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
+
       - name: Deploy hosting to erp-pedago-iftl
         run: npx firebase-tools@13.29.3 deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
         env:
