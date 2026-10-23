@@ -456,11 +456,14 @@ export default function CandidaturesAdminPage() {
             Liste attente
           </button>
         )}
-        {!['admis','accepte','refuse','retire','non_eligible'].includes(c.statut) && (
+        {!['admis','accepte','refuse','retire','non_eligible','inscrite'].includes(c.statut) && (
           <button onClick={() => setShowRefusModal(c)}
             className={`${btnCls} bg-red-600 hover:bg-red-700 text-white`}>
             ✗ Refuser
           </button>
+        )}
+        {['refuse','retire','non_eligible'].includes(c.statut) && actions.length === 0 && (
+          <span className="text-[10px] text-slate-400 italic">Dossier clôturé</span>
         )}
         {actions.includes('convert') && (
           <button onClick={() => { setConverting(c); setConvertForm({ groupeId: '' }); }}

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useBranding } from '../../contexts/BrandingContext';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { NEW_TYPE_SET, calculerNouvelleFormule } from '../../utils/notesUtils';
+import { NEW_TYPE_SET, calculerNouvelleFormule, calculerMoyenneModule1ATS, getStatutModule, calculerMoyenne1AGroupe } from '../../utils/notesUtils';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../services/firebase';
 import { HelpButton } from '../UI/HelpGuide';
@@ -25,6 +25,7 @@ function IcoBell()     { return <svg className="w-5 h-5" fill="none" stroke="cur
 function IcoLogout()   { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>; }
 function IcoBus()      { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 6h8M6 10h12M6 14h12M8 18h8M4 6a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM8 18v2m8-2v2"/></svg>; }
 function IcoStar()     { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>; }
+function IcoNotes()    { return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>; }
 
 const POINTS_RASSEMBLEMENT = [
   'Zaouia',
@@ -36,8 +37,9 @@ const POINTS_RASSEMBLEMENT = [
 const TABS = [
   { id: 'profil',        label: 'Mon Profil',     short: 'Profil',     Icon: IcoUser,  i18nKey: null },
   { id: 'planning',      label: 'Mon Planning',   short: 'Planning',   Icon: IcoCal,   i18nKey: 'portail.tab_planning' },
-  { id: 'resultats',     label: 'Mes Résultats',  short: 'Résultats',  Icon: IcoChart, i18nKey: 'portail.tab_notes' },
-  { id: 'absences',      label: 'Mes Absences',   short: 'Absences',   Icon: IcoClock, i18nKey: 'portail.tab_absences' },
+  { id: 'resultats',     label: 'Mes Résultats',  short: 'Résultats',  Icon: IcoChart,  i18nKey: 'portail.tab_notes' },
+  { id: 'notes',         label: 'Mes Notes',      short: 'Notes',      Icon: IcoNotes,  i18nKey: null },
+  { id: 'absences',      label: 'Mes Absences',   short: 'Absences',   Icon: IcoClock,  i18nKey: 'portail.tab_absences' },
   { id: 'ressources',    label: 'Ressources',     short: 'Ressources', Icon: IcoBook,  i18nKey: 'portail.tab_documents' },
   { id: 'notifications', label: 'Annonces',       short: 'Annonces',   Icon: IcoBell,  i18nKey: null },
   { id: 'transport',     label: 'Transport',      short: 'Transport',  Icon: IcoBus,   i18nKey: null },
@@ -1251,6 +1253,210 @@ function RentreeTab() {
   );
 }
 
+// ── Notes tab (moyennes importées CC/EFM/Ratt) ────────────────────────────────
+function NotesTab({ studentId, studentCode, groupeId }) {
+  const [loading,   setLoading]   = useState(true);
+  const [allRows,   setAllRows]   = useState([]); // {session, moduleId, moduleName, coeff, cc, efm, ratt, moy, statut}
+  const [semestres, setSemestres] = useState([]);
+  const [activeSem, setActiveSem] = useState('');
+
+  useEffect(() => {
+    if (!studentId && !studentCode) { setLoading(false); return; }
+    (async () => {
+      try {
+        setLoading(true);
+        // 1. Fetch notes for this student
+        const seen = new Set();
+        const notesArr = [];
+        for (const val of [studentId, studentCode]) {
+          if (!val) continue;
+          try {
+            const snap = await getDocs(query(collection(db, 'notes'), where('studentId', '==', val)));
+            snap.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); notesArr.push({ id: d.id, ...d.data() }); } });
+          } catch { /* ignore */ }
+        }
+        if (notesArr.length === 0) { setAllRows([]); return; }
+
+        // 2. Fetch evaluations (all types, not filtered by source)
+        const evalIds = [...new Set(notesArr.map(n => n.evaluationId).filter(Boolean))];
+        const evalMap = {};
+        await Promise.all(evalIds.map(async eid => {
+          try {
+            const s = await getDoc(doc(db, 'evaluations', eid));
+            if (s.exists()) {
+              const ev = { id: s.id, ...s.data() };
+              if (['CC', 'EFM', 'RATTRAPAGE'].includes(ev.type)) evalMap[eid] = ev;
+            }
+          } catch { /* ignore */ }
+        }));
+
+        // 3. Fetch modules
+        const modIds = [...new Set(Object.values(evalMap).map(e => e.moduleId).filter(Boolean))];
+        const modMap = {};
+        await Promise.all(modIds.map(async mid => {
+          try {
+            const s = await getDoc(doc(db, 'modules', mid));
+            if (s.exists()) modMap[mid] = { id: s.id, ...s.data() };
+          } catch { /* ignore */ }
+        }));
+
+        // 4. Group: session → moduleId → {CC, EFM, RATTRAPAGE}
+        const tree = {};
+        for (const note of notesArr) {
+          const ev = evalMap[note.evaluationId];
+          if (!ev || !ev.moduleId) continue;
+          const sem = ev.sessionAcademique || 'S?';
+          const mid = ev.moduleId;
+          if (!tree[sem]) tree[sem] = {};
+          if (!tree[sem][mid]) tree[sem][mid] = {};
+          const val = note.absent ? 0 : (note.note ?? null);
+          if (val !== null) tree[sem][mid][ev.type] = val;
+        }
+
+        // 5. Build sorted rows
+        const sems = Object.keys(tree).sort();
+        setSemestres(sems);
+        setActiveSem(s => s && sems.includes(s) ? s : (sems[0] || ''));
+
+        const rows = [];
+        for (const sem of sems) {
+          for (const mid of Object.keys(tree[sem])) {
+            const mod = modMap[mid] || {};
+            const { CC, EFM, RATTRAPAGE } = tree[sem][mid];
+            const moy = calculerMoyenneModule1ATS(CC ?? null, EFM ?? null, RATTRAPAGE ?? null);
+            rows.push({
+              session: sem,
+              moduleId: mid,
+              moduleName: mod.nom || mod.name || mid,
+              moduleCode: mod.code || '',
+              coeff: Number(mod.coeff || mod.coefficient || 1),
+              cc: CC ?? null,
+              efm: EFM ?? null,
+              ratt: RATTRAPAGE ?? null,
+              moy,
+              statut: getStatutModule(moy),
+            });
+          }
+        }
+        setAllRows(rows);
+      } catch (err) { console.error('NotesTab', err); setAllRows([]); }
+      finally { setLoading(false); }
+    })();
+  }, [studentId, studentCode]);
+
+  const rows = allRows.filter(r => r.session === activeSem);
+  const moyGen = calculerMoyenne1AGroupe(rows.map(r => ({ moyenne: r.moy, coeff: r.coeff })));
+
+  function NoteCell({ val }) {
+    if (val === null || val === undefined) return <span className="text-slate-300">—</span>;
+    const n = Number(val);
+    const color = n >= 10 ? '#16a34a' : n >= 9 ? '#d97706' : '#dc2626';
+    return <span className="font-semibold" style={{ color }}>{n.toFixed(2)}</span>;
+  }
+
+  function StatutBadge({ statut }) {
+    if (!statut) return <span className="text-slate-300 text-xs">—</span>;
+    if (statut === 'valide')    return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Validé</span>;
+    if (statut === 'rachat')    return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Rachat</span>;
+    return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">Non validé</span>;
+  }
+
+  if (loading) return <Spinner />;
+
+  if (allRows.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100" style={{ background: `${BLUE}07` }}>
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Mes Notes</p>
+          <p className="text-xs text-slate-400 mt-0.5">Notes des modules — CC · EFM · Rattrapage</p>
+        </div>
+        <EmptyState message="Aucune note enregistrée pour le moment." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Session tabs */}
+      {semestres.length > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {semestres.map(sem => (
+            <button key={sem} onClick={() => setActiveSem(sem)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${activeSem === sem ? 'text-white' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+              style={activeSem === sem ? { background: BLUE } : {}}>
+              {sem}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between" style={{ background: `${BLUE}07` }}>
+          <div>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              {activeSem ? `Session ${activeSem}` : 'Mes Notes'}
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">Formule : CC × 0,4 + EFM × 0,6 · Ratt remplace EFM si supérieur</p>
+          </div>
+          {moyGen !== null && (
+            <div className="text-right">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Moy. générale</p>
+              <p className="text-xl font-black" style={{ color: moyGen >= 10 ? '#16a34a' : moyGen >= 9 ? '#d97706' : '#dc2626' }}>
+                {moyGen.toFixed(2)}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                <th className="px-4 py-2.5 text-left font-semibold">Module</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Coeff</th>
+                <th className="px-3 py-2.5 text-center font-semibold">CC</th>
+                <th className="px-3 py-2.5 text-center font-semibold">EFM</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Ratt</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Moyenne</th>
+                <th className="px-3 py-2.5 text-center font-semibold">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(row => (
+                <tr key={`${row.session}-${row.moduleId}`} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-slate-800 text-sm leading-tight">{row.moduleName}</p>
+                    {row.moduleCode && <p className="text-[10px] text-slate-400 font-mono">{row.moduleCode}</p>}
+                  </td>
+                  <td className="px-3 py-3 text-center text-xs text-slate-500 font-medium">{row.coeff}</td>
+                  <td className="px-3 py-3 text-center"><NoteCell val={row.cc} /></td>
+                  <td className="px-3 py-3 text-center"><NoteCell val={row.efm} /></td>
+                  <td className="px-3 py-3 text-center"><NoteCell val={row.ratt} /></td>
+                  <td className="px-3 py-3 text-center">
+                    {row.moy !== null
+                      ? <span className="font-black text-base" style={{ color: row.moy >= 10 ? '#16a34a' : row.moy >= 9 ? '#d97706' : '#dc2626' }}>{row.moy.toFixed(2)}</span>
+                      : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className="px-3 py-3 text-center"><StatutBadge statut={row.statut} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {moyGen !== null && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+            <p className="text-xs font-semibold text-slate-500">Moyenne générale pondérée ({activeSem})</p>
+            <p className="font-black text-lg" style={{ color: moyGen >= 10 ? '#16a34a' : moyGen >= 9 ? '#d97706' : '#dc2626' }}>
+              {moyGen.toFixed(2)} / 20
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Sidebar nav link ───────────────────────────────────────────────────────────
 function SideNavLink({ tab, active, onClick }) {
   const { t } = useTranslation();
@@ -1695,6 +1901,7 @@ export default function PortailApprenant({ auth }) {
                 {activeTab === 'profil'        && <ProfilTab student={student} userProfile={userProfile} userId={user?.uid} />}
                 {activeTab === 'planning'      && <PlanningTab groupeId={groupeId} />}
                 {activeTab === 'resultats'     && <ResultatsTab studentId={studentId} studentCode={studentCode} />}
+                {activeTab === 'notes'         && <NotesTab studentId={studentId} studentCode={studentCode} groupeId={groupeId} />}
                 {activeTab === 'absences'      && <AbsencesTab studentId={studentId} studentCode={studentCode} />}
                 {activeTab === 'ressources'    && <RessourcesTab />}
                 {activeTab === 'notifications' && <NotificationsTab groupeId={groupeId} />}
