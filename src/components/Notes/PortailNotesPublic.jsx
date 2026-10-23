@@ -13,7 +13,15 @@ function genCode() {
 
 const INST_NAME = import.meta.env.VITE_DEFAULT_INSTITUTE_NAME || 'IFTL';
 const INST_LOGO = import.meta.env.VITE_DEFAULT_LOGO_URL || null;
-const ANNEE = '2026-2027';
+
+const PROGRAMMES = [
+  { value: '1A_TS',               label: '1ère Année TS',          annee: '2026-2027' },
+  { value: '2A_TS',               label: '2ème Année TS',          annee: '2026-2027' },
+  { value: 'TechnicienQ',         label: 'Technicien Qualifié',    annee: '2026-2027' },
+  { value: 'licence_cnam',        label: 'Licence CNAM',           annee: '2025-2026' },
+  { value: 'licence_transitaire', label: 'Licence Transitaire',    annee: '2025-2026' },
+  { value: 'mastere',             label: 'Mastère / Master',       annee: '2025-2026' },
+];
 
 const EVAL_TYPES = [
   { value: 'CC',            label: 'Contrôle Continu',          color: '#6366f1' },
@@ -199,6 +207,7 @@ export default function PortailNotesPublic() {
   const [e1, setE1]                             = useState({});
 
   // Step 2 — Sélection
+  const [programme, setProgramme]     = useState('1A_TS');
   const [groupeId, setGroupeId]       = useState('');
   const [groupeNom, setGroupeNom]     = useState('');
   const [moduleId, setModuleId]       = useState('');
@@ -338,6 +347,8 @@ export default function PortailNotesPublic() {
 
   const effectiveIntervenantNom = intervenantId === '__autre__' ? intervenantAutre : intervenantNom;
   const effectiveModuleNom      = moduleId === '__autre__' ? moduleAutre : moduleNom;
+  const anneeAcademique         = PROGRAMMES.find(p => p.value === programme)?.annee || '2026-2027';
+  const programmeLabel          = PROGRAMMES.find(p => p.value === programme)?.label || '';
 
   // Init notes
   useEffect(() => {
@@ -384,7 +395,8 @@ export default function PortailNotesPublic() {
         moduleId:   moduleId === '__autre__' ? '__autre__' : moduleId,
         moduleNom:  effectiveModuleNom.trim(),
         type: evalType, semestre,
-        anneeAcademique: ANNEE,
+        programme, programmeLabel,
+        anneeAcademique,
         statut: 'en_attente',
         notes: students.map(s => {
           const v = notes[s.id] || { note: '', absent: false };
@@ -416,6 +428,7 @@ export default function PortailNotesPublic() {
   const resetAll = () => {
     setStep(1); setIntervenantId(''); setIntervenantNom(''); setIntervenantAutre('');
     setDate(new Date().toISOString().slice(0, 10));
+    setProgramme('1A_TS');
     setGroupeId(''); setGroupeNom(''); setModuleId(''); setModuleNom(''); setModuleAutre('');
     setEvalType('CC'); setSemestre('S1'); setStudents([]); setNotes({});
     setE1({}); setE2({}); setSaveErr(null); setSearch('');
@@ -457,7 +470,7 @@ export default function PortailNotesPublic() {
           }
           <div>
             <p style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#fff', letterSpacing: '-0.01em' }}>Portail de Saisie des Notes</p>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.60)' }}>{INST_NAME} · Année académique {ANNEE}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.60)' }}>{INST_NAME} · Année académique {anneeAcademique}</p>
           </div>
           {step >= 1 && step < 4 && (
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
@@ -637,6 +650,14 @@ export default function PortailNotesPublic() {
 
             <div style={{ background: C.card, borderRadius: 20, boxShadow: C.cardShadow, border: `1px solid ${C.cardBorder}`, padding: '32px 28px' }}>
               <h2 style={{ margin: '0 0 24px', fontSize: 18, fontWeight: 900, color: C.ink }}>Groupe, module &amp; évaluation</h2>
+
+              <Field label="Programme / Niveau" required>
+                <FSelect value={programme} onChange={e => setProgramme(e.target.value)}>
+                  {PROGRAMMES.map(p => (
+                    <option key={p.value} value={p.value}>{p.label} — {p.annee}</option>
+                  ))}
+                </FSelect>
+              </Field>
 
               <Field label="Groupe" required error={e2.groupe}>
                 <FSelect value={groupeId} onChange={e => onGroupeChange(e.target.value)}>
@@ -855,11 +876,12 @@ export default function PortailNotesPublic() {
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
                 {[
+                  { label: programmeLabel, icon: '🎓' },
                   { label: semestre, icon: '📅' },
                   { label: typeInfo.label, icon: '📝' },
                   { label: effectiveIntervenantNom, icon: '👤' },
                   { label: date, icon: '🗓' },
-                ].map(p => (
+                ].filter(p => p.label).map(p => (
                   <span key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: C.brandLight, borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: C.inkMid }}>{p.icon} {p.label}</span>
                 ))}
               </div>
@@ -888,7 +910,7 @@ export default function PortailNotesPublic() {
         )}
 
         <p style={{ textAlign: 'center', fontSize: 11, color: '#b0c4d3', marginTop: 36 }}>
-          {INST_NAME} · Institut de Formation en Transport et Logistique · {ANNEE}
+          {INST_NAME} · Institut de Formation en Transport et Logistique · {anneeAcademique}
         </p>
       </div>
     </div>
