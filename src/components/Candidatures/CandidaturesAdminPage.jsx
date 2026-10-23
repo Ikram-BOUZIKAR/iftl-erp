@@ -5,6 +5,7 @@ import { useCandidatures, useGroupes } from '../../hooks/useData';
 import { candidaturesService, historiqueService } from '../../services/firestore';
 import { useToast } from '../UI/Toast';
 import { sendCandidatureStatut } from '../../services/emailService';
+import { sendResultatWA } from '../../services/whatsappCandidatureService';
 import { useTranslation } from 'react-i18next';
 import ConvocationBatchModal from './ConvocationBatchModal';
 
@@ -217,6 +218,7 @@ export default function CandidaturesAdminPage() {
           filiere: c.filiere || c.niveauFormation, statut,
         }).catch(() => {});
       }
+      if (c.telephone) sendResultatWA(db, c, statut).catch(() => {});
     } catch (err) { toast.error(err.message); }
   };
 
@@ -236,6 +238,7 @@ export default function CandidaturesAdminPage() {
           filiere: c.filiere || c.niveauFormation, statut: 'refuse', motif,
         }).catch(() => {});
       }
+      if (c.telephone) sendResultatWA(db, c, 'refuse').catch(() => {});
     } catch (err) { toast.error(err.message); }
     setShowRefusModal(null);
     setMotifRefus('');
@@ -324,6 +327,7 @@ export default function CandidaturesAdminPage() {
             filiere: c.filiere || c.niveauFormation, statut: bulkAction,
           }).catch(() => {});
         }
+        if (c?.telephone) sendResultatWA(db, c, bulkAction).catch(() => {});
       }
       const msg = skipped > 0
         ? `${eligibleIds.length} dossier(s) → ${STATUTS[bulkAction]?.label} (${skipped} ignoré(s) — statut incompatible)`

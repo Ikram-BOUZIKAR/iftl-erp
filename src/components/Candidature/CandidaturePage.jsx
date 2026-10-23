@@ -4,6 +4,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useBranding } from '../../contexts/BrandingContext';
 import { sendCandidatureConfirmation } from '../../services/emailService';
+import { sendConfirmationCandidatureWA } from '../../services/whatsappCandidatureService';
 
 // Convertit un File en data URI (images compressées, PDFs natifs)
 const toBase64 = (file, maxWidth = 700, quality = 0.72) =>
@@ -326,10 +327,14 @@ export default function CandidaturePage() {
       // Create index entry for suivi page lookup
       await setDoc(indexRef, { candidatureId: cinNorm, ref: reference, createdAt: new Date() });
 
-      // Send confirmation email (best-effort — ne bloque pas la soumission)
+      // Confirmation email + WhatsApp (best-effort — ne bloque pas la soumission)
       sendCandidatureConfirmation(db, {
         email: emailNorm, prenom: form.prenom, nom: form.nom,
         ref: reference, filiere: form.filiere, anneeEntree: form.anneeEntree,
+      }).catch(() => {});
+      sendConfirmationCandidatureWA(db, {
+        id: cinNorm, cin: cinNorm, prenom: form.prenom, nom: form.nom,
+        telephone: form.telephone,
       }).catch(() => {});
 
       setResult({ ref: reference, doublon: false });

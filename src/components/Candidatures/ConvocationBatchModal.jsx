@@ -3,6 +3,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { historiqueService } from '../../services/firestore';
 import { sendCandidatureStatut } from '../../services/emailService';
+import { sendConvocationWA } from '../../services/whatsappCandidatureService';
 import { useToast } from '../UI/Toast';
 
 export default function ConvocationBatchModal({ candidatures, selectedIds, onClose, onDone }) {
@@ -49,6 +50,9 @@ export default function ConvocationBatchModal({ candidatures, selectedIds, onClo
             email: c.email, prenom: c.prenom, nom: c.nom, ref: c.ref,
             filiere: c.filiere || c.niveauFormation, statut: 'convoque',
           }).catch(() => {});
+        }
+        if (c.telephone) {
+          sendConvocationWA(db, c, convocation).catch(() => {});
         }
         ok++;
       }
