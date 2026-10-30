@@ -587,6 +587,7 @@ export default function PlanningPage() {
           weekLabel={`Semaine du ${format(weekStart, 'dd MMMM', { locale: fr })} au ${format(addDays(weekStart, 5), 'dd MMMM yyyy', { locale: fr })}`}
           weekDays={weekDays.slice(0, 6)}
           initialGroupId={activeGroupId}
+          branding={branding}
           onClose={() => setShowExportModal(false)}
         />
       )}
@@ -595,7 +596,7 @@ export default function PlanningPage() {
 }
 
 // ── Planning Export Modal ─────────────────────────────────────────────────────
-function PlanningExportModal({ groupes, allSessions, intervenants, modules, weekLabel, weekDays, initialGroupId, onClose }) {
+function PlanningExportModal({ groupes, allSessions, intervenants, modules, weekLabel, weekDays, initialGroupId, branding, onClose }) {
   const [selectedIds, setSelectedIds] = useState(() => {
     // Pre-select active group if it exists in the list, otherwise select all
     if (initialGroupId && groupes.some(g => g.id === initialGroupId)) {
