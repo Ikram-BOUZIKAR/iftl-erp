@@ -636,10 +636,25 @@ export default function MasseHorairePage() {
     } catch (e) { toast.error('Erreur: ' + e.message); }
   };
 
-  // Vue par intervenant : groupe enriched par intervenantId
+  // Synthèse par groupe (cliquable pour filtrer)
+  const byGroupe = useMemo(() => {
+    const map = {};
+    for (const e of enriched) {
+      if (!map[e.groupeId]) map[e.groupeId] = { groupeId: e.groupeId, groupeNom: e.groupeNom || e.groupeId, mh: 0, fait: 0, alertes: 0 };
+      map[e.groupeId].mh    += e.masseHoraire || 0;
+      map[e.groupeId].fait  += e.heuresFaites;
+      if (e.alertFin || e.alertEfm) map[e.groupeId].alertes++;
+    }
+    return Object.values(map)
+      .map(g => ({ ...g, mh: Math.round(g.mh * 10) / 10, fait: Math.round(g.fait * 10) / 10, pct: g.mh > 0 ? Math.min(100, Math.round(100 * g.fait / g.mh)) : 0 }))
+      .sort((a, b) => a.groupeNom.localeCompare(b.groupeNom, 'fr'));
+  }, [enriched]);
+
+  // Vue par intervenant : groupe enriched par intervenantId (respecte filterGroupe)
   const groupedByIntervenant = useMemo(() => {
     const map = {};
     for (const e of enriched) {
+      if (filterGroupe && e.groupeId !== filterGroupe) continue;
       if (!map[e.intervenantId]) map[e.intervenantId] = [];
       map[e.intervenantId].push(e);
     }
@@ -650,10 +665,10 @@ export default function MasseHorairePage() {
         rows,
       }))
       .sort((a, b) => (a.intv.nom || '').localeCompare(b.intv.nom || '', 'fr'));
-  }, [enriched, intervenants]);
+  }, [enriched, intervenants, filterGroupe]);
 
-  const totalMH   = enriched.reduce((s, e) => s + (e.masseHoraire || 0), 0);
-  const totalFait = enriched.reduce((s, e) => s + e.heuresFaites, 0);
+  const totalMH    = enriched.reduce((s, e) => s + (e.masseHoraire || 0), 0);
+  const totalFait  = enriched.reduce((s, e) => s + e.heuresFaites, 0);
   const alertCount = enriched.filter(e => e.alertFin || e.alertEfm).length;
 
   return (
@@ -692,19 +707,48 @@ export default function MasseHorairePage() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: 'Affectations', value: enriched.length, color: 'text-[#005989]' },
-          { label: 'Heures prévues', value: `${totalMH}h`, color: 'text-slate-700' },
-          { label: 'Heures effectuées', value: `${Math.round(totalFait * 10) / 10}h`, color: 'text-green-700' },
-          { label: 'Alertes actives', value: alertCount, color: alertCount > 0 ? 'text-red-700' : 'text-slate-400' },
-        ].map(k => (
-          <div key={k.label} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-            <p className="text-xs text-slate-400 font-medium">{k.label}</p>
-            <p className={`text-2xl font-black mt-0.5 ${k.color}`}>{k.value}</p>
+      {/* Synthèse par groupe */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Synthèse par groupe</h2>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span><span className="font-semibold text-slate-600">{Math.round(totalMH)}h</span> prévues</span>
+            <span><span className="font-semibold text-green-700">{Math.round(totalFait * 10) / 10}h</span> effectuées</span>
+            {alertCount > 0 && <span className="text-red-600 font-semibold">{alertCount} alerte{alertCount > 1 ? 's' : ''}</span>}
+            {filterGroupe && (
+              <button onClick={() => setFilterGroupe('')}
+                className="text-[#005989] hover:underline font-semibold">
+                ✕ Tout afficher
+              </button>
+            )}
           </div>
-        ))}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
+          {byGroupe.map(g => (
+            <button key={g.groupeId}
+              onClick={() => setFilterGroupe(prev => prev === g.groupeId ? '' : g.groupeId)}
+              className={`text-left p-3 rounded-xl border transition-all hover:shadow-sm ${
+                filterGroupe === g.groupeId
+                  ? 'border-[#005989] bg-[#005989]/5 ring-1 ring-[#005989]/20'
+                  : 'border-slate-200 hover:border-[#005989]/40 bg-slate-50/50'
+              }`}>
+              <p className="text-xs font-bold text-slate-700 truncate leading-tight">{g.groupeNom}</p>
+              <div className="mt-2 flex items-end justify-between gap-1">
+                <span className={`text-xl font-black ${g.pct >= 100 ? 'text-slate-500' : g.pct >= 80 ? 'text-orange-600' : 'text-[#005989]'}`}>
+                  {g.pct}%
+                </span>
+                {g.alertes > 0 && (
+                  <span className="text-[10px] text-red-600 font-bold leading-none mb-0.5">{g.alertes}⚠</span>
+                )}
+              </div>
+              <div className="mt-1 h-1 bg-slate-200 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${g.pct >= 100 ? 'bg-slate-400' : g.pct >= 80 ? 'bg-orange-400' : 'bg-[#005989]'}`}
+                  style={{ width: `${g.pct}%` }} />
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1 tabular-nums">{g.fait}h / {g.mh}h</p>
+            </button>
+          ))}
+        </div>
       </div>
 
       <AlertBanner alerts={alerts} />
