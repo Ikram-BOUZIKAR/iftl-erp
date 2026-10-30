@@ -290,7 +290,7 @@ export default function SessionForm({ initial, groupes, intervenants, modules = 
 
   const doSave = async () => {
     const { groupeIds, ...rest } = form;
-    const data = { ...rest };
+    const data = { ...rest, anneeAcademique };
     if (modules.length > 0 && form.module) {
       const mod = modules.find(m => m.id === form.module);
       if (mod) {

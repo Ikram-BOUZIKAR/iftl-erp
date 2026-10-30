@@ -537,7 +537,9 @@ export default function MasseHorairePage() {
       const aff = await affectationsService.getAll(ANNEE);
       setAffectations(aff);
 
-      const sSnap = await getDocs(query(collection(db, 'sessions'), where('anneeAcademique', '==', ANNEE)));
+      // Load all sessions without year filter: existing sessions were saved without
+      // anneeAcademique; the affectation match (moduleId+groupeId+intervenantId) bounds the scope.
+      const sSnap = await getDocs(collection(db, 'sessions'));
       const sess = []; sSnap.forEach(d => sess.push({ id: d.id, ...d.data() }));
       setSessions(sess);
     } catch (e) {
