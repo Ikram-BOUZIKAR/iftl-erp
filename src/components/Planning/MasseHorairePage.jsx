@@ -327,10 +327,28 @@ function AlertBanner({ alerts }) {
 }
 
 // ── Vue par intervenant ───────────────────────────────────────────────────────
-function IntervenantCard({ intv, rows }) {
+function IntervenantCard({ intv, rows, sessions }) {
   const [open, setOpen] = useState(false);
-  const totalMH   = rows.reduce((s, r) => s + (r.masseHoraire || 0), 0);
-  const totalFait = rows.reduce((s, r) => s + r.heuresFaites, 0);
+  const totalMH = rows.reduce((s, r) => s + (r.masseHoraire || 0), 0);
+
+  // Deduplicate sessions taught to multiple groups simultaneously:
+  // same intervenant + module + date + heureDebut + heureFin = 1 physical session → count once
+  const totalFait = useMemo(() => {
+    const seen = new Set();
+    let total = 0;
+    for (const row of rows) {
+      for (const s of sessions) {
+        if (s.intervenantId !== intv.id || s.moduleId !== row.moduleId) continue;
+        const key = `${s.moduleId}|${s.date || ''}|${s.heureDebut}|${s.heureFin}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const [sh, sm] = (s.heureDebut || '0:0').split(':').map(Number);
+        const [eh, em] = (s.heureFin  || '0:0').split(':').map(Number);
+        total += (eh * 60 + em - sh * 60 - sm) / 60;
+      }
+    }
+    return Math.round(total * 10) / 10;
+  }, [rows, sessions, intv.id]);
   const totalRest = Math.max(0, totalMH - totalFait);
   const pct = totalMH > 0 ? Math.min(100, Math.round(100 * totalFait / totalMH)) : 0;
   const alertCount = rows.filter(r => r.alertFin || r.alertEfm).length;
@@ -714,7 +732,7 @@ export default function MasseHorairePage() {
         ) : (
           <div className="space-y-3">
             {groupedByIntervenant.map(({ id, intv, rows: intvRows }) => (
-              <IntervenantCard key={id} intv={intv} rows={intvRows} />
+              <IntervenantCard key={id} intv={intv} rows={intvRows} sessions={sessions} />
             ))}
             <p className="text-xs text-slate-400 text-center pt-2">
               {groupedByIntervenant.length} intervenant{groupedByIntervenant.length > 1 ? 's' : ''} —
