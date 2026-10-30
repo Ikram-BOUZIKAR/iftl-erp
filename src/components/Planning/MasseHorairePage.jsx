@@ -549,51 +549,66 @@ export default function MasseHorairePage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const enriched = useMemo(() => affectations.map(aff => {
-    const mod  = modules.find(m => m.id === aff.moduleId);
-    const grp  = groupes.find(g => g.id === aff.groupeId);
-    const intv = intervenants.find(i => i.id === aff.intervenantId);
+  const enriched = useMemo(() => {
+    const mapped = affectations.map(aff => {
+      const mod  = modules.find(m => m.id === aff.moduleId);
+      const grp  = groupes.find(g => g.id === aff.groupeId);
+      const intv = intervenants.find(i => i.id === aff.intervenantId);
 
-    // Robust session matching: by moduleId (Firestore ID) OR by module display string
-    // (sessions saved without moduleId only have `module = "CODE — Nom"`).
-    const modMatchFn = (s) => {
-      if (s.moduleId && aff.moduleId) return s.moduleId === aff.moduleId;
-      // Fallback for legacy sessions without moduleId
-      if (mod && s.module) return s.module.startsWith(mod.code + ' ') || s.module === mod.code;
-      return false;
-    };
-    const sessionsPourModule = sessions.filter(s =>
-      modMatchFn(s) && s.groupeId === aff.groupeId
-    );
-    // Compute heuresFaites from matched sessions
-    let totalH = 0;
-    for (const s of sessionsPourModule) {
-      if (!aff.intervenantId || s.intervenantId === aff.intervenantId) {
-        const [sh, sm] = (s.heureDebut || '0:0').split(':').map(Number);
-        const [eh, em] = (s.heureFin  || '0:0').split(':').map(Number);
-        totalH += (eh * 60 + em - sh * 60 - sm) / 60;
+      // Robust session matching: by moduleId (Firestore ID) OR by module display string
+      // (sessions saved without moduleId only have `module = "CODE — Nom"`).
+      const modMatchFn = (s) => {
+        if (s.moduleId && aff.moduleId) return s.moduleId === aff.moduleId;
+        // Fallback for legacy sessions without moduleId
+        if (mod && s.module) return s.module.startsWith(mod.code + ' ') || s.module === mod.code;
+        return false;
+      };
+      const sessionsPourModule = sessions.filter(s =>
+        modMatchFn(s) && s.groupeId === aff.groupeId
+      );
+      // Compute heuresFaites from matched sessions
+      let totalH = 0;
+      for (const s of sessionsPourModule) {
+        if (!aff.intervenantId || s.intervenantId === aff.intervenantId) {
+          const [sh, sm] = (s.heureDebut || '0:0').split(':').map(Number);
+          const [eh, em] = (s.heureFin  || '0:0').split(':').map(Number);
+          totalH += (eh * 60 + em - sh * 60 - sm) / 60;
+        }
+      }
+      const heuresFaites = Math.round(totalH * 10) / 10;
+      const heuresRestantes = Math.max(0, (aff.masseHoraire || 0) - heuresFaites);
+      const efmProgramme = sessionsPourModule.some(s => ['efm', 'eff', 'exam'].includes(s.type));
+      const ccProgramme  = sessionsPourModule.some(s => s.type === 'cc');
+      const moduleCode   = mod?.code || '';
+      return {
+        ...aff,
+        moduleName:     mod?.nom  || aff.moduleId,
+        moduleCode,
+        groupeNom:      grp?.nom  || aff.groupeId,
+        intervenantNom: intv ? `${intv.prenom} ${intv.nom}` : aff.intervenantId,
+        heuresFaites,
+        heuresRestantes,
+        efmProgramme,
+        ccProgramme,
+        alertFin: heuresRestantes > 0 && heuresRestantes <= ALERT_HEURES,
+        alertEfm: !efmProgramme,
+        alertCc:  !ccProgramme,
+        pctFait: aff.masseHoraire > 0 ? Math.min(100, Math.round(100 * heuresFaites / aff.masseHoraire)) : 0,
+      };
+    });
+    // Mark duplicates: same intervenantId + groupeId + moduleCode (keep first, flag the rest)
+    const seen = new Set();
+    for (const e of mapped) {
+      const key = `${e.intervenantId}|${e.groupeId}|${e.moduleCode}`;
+      if (seen.has(key)) {
+        e.isDuplicate = true;
+      } else {
+        seen.add(key);
+        e.isDuplicate = false;
       }
     }
-    const heuresFaites = Math.round(totalH * 10) / 10;
-    const heuresRestantes = Math.max(0, (aff.masseHoraire || 0) - heuresFaites);
-    const efmProgramme = sessionsPourModule.some(s => ['efm', 'eff', 'exam'].includes(s.type));
-    const ccProgramme  = sessionsPourModule.some(s => s.type === 'cc');
-    return {
-      ...aff,
-      moduleName:     mod?.nom  || aff.moduleId,
-      moduleCode:     mod?.code || '',
-      groupeNom:      grp?.nom  || aff.groupeId,
-      intervenantNom: intv ? `${intv.prenom} ${intv.nom}` : aff.intervenantId,
-      heuresFaites,
-      heuresRestantes,
-      efmProgramme,
-      ccProgramme,
-      alertFin: heuresRestantes > 0 && heuresRestantes <= ALERT_HEURES,
-      alertEfm: !efmProgramme,
-      alertCc:  !ccProgramme,
-      pctFait: aff.masseHoraire > 0 ? Math.min(100, Math.round(100 * heuresFaites / aff.masseHoraire)) : 0,
-    };
-  }), [affectations, modules, groupes, intervenants, sessions]);
+    return mapped;
+  }, [affectations, modules, groupes, intervenants, sessions]);
 
   const alerts = useMemo(() => {
     const list = [];
@@ -636,10 +651,11 @@ export default function MasseHorairePage() {
     } catch (e) { toast.error('Erreur: ' + e.message); }
   };
 
-  // Synthèse par groupe (cliquable pour filtrer)
+  // Synthèse par groupe (cliquable pour filtrer) — exclut les doublons des stats
   const byGroupe = useMemo(() => {
     const map = {};
     for (const e of enriched) {
+      if (e.isDuplicate) continue;
       if (!map[e.groupeId]) map[e.groupeId] = { groupeId: e.groupeId, groupeNom: e.groupeNom || e.groupeId, mh: 0, fait: 0, alertes: 0 };
       map[e.groupeId].mh    += e.masseHoraire || 0;
       map[e.groupeId].fait  += e.heuresFaites;
@@ -667,9 +683,10 @@ export default function MasseHorairePage() {
       .sort((a, b) => (a.intv.nom || '').localeCompare(b.intv.nom || '', 'fr'));
   }, [enriched, intervenants, filterGroupe]);
 
-  const totalMH    = enriched.reduce((s, e) => s + (e.masseHoraire || 0), 0);
-  const totalFait  = enriched.reduce((s, e) => s + e.heuresFaites, 0);
-  const alertCount = enriched.filter(e => e.alertFin || e.alertEfm).length;
+  const nonDup     = enriched.filter(e => !e.isDuplicate);
+  const totalMH    = nonDup.reduce((s, e) => s + (e.masseHoraire || 0), 0);
+  const totalFait  = nonDup.reduce((s, e) => s + e.heuresFaites, 0);
+  const alertCount = nonDup.filter(e => e.alertFin || e.alertEfm).length;
 
   return (
     <div className="space-y-5 max-w-full">
@@ -836,10 +853,13 @@ export default function MasseHorairePage() {
                 </thead>
                 <tbody>
                   {rows.map(e => (
-                    <tr key={e.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${e.alertFin ? 'bg-red-50/40' : ''}`}>
+                    <tr key={e.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${e.isDuplicate ? 'bg-amber-50/60' : e.alertFin ? 'bg-red-50/40' : ''}`}>
                       <td className="px-4 py-3 font-medium text-slate-800 max-w-[200px]">
                         <span className="block truncate" title={e.moduleName}>{e.moduleName}</span>
-                        {e.moduleCode && <span className="text-xs text-slate-400">{e.moduleCode}</span>}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {e.moduleCode && <span className="text-xs text-slate-400">{e.moduleCode}</span>}
+                          {e.isDuplicate && <span className="text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 rounded px-1 py-0.5">⚠ Doublon</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{e.groupeNom}</td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{e.intervenantNom}</td>
@@ -874,8 +894,8 @@ export default function MasseHorairePage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDelete(e)} title="Supprimer"
-                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <button onClick={() => handleDelete(e)} title={e.isDuplicate ? 'Supprimer ce doublon' : 'Supprimer'}
+                            className={`p-1.5 rounded-lg transition-colors ${e.isDuplicate ? 'text-red-600 bg-red-100 hover:bg-red-200' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
