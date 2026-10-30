@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { canSeeNiveau } from '../../utils/roleConfig';
 import { useToast } from '../UI/Toast';
 import { useTranslation } from 'react-i18next';
-import { calculerMoyenneUELicence, calculerMoyenneGeneraleLicence } from '../../utils/notesUtils';
+import { calculerMoyenneUELicence, calculerMoyenneGeneraleLicence, ECTS_LICENCE } from '../../utils/notesUtils';
 
 const ANNEE_BY_NIVEAU = {
   '1A': '2026-2027',
@@ -201,11 +201,26 @@ export default function RelevesPage() {
             : null)
             || allModules.find(m => ev.moduleNom && m.nom === ev.moduleNom)
             || allModules.find(m => ev.moduleNom && m.code === ev.moduleNom);
+
+          // Extract CNAM code from ev.code if modDoc not found
+          // NotesImportTab format: "IMPORT_CC_CFA109_S1" → parts[2] = 'CFA109'
+          let resolvedCode = modDoc?.code || ev.moduleCode;
+          if (!resolvedCode && ev.code) {
+            const parts = ev.code.split('_');
+            if (parts[0] === 'IMPORT' && parts.length >= 3 && ECTS_LICENCE[parts[2]]) {
+              resolvedCode = parts[2];
+            }
+          }
+          // Last resort: ev.moduleId is itself a valid ECTS code (unlikely but safe)
+          if (!resolvedCode && ev.moduleId && ECTS_LICENCE[ev.moduleId]) {
+            resolvedCode = ev.moduleId;
+          }
+
           byModule[moduleKey] = {
             ref:   ev.moduleId || moduleKey,
             nom:   modDoc?.nom || ev.moduleNom || ev.module || moduleKey,
             coeff: modDoc?.coeff ?? modDoc?.coefficient ?? ev.coefficient ?? 2,
-            code:  modDoc?.code || ev.moduleCode || ev.moduleId || moduleKey,
+            code:  resolvedCode || ev.moduleId || moduleKey,
             ccNotes: [], efm: null, rattrapage: null,
           };
         }

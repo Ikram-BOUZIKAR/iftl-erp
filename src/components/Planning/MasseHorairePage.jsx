@@ -553,9 +553,29 @@ export default function MasseHorairePage() {
     const mod  = modules.find(m => m.id === aff.moduleId);
     const grp  = groupes.find(g => g.id === aff.groupeId);
     const intv = intervenants.find(i => i.id === aff.intervenantId);
-    const heuresFaites = affectationsService.computeHeuresFaites(aff, sessions);
+
+    // Robust session matching: by moduleId (Firestore ID) OR by module display string
+    // (sessions saved without moduleId only have `module = "CODE — Nom"`).
+    const modMatchFn = (s) => {
+      if (s.moduleId && aff.moduleId) return s.moduleId === aff.moduleId;
+      // Fallback for legacy sessions without moduleId
+      if (mod && s.module) return s.module.startsWith(mod.code + ' ') || s.module === mod.code;
+      return false;
+    };
+    const sessionsPourModule = sessions.filter(s =>
+      modMatchFn(s) && s.groupeId === aff.groupeId
+    );
+    // Compute heuresFaites from matched sessions
+    let totalH = 0;
+    for (const s of sessionsPourModule) {
+      if (!aff.intervenantId || s.intervenantId === aff.intervenantId) {
+        const [sh, sm] = (s.heureDebut || '0:0').split(':').map(Number);
+        const [eh, em] = (s.heureFin  || '0:0').split(':').map(Number);
+        totalH += (eh * 60 + em - sh * 60 - sm) / 60;
+      }
+    }
+    const heuresFaites = Math.round(totalH * 10) / 10;
     const heuresRestantes = Math.max(0, (aff.masseHoraire || 0) - heuresFaites);
-    const sessionsPourModule = sessions.filter(s => s.moduleId === aff.moduleId && s.groupeId === aff.groupeId);
     const efmProgramme = sessionsPourModule.some(s => ['efm', 'eff', 'exam'].includes(s.type));
     const ccProgramme  = sessionsPourModule.some(s => s.type === 'cc');
     return {
