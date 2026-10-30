@@ -326,6 +326,171 @@ function AlertBanner({ alerts }) {
   );
 }
 
+// ── Vue par intervenant ───────────────────────────────────────────────────────
+function IntervenantCard({ intv, rows }) {
+  const [open, setOpen] = useState(false);
+  const totalMH   = rows.reduce((s, r) => s + (r.masseHoraire || 0), 0);
+  const totalFait = rows.reduce((s, r) => s + r.heuresFaites, 0);
+  const totalRest = Math.max(0, totalMH - totalFait);
+  const pct = totalMH > 0 ? Math.min(100, Math.round(100 * totalFait / totalMH)) : 0;
+  const alertCount = rows.filter(r => r.alertFin || r.alertEfm).length;
+
+  // Group rows by module for compact display
+  const byModule = useMemo(() => {
+    const map = {};
+    for (const r of rows) {
+      const key = r.moduleId;
+      if (!map[key]) map[key] = { nom: r.moduleName, code: r.moduleCode, groupes: [] };
+      map[key].groupes.push(r);
+    }
+    return Object.values(map).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [rows]);
+
+  const barColor = pct >= 100 ? 'bg-slate-400' : pct >= 80 ? 'bg-orange-400' : 'bg-[#005989]';
+
+  return (
+    <div className={`bg-white border rounded-2xl shadow-sm overflow-hidden ${alertCount > 0 ? 'border-red-200' : 'border-slate-200'}`}>
+      {/* Header cliquable */}
+      <button
+        onClick={() => setOpen(p => !p)}
+        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors text-left"
+      >
+        {/* Avatar initiales */}
+        <div className="shrink-0 w-10 h-10 rounded-full bg-[#005989]/10 flex items-center justify-center">
+          <span className="text-[#005989] font-bold text-sm">
+            {(intv.prenom?.[0] || '?')}{(intv.nom?.[0] || '')}
+          </span>
+        </div>
+
+        {/* Nom + stats */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-slate-800 text-sm">{intv.prenom} {intv.nom}</span>
+            {alertCount > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                ⚠ {alertCount} alerte{alertCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1.5">
+            <div className="flex-1 max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">{pct}%</span>
+          </div>
+        </div>
+
+        {/* KPIs */}
+        <div className="hidden sm:flex items-center gap-5 text-right shrink-0">
+          <div>
+            <p className="text-xs text-slate-400">Modules</p>
+            <p className="text-sm font-bold text-slate-700">{byModule.length}</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Groupes</p>
+            <p className="text-sm font-bold text-slate-700">{rows.length}</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">MH prévues</p>
+            <p className="text-sm font-bold text-slate-700 tabular-nums">{totalMH}h</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Faites</p>
+            <p className="text-sm font-bold text-green-700 tabular-nums">{Math.round(totalFait * 10) / 10}h</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-400">Restantes</p>
+            <p className={`text-sm font-bold tabular-nums ${totalRest > 0 && totalRest <= 4 ? 'text-red-700' : 'text-slate-600'}`}>
+              {Math.round(totalRest * 10) / 10}h
+            </p>
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Détail expandable */}
+      {open && (
+        <div className="border-t border-slate-100">
+          {/* Stats mobile */}
+          <div className="sm:hidden flex gap-4 px-5 py-3 bg-slate-50 text-xs text-slate-500">
+            <span><b className="text-slate-700">{totalMH}h</b> prévues</span>
+            <span><b className="text-green-700">{Math.round(totalFait * 10) / 10}h</b> faites</span>
+            <span><b className="text-slate-600">{Math.round(totalRest * 10) / 10}h</b> restantes</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">Module</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">Groupe</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">MH prévues</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">Faites</th>
+                  <th className="text-right px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">Restantes</th>
+                  <th className="px-4 py-2.5 font-semibold text-slate-500 text-xs min-w-[100px]">Progression</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">EFM</th>
+                  <th className="text-center px-4 py-2.5 font-semibold text-slate-500 text-xs whitespace-nowrap">CC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byModule.map(mod => (
+                  mod.groupes.map((r, gi) => (
+                    <tr key={r.id} className={`border-b border-slate-100 ${r.alertFin ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+                      {gi === 0 && (
+                        <td className="px-4 py-2.5 font-semibold text-slate-700" rowSpan={mod.groupes.length}>
+                          <span className="block truncate max-w-[180px]" title={mod.nom}>{mod.nom}</span>
+                          {mod.code && <span className="text-xs text-slate-400 font-normal">{mod.code}</span>}
+                        </td>
+                      )}
+                      <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{r.groupeNom}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-slate-700 tabular-nums">{r.masseHoraire}h</td>
+                      <td className="px-4 py-2.5 text-right text-green-700 font-semibold tabular-nums">{r.heuresFaites}h</td>
+                      <td className={`px-4 py-2.5 text-right font-bold tabular-nums ${r.alertFin ? 'text-red-700' : 'text-slate-600'}`}>
+                        {r.alertFin && '⚠ '}{r.heuresRestantes}h
+                      </td>
+                      <td className="px-4 py-2.5"><ProgressBar done={r.heuresFaites} total={r.masseHoraire} /></td>
+                      <td className="px-4 py-2.5 text-center">
+                        {r.efmProgramme ? <Badge color="green">✓</Badge> : <Badge color="red">✗</Badge>}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {r.ccProgramme ? <Badge color="green">✓</Badge> : <Badge color="orange">✗</Badge>}
+                      </td>
+                    </tr>
+                  ))
+                ))}
+              </tbody>
+              {/* Total ligne */}
+              <tfoot>
+                <tr className="bg-slate-50 border-t-2 border-slate-200">
+                  <td colSpan={2} className="px-4 py-2.5 font-bold text-slate-600 text-xs">Total</td>
+                  <td className="px-4 py-2.5 text-right font-bold text-slate-700 tabular-nums text-xs">{totalMH}h</td>
+                  <td className="px-4 py-2.5 text-right font-bold text-green-700 tabular-nums text-xs">{Math.round(totalFait * 10) / 10}h</td>
+                  <td className={`px-4 py-2.5 text-right font-bold tabular-nums text-xs ${totalRest > 0 && totalRest <= 4 ? 'text-red-700' : 'text-slate-600'}`}>
+                    {Math.round(totalRest * 10) / 10}h
+                  </td>
+                  <td colSpan={3} className="px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-bold text-slate-600">{pct}%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MasseHorairePage() {
   const toast = useToast();
@@ -342,6 +507,7 @@ export default function MasseHorairePage() {
   const [filterGroupe, setFilterGroupe] = useState('');
   const [filterInterv, setFilterInterv] = useState('');
   const [filterAlert, setFilterAlert]   = useState(false);
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'intervenants'
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -430,6 +596,22 @@ export default function MasseHorairePage() {
     } catch (e) { toast.error('Erreur: ' + e.message); }
   };
 
+  // Vue par intervenant : groupe enriched par intervenantId
+  const groupedByIntervenant = useMemo(() => {
+    const map = {};
+    for (const e of enriched) {
+      if (!map[e.intervenantId]) map[e.intervenantId] = [];
+      map[e.intervenantId].push(e);
+    }
+    return Object.entries(map)
+      .map(([id, rows]) => ({
+        id,
+        intv: intervenants.find(i => i.id === id) || { id, nom: id, prenom: '' },
+        rows,
+      }))
+      .sort((a, b) => (a.intv.nom || '').localeCompare(b.intv.nom || '', 'fr'));
+  }, [enriched, intervenants]);
+
   const totalMH   = enriched.reduce((s, e) => s + (e.masseHoraire || 0), 0);
   const totalFait = enriched.reduce((s, e) => s + e.heuresFaites, 0);
   const alertCount = enriched.filter(e => e.alertFin || e.alertEfm).length;
@@ -444,13 +626,30 @@ export default function MasseHorairePage() {
             Volumes horaires par module, groupe et intervenant — {ANNEE}
           </p>
         </div>
-        <button onClick={() => setShowBulk(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl text-sm font-semibold hover:bg-[#004a73] shadow-sm">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Affecter en masse
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Toggle vue */}
+          <div className="flex bg-slate-100 rounded-xl p-1 text-sm">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${viewMode === 'table' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Tableau
+            </button>
+            <button
+              onClick={() => setViewMode('intervenants')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${viewMode === 'intervenants' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Par intervenant
+            </button>
+          </div>
+          <button onClick={() => setShowBulk(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#005989] text-white rounded-xl text-sm font-semibold hover:bg-[#004a73] shadow-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Affecter en masse
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -470,122 +669,146 @@ export default function MasseHorairePage() {
 
       <AlertBanner alerts={alerts} />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]">
-          <option value="">Tous les groupes</option>
-          {[...uniqueGroupes].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(g => (
-            <option key={g.id} value={g.id}>{g.nom}</option>
-          ))}
-        </select>
-        <select value={filterInterv} onChange={e => setFilterInterv(e.target.value)}
-          className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]">
-          <option value="">Tous les intervenants</option>
-          {[...intervenants].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(i => (
-            <option key={i.id} value={i.id}>{i.prenom} {i.nom}</option>
-          ))}
-        </select>
-        <label className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
-          <input type="checkbox" checked={filterAlert} onChange={e => setFilterAlert(e.target.checked)} />
-          Alertes seulement
-        </label>
-        {(filterGroupe || filterInterv || filterAlert) && (
-          <button onClick={() => { setFilterGroupe(''); setFilterInterv(''); setFilterAlert(false); }}
-            className="px-3 py-2 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 rounded-xl">
-            ✕ Réinitialiser
-          </button>
-        )}
-      </div>
+      {/* Filtres (masqués en vue intervenants) */}
+      {viewMode === 'table' && (
+        <div className="flex flex-wrap gap-2">
+          <select value={filterGroupe} onChange={e => setFilterGroupe(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]">
+            <option value="">Tous les groupes</option>
+            {[...uniqueGroupes].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(g => (
+              <option key={g.id} value={g.id}>{g.nom}</option>
+            ))}
+          </select>
+          <select value={filterInterv} onChange={e => setFilterInterv(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#005989]">
+            <option value="">Tous les intervenants</option>
+            {[...intervenants].sort((a,b) => (a.nom||'').localeCompare(b.nom||'')).map(i => (
+              <option key={i.id} value={i.id}>{i.prenom} {i.nom}</option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
+            <input type="checkbox" checked={filterAlert} onChange={e => setFilterAlert(e.target.checked)} />
+            Alertes seulement
+          </label>
+          {(filterGroupe || filterInterv || filterAlert) && (
+            <button onClick={() => { setFilterGroupe(''); setFilterInterv(''); setFilterAlert(false); }}
+              className="px-3 py-2 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 rounded-xl">
+              ✕ Réinitialiser
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Table */}
       {loading ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
           <div className="w-8 h-8 border-[3px] border-[#005989] border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
-      ) : rows.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
-          <p className="text-2xl mb-2">📊</p>
-          <p className="text-slate-600 font-semibold">Aucune affectation</p>
-          <p className="text-slate-400 text-sm mt-1">Cliquez sur "Affecter en masse" pour configurer les volumes horaires.</p>
-        </div>
+      ) : viewMode === 'intervenants' ? (
+        /* ── Vue par intervenant ────────────────────────────── */
+        groupedByIntervenant.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+            <p className="text-2xl mb-2">👤</p>
+            <p className="text-slate-600 font-semibold">Aucun intervenant affecté</p>
+            <p className="text-slate-400 text-sm mt-1">Cliquez sur "Affecter en masse" pour configurer les volumes horaires.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {groupedByIntervenant.map(({ id, intv, rows: intvRows }) => (
+              <IntervenantCard key={id} intv={intv} rows={intvRows} />
+            ))}
+            <p className="text-xs text-slate-400 text-center pt-2">
+              {groupedByIntervenant.length} intervenant{groupedByIntervenant.length > 1 ? 's' : ''} —
+              {' '}{enriched.length} affectation{enriched.length > 1 ? 's' : ''} au total
+              {' '}— Alerte fin de module : ≤ {ALERT_HEURES}h restantes
+            </p>
+          </div>
+        )
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Module</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Groupe</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Intervenant</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">MH</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Faites</th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Restantes</th>
-                  <th className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap min-w-[120px]">Progression</th>
-                  <th className="text-center px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">EFM</th>
-                  <th className="text-center px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">CC</th>
-                  <th className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Statut</th>
-                  <th className="px-3 py-3 w-20"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(e => (
-                  <tr key={e.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${e.alertFin ? 'bg-red-50/40' : ''}`}>
-                    <td className="px-4 py-3 font-medium text-slate-800 max-w-[200px]">
-                      <span className="block truncate" title={e.moduleName}>{e.moduleName}</span>
-                      {e.moduleCode && <span className="text-xs text-slate-400">{e.moduleCode}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{e.groupeNom}</td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{e.intervenantNom}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-700 tabular-nums whitespace-nowrap">{e.masseHoraire}h</td>
-                    <td className="px-4 py-3 text-right text-green-700 font-semibold tabular-nums whitespace-nowrap">{e.heuresFaites}h</td>
-                    <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${e.alertFin ? 'text-red-700' : 'text-slate-700'}`}>
-                      {e.alertFin && '⚠ '}{e.heuresRestantes}h
-                    </td>
-                    <td className="px-4 py-3">
-                      <ProgressBar done={e.heuresFaites} total={e.masseHoraire} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {e.efmProgramme ? <Badge color="green">✓</Badge> : <Badge color="red">✗</Badge>}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {e.ccProgramme ? <Badge color="green">✓</Badge> : <Badge color="orange">✗</Badge>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {e.pctFait >= 100
-                        ? <Badge color="slate">Terminé</Badge>
-                        : e.alertFin
-                          ? <Badge color="red">Fin proche</Badge>
-                          : e.pctFait >= 75
-                            ? <Badge color="orange">En cours</Badge>
-                            : <Badge color="blue">En cours</Badge>}
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setEditAff(e)} title="Modifier"
-                          className="p-1.5 text-slate-400 hover:text-[#005989] hover:bg-blue-50 rounded-lg transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button onClick={() => handleDelete(e)} title="Supprimer"
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
+        /* ── Vue tableau ────────────────────────────────────── */
+        rows.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+            <p className="text-2xl mb-2">📊</p>
+            <p className="text-slate-600 font-semibold">Aucune affectation</p>
+            <p className="text-slate-400 text-sm mt-1">Cliquez sur "Affecter en masse" pour configurer les volumes horaires.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Module</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Groupe</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Intervenant</th>
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">MH</th>
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Faites</th>
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Restantes</th>
+                    <th className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap min-w-[120px]">Progression</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">EFM</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">CC</th>
+                    <th className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Statut</th>
+                    <th className="px-3 py-3 w-20"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map(e => (
+                    <tr key={e.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${e.alertFin ? 'bg-red-50/40' : ''}`}>
+                      <td className="px-4 py-3 font-medium text-slate-800 max-w-[200px]">
+                        <span className="block truncate" title={e.moduleName}>{e.moduleName}</span>
+                        {e.moduleCode && <span className="text-xs text-slate-400">{e.moduleCode}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{e.groupeNom}</td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{e.intervenantNom}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-700 tabular-nums whitespace-nowrap">{e.masseHoraire}h</td>
+                      <td className="px-4 py-3 text-right text-green-700 font-semibold tabular-nums whitespace-nowrap">{e.heuresFaites}h</td>
+                      <td className={`px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap ${e.alertFin ? 'text-red-700' : 'text-slate-700'}`}>
+                        {e.alertFin && '⚠ '}{e.heuresRestantes}h
+                      </td>
+                      <td className="px-4 py-3">
+                        <ProgressBar done={e.heuresFaites} total={e.masseHoraire} />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {e.efmProgramme ? <Badge color="green">✓</Badge> : <Badge color="red">✗</Badge>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {e.ccProgramme ? <Badge color="green">✓</Badge> : <Badge color="orange">✗</Badge>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {e.pctFait >= 100
+                          ? <Badge color="slate">Terminé</Badge>
+                          : e.alertFin
+                            ? <Badge color="red">Fin proche</Badge>
+                            : e.pctFait >= 75
+                              ? <Badge color="orange">En cours</Badge>
+                              : <Badge color="blue">En cours</Badge>}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setEditAff(e)} title="Modifier"
+                            className="p-1.5 text-slate-400 hover:text-[#005989] hover:bg-blue-50 rounded-lg transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button onClick={() => handleDelete(e)} title="Supprimer"
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-400">
+              {rows.length} affectation{rows.length > 1 ? 's' : ''}
+              {' '}— Alerte fin de module : ≤ {ALERT_HEURES}h restantes
+            </div>
           </div>
-          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-400">
-            {rows.length} affectation{rows.length > 1 ? 's' : ''}
-            {' '}— Alerte fin de module : ≤ {ALERT_HEURES}h restantes
-          </div>
-        </div>
+        )
       )}
 
       {showBulk && (
