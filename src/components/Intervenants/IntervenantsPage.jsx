@@ -530,9 +530,8 @@ function BilanTab({ intervenants, refetchIntervenants }) {
   const { branding } = useBranding();
   const fmtC = (n) => formatCurrency(n, branding.devise);
   const currSymbol = getCurrencySymbol(branding.devise);
-  const now = new Date();
   const [filterMois, setFilterMois] = useState('tous');
-  const [filterAnnee, setFilterAnnee] = useState(String(now.getFullYear()));
+  const [filterAnnee, setFilterAnnee] = useState('toutes');
   const [sessions, setSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [modalTaux, setModalTaux] = useState(null);
@@ -640,6 +639,11 @@ function BilanTab({ intervenants, refetchIntervenants }) {
           <RefreshIcon />
           Actualiser
         </button>
+        {!loadingSessions && (
+          <span className="text-xs text-slate-400 ml-1">
+            {sessions.length} séance{sessions.length > 1 ? 's' : ''} chargée{sessions.length > 1 ? 's' : ''} au total
+          </span>
+        )}
         <button
           onClick={() => exportBilanCSV(rows, periodeLabel)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-[#005989] text-[#005989] hover:bg-[#005989]/5 rounded-lg transition-colors ml-auto"
