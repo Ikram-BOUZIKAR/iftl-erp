@@ -332,14 +332,21 @@ function IntervenantCard({ intv, rows, sessions }) {
   const totalMH = rows.reduce((s, r) => s + (r.masseHoraire || 0), 0);
 
   // Deduplicate sessions taught to multiple groups simultaneously:
-  // same intervenant + module + date + heureDebut + heureFin = 1 physical session → count once
+  // same intervenant + module + date + heureDebut + heureFin = 1 physical session → count once.
+  // Match by moduleId when available, fallback to module code string for legacy sessions.
   const totalFait = useMemo(() => {
     const seen = new Set();
     let total = 0;
     for (const row of rows) {
       for (const s of sessions) {
-        if (s.intervenantId !== intv.id || s.moduleId !== row.moduleId) continue;
-        const key = `${s.moduleId}|${s.date || ''}|${s.heureDebut}|${s.heureFin}`;
+        if (s.intervenantId !== intv.id) continue;
+        const matchesModule = (s.moduleId && row.moduleId)
+          ? s.moduleId === row.moduleId
+          : row.moduleCode && s.module
+            ? s.module.startsWith(row.moduleCode + ' ') || s.module === row.moduleCode
+            : false;
+        if (!matchesModule) continue;
+        const key = `${row.moduleCode || row.moduleId}|${s.date || ''}|${s.heureDebut}|${s.heureFin}`;
         if (seen.has(key)) continue;
         seen.add(key);
         const [sh, sm] = (s.heureDebut || '0:0').split(':').map(Number);
