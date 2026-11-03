@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "erp-pedago-iftl"
+    "default": "erp-pedago-iftl",
+    "demo": "edupilot-demo"
   }
 }

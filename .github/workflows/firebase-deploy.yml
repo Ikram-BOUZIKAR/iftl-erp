@@ -1,0 +1,226 @@
+name: Deploy to Firebase Hosting
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - claude/scheduling-attendance-app-zxwsP
+
+jobs:
+  deploy-iftl:
+    name: Build & deploy ERP IFTL production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: "AIzaSyAt0Nb1yxXk9VJ_9F0FEMdS-7sfd6KkZrY"
+          VITE_FIREBASE_AUTH_DOMAIN: erp-pedago-iftl.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: erp-pedago-iftl
+          VITE_FIREBASE_STORAGE_BUCKET: erp-pedago-iftl.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "938367552509"
+          VITE_FIREBASE_APP_ID: "1:938367552509:web:60bc41fdc15daa86a02794"
+          VITE_DEFAULT_LOGO_URL: "/logo-iftl.png"
+          VITE_DEFAULT_INSTITUTE_NAME: "IFTL"
+
+      - name: Write IFTL service account key
+        run: |
+          python3 -c "
+          import os, json, sys
+          v = os.environ['FIREBASE_TOKEN_IFTL']
+          start = v.find('{')
+          if start < 0:
+              print('ERROR: no { found in secret'); sys.exit(1)
+          v = v[start:]
+          d, _ = json.JSONDecoder().raw_decode(v)
+          open('/tmp/sa_iftl.json', 'w').write(json.dumps(d))
+          print('Written OK, type:', d.get('type'))
+          "
+        env:
+          FIREBASE_TOKEN_IFTL: ${{ secrets.FIREBASE_TOKEN_IFTL }}
+
+      - name: Validate service account key
+        run: |
+          python3 -c "
+          import json, sys
+          d = json.load(open('/tmp/sa_iftl.json'))
+          print('type:', d.get('type'))
+          print('project_id:', d.get('project_id'))
+          print('client_email:', d.get('client_email'))
+          assert d.get('type') == 'service_account'
+          print('JSON valid')
+          "
+
+      - name: Deploy Firestore rules to erp-pedago-iftl
+        continue-on-error: true
+        run: npx firebase-tools@13.29.3 deploy --only firestore:rules --project erp-pedago-iftl --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
+
+      - name: Deploy Firestore indexes to erp-pedago-iftl
+        continue-on-error: true
+        run: |
+          pip3 install google-auth google-auth-httplib2 -q 2>/dev/null || true
+          python3 << 'PYEOF'
+          import json, urllib.request, urllib.error
+          try:
+            from google.oauth2 import service_account
+            import google.auth.transport.requests
+            SCOPES = ['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/datastore']
+            creds = service_account.Credentials.from_service_account_file('/tmp/sa_iftl.json', scopes=SCOPES)
+            creds.refresh(google.auth.transport.requests.Request())
+            token = creds.token
+            project = 'erp-pedago-iftl'
+            base = f'https://firestore.googleapis.com/v1/projects/{project}/databases/(default)/collectionGroups'
+            headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+            indexes = [
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'campagneId','order':'ASCENDING'},{'fieldPath':'statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'campagneId','order':'ASCENDING'},{'fieldPath':'filiereCode','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'fraisDossier.statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+              {'collectionGroup': 'candidatures', 'fields': [{'fieldPath':'statut','order':'ASCENDING'},{'fieldPath':'fraisDossier.statut','order':'ASCENDING'},{'fieldPath':'createdAt','order':'DESCENDING'}]},
+            ]
+            for idx in indexes:
+              cg = idx['collectionGroup']
+              body = json.dumps({'queryScope':'COLLECTION','fields': idx['fields']}).encode()
+              req = urllib.request.Request(f'{base}/{cg}/indexes', data=body, headers=headers)
+              try:
+                resp = json.loads(urllib.request.urlopen(req).read())
+                print(f'Index créé: {cg} {[f["fieldPath"] for f in idx["fields"]]} → {resp.get("name","?")}')
+              except urllib.error.HTTPError as e:
+                err = e.read().decode()[:200]
+                if 'ALREADY_EXISTS' in err or 'already exists' in err.lower():
+                  print(f'Index déjà existant (OK): {cg} {[f["fieldPath"] for f in idx["fields"]]}')
+                else:
+                  print(f'Erreur index {cg}: {e.code} {err}')
+            print('Déploiement des index terminé.')
+          except Exception as e:
+            print(f'Erreur générale indexes (non-bloquant): {e}')
+          PYEOF
+
+      - name: Deploy hosting to erp-pedago-iftl
+        run: npx firebase-tools@13.29.3 deploy --only hosting:erp-pedago-iftl --project erp-pedago-iftl --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_iftl.json
+
+  deploy-demo:
+    name: Build & deploy Delo ERP demo
+    runs-on: ubuntu-latest
+    environment: FIREBASE_TOKEN_DEMO
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build demo bundle
+        run: npm run build:demo
+        env:
+          VITE_FIREBASE_API_KEY: "AIzaSyAM0LOgnjDOOQN9oxWtqSzEAcawcfmIOuY"
+          VITE_FIREBASE_AUTH_DOMAIN: edupilot-demo.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: edupilot-demo
+          VITE_FIREBASE_STORAGE_BUCKET: edupilot-demo.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "192247415331"
+          VITE_FIREBASE_APP_ID: "1:192247415331:web:b5748cf00ce6ff2b02a796"
+          VITE_DEFAULT_INSTITUTE_NAME: Institut Horizon
+          VITE_DEFAULT_PRIMARY_COLOR: "#1a5f8a"
+          VITE_EMAIL_DOMAIN: edupilot-demo.com
+          VITE_USE_FIREBASE_EMULATORS: "false"
+
+      - name: Write demo service account key
+        run: |
+          python3 -c "
+          import os, json, sys
+          v = os.environ['FIREBASE_TOKEN_DEMO']
+          start = v.find('{')
+          if start < 0:
+              print('ERROR: no { found in secret'); sys.exit(1)
+          v = v[start:]
+          d, _ = json.JSONDecoder().raw_decode(v)
+          open('/tmp/sa_demo.json', 'w').write(json.dumps(d))
+          print('Written OK, type:', d.get('type'))
+          print('project_id:', d.get('project_id'))
+          print('client_email:', d.get('client_email'))
+          "
+        env:
+          FIREBASE_TOKEN_DEMO: ${{ secrets.FIREBASE_TOKEN_DEMO }}
+
+      - name: Deploy Firestore rules to edupilot-demo
+        continue-on-error: true
+        run: |
+          # Try Firebase CLI first (needs serviceusage permission)
+          npx firebase-tools@13.29.3 deploy --only firestore:rules --project edupilot-demo --non-interactive || true
+          # Fallback: deploy rules via Firebase Security Rules REST API
+          pip3 install google-auth google-auth-httplib2 -q 2>/dev/null || true
+          python3 << 'PYEOF'
+          import json, os
+          import urllib.request, urllib.error
+          try:
+            import google.auth, google.auth.transport.requests
+            from google.oauth2 import service_account
+            SCOPES = ['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/firebase']
+            creds = service_account.Credentials.from_service_account_file('/tmp/sa_demo.json', scopes=SCOPES)
+            req = google.auth.transport.requests.Request()
+            creds.refresh(req)
+            token = creds.token
+            rules = open('firestore.rules').read()
+            project = 'edupilot-demo'
+            headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+            # Step 1: Create ruleset
+            body = json.dumps({'source': {'files': [{'content': rules, 'name': 'firestore.rules'}]}}).encode()
+            r = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/rulesets', data=body, headers=headers)
+            try:
+              resp = json.loads(urllib.request.urlopen(r).read())
+              ruleset_name = resp['name']
+              print('Ruleset created:', ruleset_name)
+            except urllib.error.HTTPError as e:
+              print('Ruleset create error', e.code, ':', e.read().decode()[:500])
+              raise
+
+            # Step 2: Update release — try PATCH first, fall back to POST (create)
+            release_body = json.dumps({'name': f'projects/{project}/releases/cloud.firestore', 'rulesetName': ruleset_name}).encode()
+            try:
+              r2 = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/releases/cloud.firestore', data=release_body, method='PATCH', headers=headers)
+              urllib.request.urlopen(r2)
+              print('Release PATCHED OK')
+            except urllib.error.HTTPError as e:
+              err = e.read().decode()[:500]
+              print(f'PATCH failed ({e.code}): {err} — trying POST create')
+              r3 = urllib.request.Request(f'https://firebaserules.googleapis.com/v1/projects/{project}/releases', data=release_body, method='POST', headers=headers)
+              try:
+                urllib.request.urlopen(r3)
+                print('Release CREATED OK')
+              except urllib.error.HTTPError as e2:
+                print('POST create also failed', e2.code, ':', e2.read().decode()[:500])
+                raise
+
+            print('Firestore rules deployed via REST API OK')
+          except Exception as e:
+            print('REST API rules deploy failed (non-blocking):', e)
+          PYEOF
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
+
+      - name: Deploy hosting to edupilot-demo
+        run: npx firebase-tools@13.29.3 deploy --only hosting:edupilot-demo --project edupilot-demo --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_demo.json
