@@ -555,7 +555,8 @@ function BilanTab({ intervenants, refetchIntervenants }) {
   // Filter sessions by period
   const filteredSessions = sessions.filter(s => {
     if (!s.date) return false;
-    const d = new Date(s.date);
+    // date stored as Firestore Timestamp → use .toDate(); fallback for plain strings
+    const d = s.date?.toDate ? s.date.toDate() : new Date(s.date);
     if (isNaN(d)) return false;
     const moisMatch = filterMois === 'tous' || (d.getMonth() + 1) === Number(filterMois);
     const anneeMatch = filterAnnee === 'toutes' || d.getFullYear() === Number(filterAnnee);
