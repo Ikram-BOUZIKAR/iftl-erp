@@ -531,7 +531,7 @@ function BilanTab({ intervenants, refetchIntervenants }) {
   const fmtC = (n) => formatCurrency(n, branding.devise);
   const currSymbol = getCurrencySymbol(branding.devise);
   const now = new Date();
-  const [filterMois, setFilterMois] = useState(String(now.getMonth() + 1));
+  const [filterMois, setFilterMois] = useState('tous');
   const [filterAnnee, setFilterAnnee] = useState(String(now.getFullYear()));
   const [sessions, setSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
@@ -563,17 +563,21 @@ function BilanTab({ intervenants, refetchIntervenants }) {
     return moisMatch && anneeMatch;
   });
 
-  // Group filtered sessions by intervenantId
+  // Group filtered sessions by intervenantId, deduplicating multi-group sessions
+  // (same physical session creates N Firestore docs for N groups → count once per intervenant)
   const sessionsByIntervenant = {};
   for (const s of filteredSessions) {
     if (!s.intervenantId) continue;
-    if (!sessionsByIntervenant[s.intervenantId]) sessionsByIntervenant[s.intervenantId] = [];
-    sessionsByIntervenant[s.intervenantId].push(s);
+    if (!sessionsByIntervenant[s.intervenantId]) sessionsByIntervenant[s.intervenantId] = { seen: new Set(), list: [] };
+    const dedupKey = `${s.moduleId || s.module || ''}|${s.date || ''}|${s.heureDebut}|${s.heureFin}`;
+    if (sessionsByIntervenant[s.intervenantId].seen.has(dedupKey)) continue;
+    sessionsByIntervenant[s.intervenantId].seen.add(dedupKey);
+    sessionsByIntervenant[s.intervenantId].list.push(s);
   }
 
   // Build bilan rows for all intervenants
   const rows = intervenants.map(inv => {
-    const ivSessions = sessionsByIntervenant[inv.id] || [];
+    const ivSessions = (sessionsByIntervenant[inv.id]?.list) || [];
     const nbSeances = ivSessions.length;
     const totalHeures = ivSessions.reduce((acc, s) => acc + calcHeures(s.heureDebut, s.heureFin), 0);
     const tauxHoraire = inv.tauxHoraire != null ? Number(inv.tauxHoraire) : null;
@@ -581,8 +585,8 @@ function BilanTab({ intervenants, refetchIntervenants }) {
     return { ...inv, nbSeances, totalHeures, tauxHoraire, montantDu };
   }).sort((a, b) => b.totalHeures - a.totalHeures);
 
-  // KPI totals
-  const totalSeances = filteredSessions.length;
+  // KPI totals (sum deduplicated session counts from rows)
+  const totalSeances = rows.reduce((acc, r) => acc + r.nbSeances, 0);
   const totalHeuresGlobal = rows.reduce((acc, r) => acc + r.totalHeures, 0);
   const totalMasseSalariale = rows.reduce((acc, r) => acc + r.montantDu, 0);
 
