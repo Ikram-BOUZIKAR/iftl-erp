@@ -65,9 +65,9 @@ const ACCESS = {
   parent:      ['/', '/notes', '/annonces'],
 };
 
-function allowed(role, to) {
+function allowed(role, to, featureGrants) {
   const list = ACCESS[role];
-  return !list || list.includes(to);
+  return !list || list.includes(to) || (Array.isArray(featureGrants) && featureGrants.includes(to));
 }
 
 // ── Navigation tree ───────────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ export default function Sidebar({ open, role, auth, badges = {} }) {
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 px-2"
         style={{ scrollbarWidth: 'none' }}>
         {SECTIONS.map((sec, si) => {
-          const visible = sec.items.filter(i => allowed(role, i.to));
+          const visible = sec.items.filter(i => allowed(role, i.to, userProfile?.featureGrants));
           if (!visible.length) return null;
           const secLabel = sec.labelKey ? t(sec.labelKey) : null;
           return (

@@ -340,6 +340,92 @@ function ModalCreateUser({ onClose, onCreated }) {
   );
 }
 
+// ─── Feature grants ───────────────────────────────────────────────────────────
+
+const SHAREABLE_FEATURES = [
+  { path: '/justificatifs-paiement', label: 'Suivi des paiements',    icon: '💳' },
+  { path: '/facturation',            label: 'Facturation',             icon: '🧾' },
+  { path: '/rh',                     label: 'Ressources humaines',     icon: '👥' },
+  { path: '/statistiques',           label: 'Statistiques',            icon: '📊' },
+  { path: '/rapports',               label: 'Rapports',                icon: '📋' },
+  { path: '/candidatures',           label: 'Candidatures',            icon: '📥' },
+  { path: '/reinscriptions',         label: 'Réinscriptions',          icon: '🔄' },
+  { path: '/stages',                 label: 'Stages & alternance',     icon: '🎓' },
+  { path: '/transport',              label: 'Transport',               icon: '🚌' },
+  { path: '/emails',                 label: 'Emails',                  icon: '📧' },
+  { path: '/intervenants',           label: 'Intervenants',            icon: '👨‍🏫' },
+  { path: '/inscriptions',           label: 'Inscriptions',            icon: '📝' },
+];
+
+function FeatureGrantModal({ user, onClose, onSaved }) {
+  const toast = useToast();
+  const [grants, setGrants] = useState(user.featureGrants || []);
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (path) =>
+    setGrants(prev => prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'users', user.id), { featureGrants: grants, updatedAt: new Date() });
+      toast.success('Accès mis à jour');
+      onSaved(grants);
+      onClose();
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const displayName = user.prenom && user.nom ? `${user.prenom} ${user.nom}` : user.email;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 className="font-bold text-slate-800 text-base">Accès personnalisé</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{displayName} — pages supplémentaires</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-6 py-4 space-y-2 max-h-80 overflow-y-auto">
+          {SHAREABLE_FEATURES.map(f => (
+            <label key={f.path} className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={grants.includes(f.path)}
+                onChange={() => toggle(f.path)}
+                className="w-4 h-4 rounded border-slate-300 text-[#005989] focus:ring-[#005989]/30"
+              />
+              <span className="text-lg leading-none">{f.icon}</span>
+              <span className="text-sm font-medium text-slate-700">{f.label}</span>
+              {grants.includes(f.path) && (
+                <span className="ml-auto text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Activé</span>
+              )}
+            </label>
+          ))}
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
+            Annuler
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-5 py-2 text-sm font-semibold text-white rounded-xl transition-all disabled:opacity-50 bg-[#005989] hover:bg-[#005989]/90">
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Utilisateurs tab ─────────────────────────────────────────────────────────
 
 const ROLES = [
@@ -379,6 +465,7 @@ function UtilisateursTab({ userRole }) {
   const [updatingId, setUpdatingId] = useState(null);
   const [tab, setTab] = useState('actifs');
   const [showCreate, setShowCreate] = useState(false);
+  const [featureGrantUser, setFeatureGrantUser] = useState(null);
   const isAdmin = ['admin', 'direction'].includes(userRole);
 
   const loadUsers = async () => {
@@ -454,6 +541,13 @@ function UtilisateursTab({ userRole }) {
     <div className="space-y-4">
       {showCreate && (
         <ModalCreateUser onClose={() => setShowCreate(false)} onCreated={loadUsers} />
+      )}
+      {featureGrantUser && (
+        <FeatureGrantModal
+          user={featureGrantUser}
+          onClose={() => setFeatureGrantUser(null)}
+          onSaved={(grants) => setUsers(us => us.map(u => u.id === featureGrantUser.id ? { ...u, featureGrants: grants } : u))}
+        />
       )}
       {/* Header with tabs + create button */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -600,10 +694,15 @@ function UtilisateursTab({ userRole }) {
                       <p className="text-xs text-slate-400 truncate">{u.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[u.role] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                       {ROLE_LABEL[u.role] || u.role || 'Inconnu'}
                     </span>
+                    {u.featureGrants?.length > 0 && (
+                      <span className="text-[10px] font-bold text-[#005989] bg-[#005989]/10 border border-[#005989]/20 px-2 py-0.5 rounded-full">
+                        +{u.featureGrants.length} accès
+                      </span>
+                    )}
                     <select
                       value={u.role || ''}
                       onChange={e => handleRoleChange(u.id, e.target.value)}
@@ -613,6 +712,17 @@ function UtilisateursTab({ userRole }) {
                       <option value="">— Choisir —</option>
                       {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setFeatureGrantUser(u)}
+                        title="Accès personnalisé"
+                        className="p-1.5 rounded-lg border border-slate-200 hover:border-[#005989]/40 hover:bg-[#005989]/5 text-slate-400 hover:text-[#005989] transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

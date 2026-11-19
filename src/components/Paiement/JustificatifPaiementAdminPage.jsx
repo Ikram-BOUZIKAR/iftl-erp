@@ -63,20 +63,119 @@ function groupByCin(docs) {
   });
   return Object.values(map).map(e => {
     const tarif = TARIFS[e.niveau] || 0;
-    // Cash réel encaissé (dépôts validés, hors bourse)
+    // Cash réel encaissé (dépôts validés, hors bourse et hors remboursement)
     const totalValide = e.depots
-      .filter(d => d.statut === 'valide' && d.type !== 'bourse')
+      .filter(d => d.statut === 'valide' && d.type !== 'bourse' && d.type !== 'remboursement')
       .reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
     // Montant exonéré (bourses/exonérations — distinct du cash)
     const montantBourse = e.depots
       .filter(d => d.type === 'bourse')
       .reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
-    const totalTous = e.depots.filter(d => d.type !== 'bourse').reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
-    // Restant = tarif − cash encaissé − montant exonéré
-    const restant = Math.max(0, tarif - totalValide - montantBourse);
+    // Remboursements effectués
+    const totalRembourse = e.depots
+      .filter(d => d.type === 'remboursement')
+      .reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
+    const totalTous = e.depots.filter(d => d.type !== 'bourse' && d.type !== 'remboursement').reduce((s, d) => s + (Number(d.montantPaye) || 0), 0);
+    // Cash effectif = cash encaissé − remboursements
+    const effectifCash = Math.max(0, totalValide - totalRembourse);
+    // Restant = tarif − cash effectif − montant exonéré
+    const restant = Math.max(0, tarif - effectifCash - montantBourse);
     const hasBourse = montantBourse > 0;
-    return { ...e, tarif, totalValide, totalTous, restant, hasBourse, montantBourse };
+    const hasRembourse = totalRembourse > 0;
+    return { ...e, tarif, totalValide, totalRembourse, effectifCash, totalTous, restant, hasBourse, montantBourse, hasRembourse };
   });
+}
+
+function RemboursementModal({ student, onClose, onSaved }) {
+  const toast = useToast();
+  const { branding } = useBranding();
+  const fmtMAD = (n) => formatCurrency(n, branding.devise);
+  const [form, setForm] = useState({
+    montant: '',
+    motif: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleSave = async () => {
+    const val = Number(form.montant);
+    if (!val || val <= 0) { toast.error('Montant invalide'); return; }
+    if (!form.motif.trim()) { toast.error('Motif obligatoire'); return; }
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'justificatifs_paiement'), {
+        type: 'remboursement',
+        nom: student.nom,
+        prenom: student.prenom,
+        cin: student.cin,
+        telephone: student.telephone || '',
+        niveau: student.niveau,
+        niveauLabel: student.niveauLabel,
+        montantPaye: val,
+        motif: form.motif.trim(),
+        statut: 'valide',
+        createdAt: new Date(),
+      });
+      toast.success('Remboursement enregistré');
+      onSaved(); onClose();
+    } catch (err) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 className="font-bold text-slate-800 text-base">Remboursement</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{student.nom} {student.prenom} · {student.cin}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-6 py-4 space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-800">
+            <p className="font-semibold mb-0.5">Montant déjà encaissé : {fmtMAD(student.totalValide)}</p>
+            <p>Le remboursement sera déduit du montant effectif encaissé.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Montant remboursé (MAD) *</label>
+            <input
+              type="number" min="0" max={student.totalValide} autoFocus
+              value={form.montant}
+              onChange={e => set('montant', e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 tabular-nums"
+              placeholder="Ex: 5000"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Motif *</label>
+            <input
+              value={form.motif}
+              onChange={e => set('motif', e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+              placeholder="Ex: Trop-perçu, abandon, erreur de versement…"
+            />
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
+            Annuler
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-5 py-2 text-sm font-semibold text-white rounded-xl transition-all disabled:opacity-50 bg-orange-600 hover:bg-orange-700">
+            {saving ? 'Enregistrement…' : 'Enregistrer le remboursement'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function BourseModal({ onClose, onSaved }) {
@@ -353,7 +452,8 @@ function generateRecu(etudiant, devise = 'MAD') {
   y = doc.lastAutoTable.finalY + 8;
 
   // ── Récapitulatif ─────────────────────────────────────────────────────
-  const summaryH = etudiant.hasBourse ? 40 : 32;
+  const extraLines = (etudiant.hasBourse ? 1 : 0) + (etudiant.hasRembourse ? 1 : 0);
+  const summaryH = 32 + extraLines * 7;
   doc.setFillColor(240, 246, 252);
   doc.roundedRect(M, y, CW, summaryH, 3, 3, 'F');
   const col2 = PW - M - 6;
@@ -363,6 +463,7 @@ function generateRecu(etudiant, devise = 'MAD') {
     ['Cash encaissé (paiements validés)', fmtMAD(etudiant.totalValide)],
   ];
   if (etudiant.hasBourse) summaryLines.push(['Exonération / bourse', fmtMAD(etudiant.montantBourse)]);
+  if (etudiant.hasRembourse) summaryLines.push(['Remboursements effectués', '- ' + fmtMAD(etudiant.totalRembourse)]);
   doc.setFontSize(8.5);
   summaryLines.forEach(([label, val]) => {
     doc.setFont('helvetica', 'normal');
@@ -424,6 +525,7 @@ export default function JustificatifPaiementAdminPage() {
   const [expanded, setExpanded] = useState({}); // CIN → bool
   const [showBourseModal, setShowBourseModal] = useState(false);
   const [selectedForRecuIFTL, setSelectedForRecuIFTL] = useState(null);
+  const [selectedForRembourse, setSelectedForRembourse] = useState(null);
   const [editingAmount, setEditingAmount] = useState(null); // { id, value }
 
   const fetchData = useCallback(async () => {
@@ -489,10 +591,11 @@ export default function JustificatifPaiementAdminPage() {
   // Summary stats
   const totalEncaisse  = filteredStudents.reduce((s, e) => s + e.totalValide, 0);
   const totalExonere   = filteredStudents.reduce((s, e) => s + e.montantBourse, 0);
+  const totalRembourseGlobal = filteredStudents.reduce((s, e) => s + e.totalRembourse, 0);
   const totalRestant   = filteredStudents.reduce((s, e) => s + e.restant, 0);
   const nPayes         = filteredStudents.filter(e => e.restant === 0 && e.tarif > 0).length;
-  const nPartiel       = filteredStudents.filter(e => e.restant > 0 && (e.totalValide > 0 || e.montantBourse > 0)).length;
-  const nRien          = filteredStudents.filter(e => e.totalValide === 0 && e.montantBourse === 0).length;
+  const nPartiel       = filteredStudents.filter(e => e.restant > 0 && (e.effectifCash > 0 || e.montantBourse > 0)).length;
+  const nRien          = filteredStudents.filter(e => e.effectifCash === 0 && e.montantBourse === 0).length;
   const nBoursiers     = filteredStudents.filter(e => e.hasBourse).length;
 
   // ── Vue par dépôt ───────────────────────────────────────────────────────────
@@ -544,12 +647,12 @@ export default function JustificatifPaiementAdminPage() {
       {view === 'etudiants' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Cash encaissé',       value: fmtMAD(totalEncaisse), color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-            { label: 'Total exonéré',        value: fmtMAD(totalExonere),  color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200' },
-            { label: 'Restant à régler',     value: fmtMAD(totalRestant),  color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
-            { label: 'Soldés / Exonérés',    value: nPayes,                color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-            { label: 'Paiement partiel',     value: nPartiel,              color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-            { label: 'Aucun règlement',      value: nRien,                 color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+            { label: 'Cash encaissé',       value: fmtMAD(totalEncaisse),         color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+            { label: 'Total exonéré',        value: fmtMAD(totalExonere),          color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200' },
+            { label: 'Remboursements',       value: totalRembourseGlobal > 0 ? `− ${fmtMAD(totalRembourseGlobal)}` : '—', color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200' },
+            { label: 'Restant à régler',     value: fmtMAD(totalRestant),          color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+            { label: 'Soldés / Exonérés',    value: nPayes,                        color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+            { label: 'Paiement partiel',     value: nPartiel,                      color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
           ].map(c => (
             <div key={c.label} className={`rounded-xl border p-3 ${c.bg}`}>
               <p className={`text-xl font-black ${c.color} tabular-nums`}>{c.value}</p>
@@ -695,6 +798,13 @@ export default function JustificatifPaiementAdminPage() {
                                   🏛 Reçu IFTL
                                 </button>
                               )}
+                              {e.totalValide > 0 && (
+                                <button
+                                  onClick={ev => { ev.stopPropagation(); setSelectedForRembourse(e); }}
+                                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-orange-700 border border-orange-300 rounded-lg hover:bg-orange-50 transition-colors">
+                                  ↩ Remboursement
+                                </button>
+                              )}
                             </div>
                             <div className="space-y-1.5">
                               {e.depots.map(d => (
@@ -703,12 +813,19 @@ export default function JustificatifPaiementAdminPage() {
                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
                                       {d.typeBourse === 'totale' ? 'Exonération totale' : 'Bourse partielle'}
                                     </span>
+                                  ) : d.type === 'remboursement' ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                                      ↩ Remboursé
+                                    </span>
                                   ) : (
                                     <Badge statut={d.statut} />
                                   )}
                                   <span className="text-xs text-slate-500">{formatDate(d.createdAt)}</span>
                                   {d.type === 'bourse' && d.organismeBoursier && (
                                     <span className="text-xs text-violet-600 font-medium">{d.organismeBoursier}</span>
+                                  )}
+                                  {d.type === 'remboursement' && d.motif && (
+                                    <span className="text-xs text-orange-600 font-medium">{d.motif}</span>
                                   )}
                                   {editingAmount?.id === d.id ? (
                                     <div className="flex items-center gap-1.5 ml-auto" onClick={ev => ev.stopPropagation()}>
@@ -730,10 +847,10 @@ export default function JustificatifPaiementAdminPage() {
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-2 ml-auto" onClick={ev => ev.stopPropagation()}>
-                                      <span className={`font-semibold tabular-nums ${d.type === 'bourse' ? 'text-violet-700' : 'text-slate-800'}`}>
-                                        {fmtMAD(d.montantPaye)}
+                                      <span className={`font-semibold tabular-nums ${d.type === 'bourse' ? 'text-violet-700' : d.type === 'remboursement' ? 'text-orange-700' : 'text-slate-800'}`}>
+                                        {d.type === 'remboursement' ? `− ${fmtMAD(d.montantPaye)}` : fmtMAD(d.montantPaye)}
                                       </span>
-                                      {d.type !== 'bourse' && (
+                                      {d.type !== 'bourse' && d.type !== 'remboursement' && (
                                         <button
                                           onClick={() => setEditingAmount({ id: d.id, value: d.montantPaye ?? '' })}
                                           className="px-2 py-0.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors">
@@ -749,7 +866,7 @@ export default function JustificatifPaiementAdminPage() {
                                     </button>
                                   )}
                                   <div className="flex gap-1 ml-2" onClick={ev => ev.stopPropagation()}>
-                                    {d.type !== 'bourse' && d.statut === 'en_attente' && <>
+                                    {d.type !== 'bourse' && d.type !== 'remboursement' && d.statut === 'en_attente' && <>
                                       <button onClick={() => updateStatut(d.id, 'valide')}
                                         className="px-2 py-0.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100">
                                         Valider
@@ -759,7 +876,7 @@ export default function JustificatifPaiementAdminPage() {
                                         Refuser
                                       </button>
                                     </>}
-                                    {d.type !== 'bourse' && d.statut !== 'en_attente' && (
+                                    {d.type !== 'bourse' && d.type !== 'remboursement' && d.statut !== 'en_attente' && (
                                       <button onClick={() => updateStatut(d.id, 'en_attente')}
                                         className="px-2 py-0.5 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded hover:bg-slate-100">
                                         Réinitialiser
@@ -890,6 +1007,13 @@ export default function JustificatifPaiementAdminPage() {
       {showBourseModal && (
         <BourseModal
           onClose={() => setShowBourseModal(false)}
+          onSaved={fetchData}
+        />
+      )}
+      {selectedForRembourse && (
+        <RemboursementModal
+          student={selectedForRembourse}
+          onClose={() => setSelectedForRembourse(null)}
           onSaved={fetchData}
         />
       )}
