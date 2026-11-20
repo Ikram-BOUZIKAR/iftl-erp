@@ -7,6 +7,7 @@ import { HelpButton } from '../UI/HelpGuide';
 
 const ACCESS = {
   admin:       null,
+  demo:        null,
   direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
   scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
   intervenant: ['/', '/planning', '/masse-horaire', '/emargement', '/modules', '/notes', '/apprenants', '/annonces'],

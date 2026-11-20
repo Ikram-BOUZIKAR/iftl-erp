@@ -5,6 +5,7 @@
  */
 export const ROLE_NIVEAUX = {
   admin:           null,
+  demo:            null,
   direction:       null,
   scolarite:       null,
   // Formation Supérieure : Licence CNAM + Licence ISTL (Transitaire) + Mastère
@@ -24,6 +25,7 @@ export const ROLE_NIVEAUX = {
  */
 export const ROLE_ROUTES = {
   admin:           null,
+  demo:            null,
   direction:       null,
   scolarite:       null,
   scolarite_sup: [
@@ -60,6 +62,7 @@ export function canSeeNiveau(niveauxAcces, niveau) {
 /** Labels français des rôles pour l'UI. */
 export const ROLE_LABELS = {
   admin:           'Administrateur',
+  demo:            'Accès démo',
   direction:       'Direction',
   scolarite:       'Scolarité',
   scolarite_sup:   'Scolarité — Formation Supérieure',

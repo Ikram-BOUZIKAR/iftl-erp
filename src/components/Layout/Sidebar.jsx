@@ -55,6 +55,7 @@ import { ROLE_ROUTES } from '../../utils/roleConfig';
 
 const ACCESS = {
   admin:       null,  // null = all
+  demo:        null,  // full read-only showcase access
   direction:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/rh', '/formation-continue', '/stages', '/documents', '/bibliotheque', '/transport', '/annonces', '/collaboratif', '/emails', '/rapports', '/statistiques'],
   scolarite:   ['/', '/planning', '/planning-rentree', '/masse-horaire', '/emargement', '/modules', '/notes', '/saisie-notes', '/absences', '/releves', '/apprenants', '/groupes', '/intervenants', '/candidatures', '/inscriptions', '/reinscriptions', '/justificatifs-paiement', '/facturation', '/stages', '/documents', '/annonces', '/emails', '/rapports', '/statistiques', '/parametres'],
   ...Object.fromEntries(

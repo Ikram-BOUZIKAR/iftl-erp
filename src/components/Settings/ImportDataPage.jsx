@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { collection, writeBatch, doc, getDocs, query, setDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { db, auth } from '../../services/firebase';
 import { SEED_GROUPES, SEED_STUDENTS, SEED_JUSTIFICATIFS, SEED_BRANDING, SEED_INTERVENANTS, SEED_MODULES, SEED_SESSIONS, SEED_PRESENCES, SEED_FACTURES } from '../../data/seedData';
+
+const DEMO_EMAIL    = 'demo@iftl.ma';
+const DEMO_PASSWORD = 'Demo@IFTL2025';
 
 const BRAND = { blue: '#005989', yellow: '#f5c845', red: '#c8141b', green: '#c8d45d', orange: '#d75930' };
 
@@ -73,8 +77,8 @@ async function checkExisting(collectionName) {
 }
 
 export default function ImportDataPage() {
-  const [steps, setSteps] = useState({ groupes: 'idle', students: 'idle', paiements: 'idle', branding: 'idle', intervenants: 'idle', modules: 'idle', planning: 'idle', factures: 'idle' });
-  const [loading, setLoading] = useState({ groupes: false, students: false, paiements: false, branding: false, intervenants: false, modules: false, planning: false, factures: false });
+  const [steps, setSteps] = useState({ groupes: 'idle', students: 'idle', paiements: 'idle', branding: 'idle', intervenants: 'idle', modules: 'idle', planning: 'idle', factures: 'idle', demoUser: 'idle' });
+  const [loading, setLoading] = useState({ groupes: false, students: false, paiements: false, branding: false, intervenants: false, modules: false, planning: false, factures: false, demoUser: false });
   const [results, setResults] = useState({});
   const [log, setLog] = useState([]);
 
@@ -171,6 +175,27 @@ export default function ImportDataPage() {
         }
       }
 
+      if (step === 'demoUser') {
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, DEMO_EMAIL, DEMO_PASSWORD);
+          await setDoc(doc(db, 'users', cred.user.uid), {
+            uid: cred.user.uid,
+            email: DEMO_EMAIL,
+            displayName: 'Compte Démo',
+            role: 'demo',
+            createdAt: new Date(),
+          });
+          addLog(`✓ Compte démo créé : ${DEMO_EMAIL}`, 'ok');
+          addLog(`  Mot de passe : ${DEMO_PASSWORD}`, 'info');
+        } catch (err) {
+          if (err.code === 'auth/email-already-in-use') {
+            addLog(`⚠ Compte démo déjà existant (${DEMO_EMAIL})`, 'warn');
+          } else {
+            throw err;
+          }
+        }
+      }
+
       setSteps(prev => ({ ...prev, [step]: 'done' }));
     } catch (err) {
       console.error(err);
@@ -260,6 +285,11 @@ export default function ImportDataPage() {
           num="8" title="Import des factures" status={steps.factures} loading={loading.factures}
           desc={`${SEED_FACTURES.length} factures – 5 soldées · 15 partielles · 5 impayées`}
           onRun={() => runStep('factures')}
+        />
+        <Step
+          num="9" title="Créer le compte démo" status={steps.demoUser} loading={loading.demoUser}
+          desc={`Email : ${DEMO_EMAIL} · Rôle : Accès démo (toutes les fonctionnalités)`}
+          onRun={() => runStep('demoUser')}
         />
       </div>
 

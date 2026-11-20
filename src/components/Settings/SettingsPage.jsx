@@ -323,6 +323,7 @@ function ModalCreateUser({ onClose, onCreated }) {
               <option value="dir_cnam">Direction pédago — Licence CNAM</option>
               <option value="dir_transitaire">Direction pédago — Licence ISTL</option>
               <option value="intervenant">Intervenant</option>
+              <option value="demo">Accès démo</option>
               <option value="admin">Administrateur</option>
             </select>
           </div>
@@ -430,6 +431,7 @@ function FeatureGrantModal({ user, onClose, onSaved }) {
 
 const ROLES = [
   { value: 'admin',           label: 'Administrateur'                   },
+  { value: 'demo',            label: 'Accès démo'                       },
   { value: 'direction',       label: 'Direction'                        },
   { value: 'scolarite',       label: 'Scolarité'                        },
   { value: 'scolarite_sup',   label: 'Scolarité — Formation Supérieure' },
@@ -443,6 +445,7 @@ const ROLES = [
 
 const ROLE_BADGE = {
   admin:           'bg-indigo-100 text-indigo-700 border-indigo-200',
+  demo:            'bg-[#f5c845]/20 text-[#8a6a00] border-[#f5c845]/40',
   direction:       'bg-[#005989]/10 text-[#005989] border-[#005989]/20',
   scolarite:       'bg-[#c8d45d]/30 text-[#5a6a00] border-[#c8d45d]/50',
   scolarite_sup:   'bg-purple-100 text-purple-700 border-purple-200',
