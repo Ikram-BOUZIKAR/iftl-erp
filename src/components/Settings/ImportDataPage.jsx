@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { collection, writeBatch, doc, getDocs, query, setDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, query, where, setDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '../../services/firebase';
 import { SEED_GROUPES, SEED_STUDENTS, SEED_JUSTIFICATIFS, SEED_BRANDING, SEED_INTERVENANTS, SEED_MODULES, SEED_SESSIONS, SEED_PRESENCES, SEED_FACTURES } from '../../data/seedData';
@@ -189,7 +189,15 @@ export default function ImportDataPage() {
           addLog(`  Mot de passe : ${DEMO_PASSWORD}`, 'info');
         } catch (err) {
           if (err.code === 'auth/email-already-in-use') {
-            addLog(`⚠ Compte démo déjà existant (${DEMO_EMAIL})`, 'warn');
+            addLog(`⚠ Compte démo déjà existant — mise à jour du rôle…`, 'warn');
+            const snap = await getDocs(query(collection(db, 'users'), where('email', '==', DEMO_EMAIL)));
+            if (!snap.empty) {
+              await updateDoc(snap.docs[0].ref, { role: 'admin', updatedAt: new Date() });
+              addLog(`✓ Rôle mis à jour → admin`, 'ok');
+            } else {
+              addLog(`⚠ Document Firestore introuvable pour ${DEMO_EMAIL}`, 'warn');
+              addLog(`  Allez sur Firebase Console → users → créez le document manuellement`, 'info');
+            }
           } else {
             throw err;
           }
