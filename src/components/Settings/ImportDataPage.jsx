@@ -182,7 +182,7 @@ export default function ImportDataPage() {
             uid: cred.user.uid,
             email: DEMO_EMAIL,
             displayName: 'Compte Démo',
-            role: 'demo',
+            role: 'admin',
             createdAt: new Date(),
           });
           addLog(`✓ Compte démo créé : ${DEMO_EMAIL}`, 'ok');
@@ -288,7 +288,7 @@ export default function ImportDataPage() {
         />
         <Step
           num="9" title="Créer le compte démo" status={steps.demoUser} loading={loading.demoUser}
-          desc={`Email : ${DEMO_EMAIL} · Rôle : Accès démo (toutes les fonctionnalités)`}
+          desc={`Email : ${DEMO_EMAIL} · Rôle : Administrateur (accès complet)`}
           onRun={() => runStep('demoUser')}
         />
       </div>
