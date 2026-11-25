@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { collection, writeBatch, doc, getDocs, query, where, setDoc, updateDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { initializeApp, getApps, deleteApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { db, auth } from '../../services/firebase';
 import { SEED_GROUPES, SEED_STUDENTS, SEED_JUSTIFICATIFS, SEED_BRANDING, SEED_INTERVENANTS, SEED_MODULES, SEED_SESSIONS, SEED_PRESENCES, SEED_FACTURES } from '../../data/seedData';
 
@@ -189,14 +191,24 @@ export default function ImportDataPage() {
           addLog(`  Mot de passe : ${DEMO_PASSWORD}`, 'info');
         } catch (err) {
           if (err.code === 'auth/email-already-in-use') {
-            addLog(`⚠ Compte démo déjà existant — mise à jour du rôle…`, 'warn');
-            const snap = await getDocs(query(collection(db, 'users'), where('email', '==', DEMO_EMAIL)));
-            if (!snap.empty) {
-              await updateDoc(snap.docs[0].ref, { role: 'admin', updatedAt: new Date() });
-              addLog(`✓ Rôle mis à jour → admin`, 'ok');
-            } else {
-              addLog(`⚠ Document Firestore introuvable pour ${DEMO_EMAIL}`, 'warn');
-              addLog(`  Allez sur Firebase Console → users → créez le document manuellement`, 'info');
+            addLog(`⚠ Compte démo déjà existant — récupération UID via app secondaire…`, 'warn');
+            const mainApp = getApps()[0];
+            const tempName = 'demo-fix-' + Date.now();
+            const tempApp = initializeApp(mainApp.options, tempName);
+            try {
+              const tempAuth = getAuth(tempApp);
+              const cred = await signInWithEmailAndPassword(tempAuth, DEMO_EMAIL, DEMO_PASSWORD);
+              await setDoc(doc(db, 'users', cred.user.uid), {
+                uid: cred.user.uid,
+                email: DEMO_EMAIL,
+                displayName: 'Compte Démo',
+                role: 'admin',
+                createdAt: new Date(),
+              });
+              addLog(`✓ Document Firestore créé — rôle admin`, 'ok');
+              addLog(`  UID : ${cred.user.uid}`, 'info');
+            } finally {
+              await deleteApp(tempApp);
             }
           } else {
             throw err;
